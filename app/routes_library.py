@@ -163,6 +163,7 @@ def list_tags(request: Request, user: dict = Depends(current_user)):
 @router.get("/downloads")
 def list_downloads(request: Request, user: dict = Depends(current_user)):
     settings = get_settings(request)
+    worker = request.app.state.downloader
     with tx(settings.db_path) as conn:
         if user["role"] == "admin":
             rows = conn.execute("SELECT d.*, u.username FROM downloads d JOIN users u ON u.id=d.user_id "
@@ -170,8 +171,15 @@ def list_downloads(request: Request, user: dict = Depends(current_user)):
         else:
             rows = conn.execute("SELECT d.*, u.username FROM downloads d JOIN users u ON u.id=d.user_id "
                                 "WHERE d.user_id=? ORDER BY d.id DESC LIMIT 100", (user["id"],)).fetchall()
-    return [{"id": r["id"], "url": r["url"], "status": r["status"], "error": r["error"], "title": r["title"],
-             "track_id": r["track_id"], "user": r["username"], "created_at": r["created_at"]} for r in rows]
+    live = worker.progress()
+    jobs = []
+    for r in rows:
+        extra = live.get(r["id"], {}) if r["status"] == "running" else {}
+        jobs.append({"id": r["id"], "url": r["url"], "status": r["status"], "error": r["error"],
+                     "title": r["title"] or extra.get("title"), "track_id": r["track_id"], "user": r["username"],
+                     "created_at": r["created_at"], "stage": extra.get("stage"), "percent": extra.get("percent"),
+                     "speed": extra.get("speed"), "eta": extra.get("eta")})
+    return {"jobs": jobs, "pause_remaining": worker.pause_remaining()}
 
 
 @router.post("/downloads", status_code=201)

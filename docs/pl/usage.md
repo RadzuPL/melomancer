@@ -77,6 +77,8 @@ Bot opuszcza kanał po 30 minutach bez żadnego człowieka w środku (`IDLE_LEAV
 
 Wklej adres **jednego** filmu lub utworu z dozwolonego serwisu (domyślnie YouTube, SoundCloud, Bandcamp) i naciśnij **Pobierz**. Serwer pobiera dźwięk jeden raz, konwertuje go i dodaje do wspólnej biblioteki z wpisanymi tagami. Potem gra z dysku, więc w trakcie sesji nic nie zależy od YouTube.
 
+Lista pokazuje, co robi każde pobieranie: przygotowanie (łączenie z serwisem, potrafi trwać kilka sekund), pobieranie z paskiem postępu, szybkością i czasem do końca, konwersję oraz dodawanie do biblioteki. Zlecenie czekające w kolejce pokazuje, ile sekund zostało z przerwy między pobraniami. Po zakończeniu lub błędzie pobierania pojawia się komunikat.
+
 Zasady chroniące twój adres IP: jedno pobieranie naraz, przerwa między nimi, dzienny limit (zobacz [Konfiguracja](configuration.md)), playlisty nie są rozwijane. Nieudane zlecenie pokazuje powód, np. YouTube prosi o „potwierdzenie, że nie jesteś botem”. Pobranie świeżego obrazu przynosi nowszy `yt-dlp`, zobacz [Rozwiązywanie problemów](troubleshooting.md). Najpierw przeczytaj uwagi o regulaminach w [Bezpieczeństwie](security.md). Wgrywanie własnych plików albo muzyka na wolnych licencjach to zawsze bezpieczna droga.
 
 ## Administracja

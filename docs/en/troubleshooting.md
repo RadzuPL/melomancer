@@ -50,6 +50,13 @@ Only mp3, ogg, opus, flac, wav, m4a, aac and webm files that contain an audio st
 
 Open the Downloads tab, the error text is shown next to the job.
 
+**A download seems stuck.**
+Look at the stage text under the title. "Preparing" can last 10 to 30 seconds (the site is contacted and a JavaScript challenge is solved), "Downloading" shows a percentage, and a queued job shows "starts in N s": that is the deliberate pause between downloads (`YTDLP_MIN_GAP_SECONDS`). The log has a line for the start and the end of every download with its duration:
+
+```
+docker logs --tail 50 melomancer
+```
+
 **"Sign in to confirm you're not a bot".**
 YouTube is refusing requests from your IP address for now. Stop downloading for a few days, lower `YTDLP_DAILY_LIMIT`, raise `YTDLP_MIN_GAP_SECONDS`. Playing music that is already in the library is not affected. Do not feed it the cookies of your main account.
 

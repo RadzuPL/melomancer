@@ -13,6 +13,7 @@ const dynamic = [
   "tab.player", "tab.library", "tab.playlists", "tab.downloads", "tab.admin",
   "upload.created", "upload.revived", "upload.duplicate",
   "dl.queued", "dl.running", "dl.done", "dl.error",
+  "dl.preparing", "dl.downloading", "dl.converting", "dl.importing",
   "role.user", "role.admin",
   "bot.disabled", "bot.starting", "bot.ready", "bot.login_failed", "bot.error",
 ];

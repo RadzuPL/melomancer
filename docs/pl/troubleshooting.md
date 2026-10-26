@@ -50,6 +50,13 @@ Przyjmowane są tylko pliki mp3, ogg, opus, flac, wav, m4a, aac i webm, które z
 
 Otwórz zakładkę Pobieranie, tekst błędu jest obok zlecenia.
 
+**Pobieranie wygląda na zawieszone.**
+Patrz na tekst etapu pod tytułem. „Przygotowanie” może trwać 10 do 30 sekund (łączenie z serwisem i rozwiązanie zadania JavaScript), „Pobieranie” pokazuje procenty, a zlecenie w kolejce pokazuje „start za N s”: to celowa przerwa między pobraniami (`YTDLP_MIN_GAP_SECONDS`). W logu jest linia o starcie i końcu każdego pobrania z czasem trwania:
+
+```
+docker logs --tail 50 melomancer
+```
+
 **„Sign in to confirm you're not a bot”.**
 YouTube na razie odrzuca żądania z twojego adresu IP. Przestań pobierać na kilka dni, obniż `YTDLP_DAILY_LIMIT`, podnieś `YTDLP_MIN_GAP_SECONDS`. Odtwarzanie muzyki, która już jest w bibliotece, nie jest tym dotknięte. Nie podawaj mu ciasteczek swojego głównego konta.
 

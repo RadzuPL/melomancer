@@ -7,7 +7,9 @@ from __future__ import annotations
 
 import json
 import logging
+import math
 import threading
+import time
 from pathlib import Path
 from typing import Callable
 from urllib.parse import urlsplit
@@ -18,8 +20,10 @@ from .library import IngestError, ingest
 
 log = logging.getLogger("melomancer.downloads")
 
-# fetch(url, workdir, settings) -> (downloaded file, display title, final source url)
-FetchFunc = Callable[[str, Path, Settings], "tuple[Path, str, str]"]
+# report(stage=..., percent=..., speed=..., eta=..., title=...) tells the panel how far a download is.
+ReportFunc = Callable[..., None]
+# fetch(url, workdir, settings, report) -> (downloaded file, display title, final source url)
+FetchFunc = Callable[[str, Path, Settings, ReportFunc], "tuple[Path, str, str]"]
 
 
 class DownloadRejected(Exception):
@@ -62,7 +66,7 @@ def enqueue(settings: Settings, user_id: int, url: str, tags: list[str]) -> int:
         return int(cur.lastrowid)
 
 
-def ytdlp_fetch(url: str, workdir: Path, settings: Settings) -> tuple[Path, str, str]:
+def ytdlp_fetch(url: str, workdir: Path, settings: Settings, report: ReportFunc) -> tuple[Path, str, str]:
     import yt_dlp  # imported lazily so the panel still starts if the package is broken
 
     class _Log:
@@ -74,7 +78,25 @@ def ytdlp_fetch(url: str, workdir: Path, settings: Settings) -> tuple[Path, str,
         def error(self, msg: str) -> None:
             log.warning("yt-dlp: %s", msg)
 
+    def on_progress(data: dict) -> None:
+        title = (data.get("info_dict") or {}).get("title")
+        if title:
+            report(title=str(title))
+        if data.get("status") == "downloading":
+            total = data.get("total_bytes") or data.get("total_bytes_estimate")
+            done = data.get("downloaded_bytes") or 0
+            report(stage="downloading", percent=round(done / total * 100, 1) if total else None,
+                   speed=data.get("speed"), eta=data.get("eta"))
+        elif data.get("status") == "finished":
+            report(stage="converting", percent=None, speed=None, eta=None)
+
+    def on_postprocess(data: dict) -> None:
+        if data.get("status") == "started":
+            report(stage="converting", percent=None, speed=None, eta=None)
+
     options = {
+        "progress_hooks": [on_progress],
+        "postprocessor_hooks": [on_postprocess],
         "format": "bestaudio/best",
         "outtmpl": str(workdir / "%(id)s.%(ext)s"),
         "noplaylist": True,
@@ -113,6 +135,23 @@ class Downloader:
         self._wake = threading.Event()
         self._stop = threading.Event()
         self._thread: threading.Thread | None = None
+        self._progress: dict[int, dict] = {}
+        self._lock = threading.Lock()
+        self._pause_until = 0.0
+
+    # ---- progress, read by the API ---------------------------------------
+
+    def _report(self, job_id: int, **fields) -> None:
+        with self._lock:
+            self._progress.setdefault(job_id, {}).update(fields)
+
+    def progress(self) -> dict[int, dict]:
+        with self._lock:
+            return {job: dict(values) for job, values in self._progress.items()}
+
+    def pause_remaining(self) -> int:
+        """Seconds until the next queued download may start (the deliberate pause between downloads)."""
+        return max(0, math.ceil(self._pause_until - time.monotonic()))
 
     def start(self) -> None:
         if not self.settings.ytdlp_enabled or self._thread:
@@ -152,10 +191,16 @@ class Downloader:
         job = self._next_job()
         if job is None:
             return False
-        workdir = self.settings.tmp_dir / f"dl-{job['id']}"
+        job_id = job["id"]
+        workdir = self.settings.tmp_dir / f"dl-{job_id}"
         workdir.mkdir(parents=True, exist_ok=True)
+        started = time.monotonic()
+        self._report(job_id, stage="preparing", percent=None, speed=None, eta=None)
+        log.info("Download %s started (%s)", job_id, urlsplit(job["url"]).hostname)
         try:
-            path, title, final_url = self._fetch(job["url"], workdir, self.settings)
+            path, title, final_url = self._fetch(job["url"], workdir, self.settings,
+                                                 lambda **fields: self._report(job_id, **fields))
+            self._report(job_id, stage="importing", percent=None, speed=None, eta=None, title=title)
             track, status = ingest(
                 self.settings, path, owner_id=job["user_id"], original_name=path.name,
                 source="youtube", source_url=final_url, title=title, tags=json.loads(job["tags"] or "[]"),
@@ -171,12 +216,16 @@ class Downloader:
             for leftover in workdir.glob("*"):
                 leftover.unlink(missing_ok=True)
             workdir.rmdir()
+            with self._lock:
+                self._progress.pop(job_id, None)
+            log.info("Download %s finished after %.0f s", job_id, time.monotonic() - started)
         return True
 
     def _run(self) -> None:
         while not self._stop.is_set():
             if self.process_one():
-                # Pause between downloads, interruptible by shutdown.
+                # Pause between downloads, interruptible by shutdown. The panel shows the remaining seconds.
+                self._pause_until = time.monotonic() + self.settings.ytdlp_min_gap
                 self._stop.wait(self.settings.ytdlp_min_gap)
             else:
                 self._wake.wait(timeout=30)

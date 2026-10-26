@@ -776,20 +776,48 @@ async function viewDownloads(main) {
       h("p", { class: "muted small" }, tr("downloads_hint", { hosts: system.download_hosts.join(", ") }))),
     h("div", { class: "card" }, list));
 
+  const previous = new Map();
+  const fmtSpeed = (bytes) => (bytes ? (bytes / 1048576 >= 1 ? (bytes / 1048576).toFixed(1) + " MB/s" : Math.round(bytes / 1024) + " kB/s") : "");
+
+  function progressCell(j, first) {
+    if (j.status === "queued") {
+      const wait = first && pauseLeft > 0 ? " · " + tr("dl.starts_in", { n: pauseLeft }) : "";
+      return h("div", { class: "muted small" }, tr("dl.queued") + wait);
+    }
+    if (j.status !== "running") return null;
+    const known = typeof j.percent === "number";
+    const bar = h("div", {});
+    if (known) bar.style.width = Math.min(100, j.percent) + "%";
+    const text = [tr("dl." + (j.stage || "preparing")), known ? j.percent.toFixed(0) + "%" : "", fmtSpeed(j.speed),
+      j.eta ? tr("dl.eta", { t: fmtTime(j.eta) }) : ""].filter(Boolean).join(" · ");
+    return h("div", {}, h("div", { class: "progress" + (known ? "" : " indeterminate") }, bar), h("div", { class: "muted small" }, text));
+  }
+
+  let pauseLeft = 0;
   async function refresh() {
     clearTimeout(timer);
     if (state.tab !== "downloads" || !document.body.contains(list)) return;
-    let jobs;
-    try { jobs = await api("GET", "/api/downloads"); } catch (_) { return; }
+    let data;
+    try { data = await api("GET", "/api/downloads"); } catch (_) { return; }
+    const jobs = data.jobs;
+    pauseLeft = data.pause_remaining;
+    for (const j of jobs) {
+      if (previous.get(j.id) === "running" && j.status === "done") toast(tr("dl.finished", { title: j.title || j.url }), "ok");
+      if (previous.get(j.id) === "running" && j.status === "error") toast(tr("dl.failed") + ": " + errorText(new Error(j.error || "error")), "err");
+      previous.set(j.id, j.status);
+    }
+    const firstQueued = [...jobs].reverse().find((j) => j.status === "queued");
     const badge = { queued: "", running: "warn", done: "ok", error: "bad" };
-    list.replaceChildren(jobs.length ? h("table", {}, h("thead", {}, h("tr", {}, h("th", {}, tr("status")), h("th", {}, "URL"), h("th", {}, tr("title")), h("th", {}, tr("owner")), h("th", {}))),
+    list.replaceChildren(jobs.length ? h("table", {}, h("thead", {}, h("tr", {}, h("th", {}, tr("status")), h("th", {}, tr("title")), h("th", {}, tr("owner")), h("th", {}))),
       h("tbody", {}, jobs.map((j) => h("tr", {},
         h("td", {}, h("span", { class: "badge " + badge[j.status] }, tr("dl." + j.status))),
-        h("td", { class: "title-cell", title: j.url }, j.url),
-        h("td", {}, j.title || "", j.error ? h("div", { class: "muted small" }, errorText(new Error(j.error))) : null),
+        h("td", { class: "title-cell" },
+          h("div", { title: j.url }, j.title || j.url),
+          j.error ? h("div", { class: "muted small" }, errorText(new Error(j.error))) : null,
+          progressCell(j, j === firstQueued)),
         h("td", { class: "muted small" }, j.user),
         h("td", { class: "actions" }, j.status === "running" ? null : h("button", { class: "btn small icon", title: tr("delete"), onclick: async () => { try { await api("DELETE", `/api/downloads/${j.id}`); refresh(); } catch (err) { fail(err); } } }, "✕")))))) : h("p", { class: "muted" }, tr("no_downloads")));
-    if (jobs.some((j) => j.status === "queued" || j.status === "running")) timer = setTimeout(refresh, 3000);
+    if (jobs.some((j) => j.status === "queued" || j.status === "running")) timer = setTimeout(refresh, 1000);
   }
   refresh();
 }

@@ -45,13 +45,18 @@ def test_daily_limit_and_switch(settings):
 
 
 def test_worker_ingests_a_finished_download(settings, tmp_path):
-    def fetch(url, workdir, cfg):
+    def fetch(url, workdir, cfg, report):
+        report(stage="downloading", percent=42.0, speed=1_000_000, eta=3, title="Rain on the glass")
+        seen.append(worker.progress()[job])
         return make_wav(workdir / "clip.wav", 500), "Rain on the glass", url
 
+    seen = []
     job = enqueue(settings, 1, "https://youtu.be/rain", ["Rain"])
     worker = Downloader(settings, fetch=fetch)
     assert worker.process_one() is True
     assert worker.process_one() is False  # queue empty
+    assert seen and seen[0]["percent"] == 42.0 and seen[0]["stage"] == "downloading"
+    assert worker.progress() == {}  # nothing is reported for a finished job
 
     with tx(settings.db_path) as conn:
         row = conn.execute("SELECT * FROM downloads WHERE id=?", (job,)).fetchone()
@@ -64,7 +69,7 @@ def test_worker_ingests_a_finished_download(settings, tmp_path):
 
 
 def test_worker_records_failures_and_keeps_going(settings):
-    def fetch(url, workdir, cfg):
+    def fetch(url, workdir, cfg, report):
         raise RuntimeError("Sign in to confirm you're not a bot")
 
     job = enqueue(settings, 1, "https://youtu.be/blocked", [])
@@ -81,11 +86,12 @@ def test_download_api_validates_and_scopes_jobs(env):
     assert bad.status_code == 400 and bad.json()["detail"] == "host_not_allowed"
     ok = env.client.post("/api/downloads", json={"url": "https://youtu.be/abc", "tags": ["Ambient"]})
     assert ok.status_code == 201
-    assert [d["status"] for d in env.client.get("/api/downloads").json()] == ["queued"]
+    listing = env.client.get("/api/downloads").json()
+    assert [d["status"] for d in listing["jobs"]] == ["queued"] and listing["pause_remaining"] == 0
 
     make_user(env, "mg1")
     login(env, "mg1")
-    assert env.client.get("/api/downloads").json() == []  # other users' jobs are not listed
+    assert env.client.get("/api/downloads").json()["jobs"] == []  # other users' jobs are not listed
     assert env.client.delete(f"/api/downloads/{ok.json()['id']}").status_code == 404
 
     login(env, "admin")

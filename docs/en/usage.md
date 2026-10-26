@@ -77,6 +77,8 @@ The bot leaves a channel after 30 minutes without any human in it (`IDLE_LEAVE_M
 
 Paste the address of **one** video or track from an allowed site (YouTube, SoundCloud, Bandcamp by default) and press **Download**. The server fetches the audio once, converts it, and adds it to the shared library, with the tags you typed. After that it plays from disk, so nothing depends on YouTube during the session.
 
+The list shows what each download is doing: preparing (contacting the site, this can take several seconds), downloading with a progress bar, speed and time left, converting, and adding to the library. A job waiting in the queue shows how many seconds are left of the pause between downloads. A message pops up when a download finishes or fails.
+
 Rules that protect your IP address: one download at a time, a pause between them, a daily limit (see [Configuration](configuration.md)), playlists are not expanded. A failed job shows the reason, for example YouTube asking to "sign in to confirm you are not a bot". Pulling a fresh image brings a newer `yt-dlp`, see [Troubleshooting](troubleshooting.md). Read the notes on terms of service in [Security](security.md) first. Uploading your own files or using music with a free licence is always the safe route.
 
 ## Administration
