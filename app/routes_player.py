@@ -2,13 +2,15 @@
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends, HTTPException, Request
+from typing import Literal
+
 from pydantic import BaseModel, Field
 
 from . import library
 from .db import tx
 from .deps import current_user, get_settings
 from .player import PlayerError, QueueItem
-from .routes_playlists import playlist_for
+from .routes_playlists import playlist_for, playlist_tracks
 
 router = APIRouter(prefix="/api/player")
 
@@ -20,6 +22,9 @@ class ConnectIn(BaseModel):
 class PlayIn(BaseModel):
     playlist_id: int | None = None
     track_id: str | None = None
+    # Play whatever carries these tags right now, without a saved playlist.
+    tags: list[str] | None = Field(default=None, max_length=10)
+    mode: Literal["all", "any"] = "any"
 
 
 class VolumeIn(BaseModel):
@@ -116,20 +121,22 @@ async def disconnect(guild_id: str, request: Request, user: dict = Depends(curre
 @router.post("/{guild_id}/play")
 async def play(guild_id: str, body: PlayIn, request: Request, user: dict = Depends(current_user)):
     gid = _check(request, user, guild_id)
-    if bool(body.playlist_id) == bool(body.track_id):
+    if sum(bool(x) for x in (body.playlist_id, body.track_id, body.tags)) != 1:
         raise HTTPException(400, "bad_request")
     settings = get_settings(request)
     bot = _bot(request)
     with tx(settings.db_path) as conn:
         if body.playlist_id:
             row = playlist_for(conn, user, body.playlist_id)
-            rows = conn.execute(
-                "SELECT t.id, t.title, t.ext, t.duration FROM playlist_items i JOIN tracks t ON t.id = i.track_id "
-                "WHERE i.playlist_id=? AND t.deleted_at IS NULL ORDER BY i.position, i.id",
-                (body.playlist_id,)).fetchall()
+            rows = playlist_tracks(conn, row)
             meta = {"id": row["id"], "name": row["name"], "set": row["set_name"]}
             opts = dict(loop=bool(row["loop"]), shuffle=bool(row["shuffle"]), fade=float(row["fade"]),
                         volume=row["volume"])
+        elif body.tags:
+            wanted = library.norm_tags(body.tags)
+            rows = library.tracks_for_tags(conn, user["id"], wanted, body.mode)
+            meta = {"id": None, "name": ("# " + (" + " if body.mode == "all" else " | ").join(wanted)), "set": None}
+            opts = dict(loop=True, shuffle=True, fade=2.0, volume=None)
         else:
             single = conn.execute("SELECT id, title, ext, duration FROM tracks WHERE id=? AND deleted_at IS NULL",
                                   (body.track_id,)).fetchone()
@@ -139,6 +146,8 @@ async def play(guild_id: str, body: PlayIn, request: Request, user: dict = Depen
             opts = dict(loop=False, shuffle=False, fade=0.0, volume=None)
     items = [QueueItem(r["id"], r["title"], str(library.track_path(settings, r["id"], r["ext"])), r["duration"])
              for r in rows]
+    if not items:
+        raise HTTPException(400, "empty_playlist")
     try:
         _check_lock(bot, gid, user)
         await bot.play(gid, items, meta, {"id": user["id"], "username": user["username"]}, **opts)

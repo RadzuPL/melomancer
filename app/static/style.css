@@ -151,3 +151,7 @@ audio { width: 100%; margin-top: .6rem; }
 .chip.new { border-style: dashed; color: var(--accent); }
 .tagpair { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
 @media (max-width: 700px) { .tagpair { grid-template-columns: 1fr; } }
+
+/* quick pick by tags */
+.quickchips { display: flex; flex-wrap: wrap; max-height: 11rem; overflow: auto; margin: .4rem 0 .8rem; }
+.chip.big { padding: .15rem .75rem; font-size: .9rem; margin: 0 .35rem .35rem 0; }

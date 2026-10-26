@@ -56,6 +56,7 @@ downloads (użytkownik, url, stan, utwór)
 - **tracks** nigdy nie są fizycznie usuwane. Usunięcie ustawia `deleted_at` i kasuje plik, więc `playlist_items` nadal wskazują wiersz ze starym tytułem (wyszarzony wpis). Częściowy indeks unikalny pilnuje unikalności `sha256` tylko wśród żywych utworów, więc ponowne wgranie identycznej zawartości przywraca stary wiersz (to samo id).
 - Zestawy, foldery i playlisty usuwają się kaskadowo. Utworów to nie dotyka.
 - Pozycje to liczby całkowite, przepisywane przy zapisie kolejności.
+- `playlists.kind` to `manual` (wiersze w `playlist_items`) albo `tags` (reguła JSON w `playlists.rule`: `{"tags": [...], "mode": "all"|"any"}`). Playlista z tagów nie przechowuje utworów, są liczone przez `library.tracks_for_tags` przy wyświetlaniu lub odtwarzaniu, ze wspólnych tagów i tagów osobistych właściciela. `POST /player/{guild}/play` przyjmuje też wprost `tags` i `mode`, żeby zagrać niezapisany wybór.
 
 ## Uprawnienia
 

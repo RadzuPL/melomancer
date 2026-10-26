@@ -131,6 +131,11 @@ MIGRATIONS: list[str] = [
     """,
     # 3: personal tags chosen when a download is queued.
     "ALTER TABLE downloads ADD COLUMN my_tags TEXT NOT NULL DEFAULT '[]';",
+    # 4: playlists built automatically from tags: kind 'tags' with a rule {"tags": [...], "mode": "all"|"any"}.
+    """
+    ALTER TABLE playlists ADD COLUMN kind TEXT NOT NULL DEFAULT 'manual';
+    ALTER TABLE playlists ADD COLUMN rule TEXT;
+    """,
 ]
 
 

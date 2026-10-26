@@ -184,6 +184,26 @@ def ingest(
     return dict(row), status
 
 
+def tracks_for_tags(conn: sqlite3.Connection, user_id: int, tags: Iterable[str], mode: str) -> list[sqlite3.Row]:
+    """Live tracks carrying all (mode "all") or any (mode "any") of the tags.
+
+    A tag counts when it is a shared tag of the track or one of this user's personal tags.
+    No tags means no tracks, never "everything".
+    """
+    wanted = norm_tags(tags)[:10]
+    if not wanted:
+        return []
+    clauses, params = [], []
+    for tag in wanted:
+        clauses.append("(EXISTS (SELECT 1 FROM track_tags tt WHERE tt.track_id = t.id AND tt.tag = ?) "
+                       "OR EXISTS (SELECT 1 FROM user_tags ut WHERE ut.track_id = t.id AND ut.user_id = ? AND ut.tag = ?))")
+        params += [tag, user_id, tag]
+    joiner = " AND " if mode == "all" else " OR "
+    rows = conn.execute("SELECT t.id, t.title, t.ext, t.duration FROM tracks t WHERE t.deleted_at IS NULL AND ("
+                        + joiner.join(clauses) + ")", params).fetchall()
+    return sorted(rows, key=lambda r: r["title"].casefold())
+
+
 def soft_delete(settings: Settings, conn: sqlite3.Connection, track: sqlite3.Row) -> None:
     """Keep the row (title survives as a tombstone) but remove the audio file."""
     conn.execute("UPDATE tracks SET deleted_at=datetime('now') WHERE id=?", (track["id"],))

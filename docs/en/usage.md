@@ -51,6 +51,8 @@ Left side: your tree. Use **+ Set**, then the **♪+** button on a set (new play
 
 Right side: the selected playlist.
 
+**Automatic playlists.** When you create a playlist (the **♪+** buttons) you choose its type. A **manual** playlist holds the tracks you pick. An **automatic** playlist holds a rule instead: one or more tags and whether a track must have **all** of them or **any** of them. Its tracks are whatever matches the rule at the moment you press it, in alphabetical order, so tagging a new track in the Library adds it to every playlist whose rule it meets, and deleting a track removes it without a greyed-out entry. A tag counts when it is a shared tag of the track or one of your own personal tags, so you can build a playlist for a session from the personal tag you gave while downloading. Automatic playlists are marked with 🏷, the rule is edited on the right (the list of matching tracks updates at once), and you cannot add or reorder tracks by hand in them. Playback settings (loop, shuffle, fade, volume) work as in manual ones.
+
 - **Loop**: play the list again and again. **Shuffle**: random order (re-shuffled on each lap).
 - **Fade in/out**: each track fades in and out over this many seconds (0 turns it off). Useful for ambient music.
 - **Own volume**: when ticked, pressing this playlist sets the bot's volume to this value. When not ticked, the current volume stays.
@@ -63,7 +65,8 @@ Right side: the selected playlist.
 
 1. Choose the **server** and the **voice channel**. The bot has to be on that server (see [Creating the Discord bot](discord-bot.md)).
 2. Choose a **set**. Its playlists appear as buttons, folders as headings with their playlists below.
-3. Press a playlist. If the bot is not in the channel yet it joins first, then starts playing. The active playlist is highlighted.
+3. Press a playlist, or use **Quick pick by tags** under the playlists: tick one or more tags, choose whether tracks need all or any of them, and press **Play (N)** to play every matching track without making a playlist (shuffled, looping). The number on a tag is how many tracks carry it, the number on the button how many tracks match your choice.
+4. Press a playlist. If the bot is not in the channel yet it joins first, then starts playing. The active playlist is highlighted.
 
 Below the controls the **tracks of the playing playlist** are listed, the current one highlighted. Click any track to play it right away; playback then continues from there (with shuffle on, the rest of the shuffled order follows). Missing or deleted tracks are not in the list.
 

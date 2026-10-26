@@ -51,6 +51,8 @@ Po lewej twoje drzewo. Użyj **+ Zestaw**, potem przycisku **♪+** przy zestawi
 
 Po prawej wybrana playlista.
 
+**Playlisty automatyczne.** Przy tworzeniu playlisty (przyciski **♪+**) wybierasz jej rodzaj. Playlista **ręczna** zawiera utwory, które wybierzesz. Playlista **automatyczna** zawiera zamiast tego regułę: jeden lub kilka tagów i informację, czy utwór ma mieć **wszystkie** z nich, czy **dowolny**. Jej utworami jest to, co w chwili naciśnięcia pasuje do reguły, w kolejności alfabetycznej, więc otagowanie nowego utworu w Bibliotece dodaje go do każdej playlisty, której regułę spełnia, a usunięcie utworu zabiera go z listy bez wyszarzonego wpisu. Tag się liczy, gdy jest tagiem wspólnym utworu albo jednym z twoich tagów osobistych, więc playlistę na sesję możesz zbudować z tagu osobistego nadanego przy pobieraniu. Playlisty automatyczne mają znaczek 🏷, regułę edytujesz po prawej (lista pasujących utworów odświeża się od razu), a utworów nie dodajesz i nie przestawiasz w nich ręcznie. Ustawienia odtwarzania (pętla, losowo, fade, głośność) działają jak w ręcznych.
+
 - **Pętla**: odtwarzaj listę w kółko. **Losowo**: losowa kolejność (przy każdej rundzie na nowo).
 - **Płynne wejście/wyjście**: każdy utwór wchodzi i wychodzi przez tyle sekund (0 wyłącza). Przydatne przy muzyce tła.
 - **Własna głośność**: po zaznaczeniu naciśnięcie tej playlisty ustawia głośność bota na tę wartość. Bez zaznaczenia zostaje obecna głośność.
@@ -63,7 +65,8 @@ Po prawej wybrana playlista.
 
 1. Wybierz **serwer** i **kanał głosowy**. Bot musi być na tym serwerze (zobacz [Tworzenie bota Discord](discord-bot.md)).
 2. Wybierz **zestaw**. Jego playlisty pojawią się jako przyciski, foldery jako nagłówki z playlistami pod spodem.
-3. Naciśnij playlistę. Jeśli bota nie ma jeszcze na kanale, najpierw do niego dołączy, potem zacznie grać. Aktywna playlista jest podświetlona.
+3. Naciśnij playlistę albo użyj **Szybkiego wyboru z tagów** pod playlistami: zaznacz jeden lub kilka tagów, wybierz, czy utwór ma mieć wszystkie z nich czy dowolny, i naciśnij **Zagraj (N)**, żeby zagrać wszystkie pasujące utwory bez tworzenia playlisty (losowo, w pętli). Liczba przy tagu to liczba utworów z tym tagiem, liczba na przycisku to liczba utworów pasujących do twojego wyboru.
+4. Naciśnij playlistę. Jeśli bota nie ma jeszcze na kanale, najpierw do niego dołączy, potem zacznie grać. Aktywna playlista jest podświetlona.
 
 Pod przyciskami widać **listę utworów grającej playlisty** z podświetlonym bieżącym. Kliknij dowolny utwór, żeby zagrać go od razu; odtwarzanie idzie dalej od niego (przy losowaniu dalej w wylosowanej kolejności). Brakujące i usunięte utwory nie są na liście.
 
