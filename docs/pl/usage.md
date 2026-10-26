@@ -53,7 +53,7 @@ Po prawej wybrana playlista.
 - **Płynne wejście/wyjście**: każdy utwór wchodzi i wychodzi przez tyle sekund (0 wyłącza). Przydatne przy muzyce tła.
 - **Własna głośność**: po zaznaczeniu naciśnięcie tej playlisty ustawia głośność bota na tę wartość. Bez zaznaczenia zostaje obecna głośność.
 - **Przenieś playlistę** umieszcza ją wprost w zestawie albo w dowolnym folderze (w dowolnym z twoich zestawów).
-- **Dodaj utwory** otwiera wybieralkę z wyszukiwaniem i filtrem tagów, zaznacz dowolną liczbę utworów.
+- **Dodaj utwory** otwiera wybieralkę z wyszukiwaniem i filtrem tagów, zaznacz dowolną liczbę utworów. Utwory, które już są na tej playliście, nie są proponowane.
 - Strzałki przesuwają utwór, krzyżyk usuwa go z playlisty (nie z biblioteki).
 - Wyszarzony, przekreślony wpis to utwór usunięty z biblioteki. **Zastąp** pozwala wybrać inny utwór na to samo miejsce.
 
@@ -62,6 +62,8 @@ Po prawej wybrana playlista.
 1. Wybierz **serwer** i **kanał głosowy**. Bot musi być na tym serwerze (zobacz [Tworzenie bota Discord](discord-bot.md)).
 2. Wybierz **zestaw**. Jego playlisty pojawią się jako przyciski, foldery jako nagłówki z playlistami pod spodem.
 3. Naciśnij playlistę. Jeśli bota nie ma jeszcze na kanale, najpierw do niego dołączy, potem zacznie grać. Aktywna playlista jest podświetlona.
+
+Pod przyciskami widać **listę utworów grającej playlisty** z podświetlonym bieżącym. Kliknij dowolny utwór, żeby zagrać go od razu; odtwarzanie idzie dalej od niego (przy losowaniu dalej w wylosowanej kolejności). Brakujące i usunięte utwory nie są na liście.
 
 Sterowanie: poprzedni, pauza/wznów, następny, stop, pętla, losowo oraz suwak **głośności** (0 do 150 %). Zmiany głośności działają od razu. Gracze mogą też osobno ściszyć bota w Discordzie.
 

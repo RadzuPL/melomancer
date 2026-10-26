@@ -280,6 +280,21 @@ class GuildPlayer:
         self.state = "playing"
         self._advance(step)
 
+    def jump(self, index: int) -> None:
+        """Play the track at this position of the playlist (the order of the queue as listed in the panel)."""
+        if self.state == "idle" or not self.items:
+            raise PlayerError("not_playing", 409)
+        if not 0 <= index < len(self.items):
+            raise PlayerError("bad_index", 400)
+        self._gen += 1
+        vc = self.vc
+        if vc and (vc.is_playing() or vc.is_paused()):
+            vc.stop()
+        self.pos = self.order.index(index)
+        self.state = "playing"
+        self._fail_streak = 0
+        self._start_current()
+
     def set_volume(self, volume: float) -> None:
         self.volume = max(0.0, min(volume, 1.5))
         vc = self.vc
@@ -303,7 +318,7 @@ class GuildPlayer:
         if self.state in {"playing", "paused"} and 0 <= self.pos < len(self.order):
             item = self.items[self.order[self.pos]]
             now = {"track_id": item.track_id, "title": item.title, "duration": item.duration,
-                   "elapsed": round(self.elapsed(), 1)}
+                   "elapsed": round(self.elapsed(), 1), "index": self.order[self.pos]}
         return {
             "guild_id": str(self.guild_id),
             "connected": channel is not None,
@@ -317,6 +332,8 @@ class GuildPlayer:
             "now": now,
             "position": self.pos + 1 if self.state != "idle" else 0,
             "queue_length": len(self.items),
+            "queue": [{"track_id": i.track_id, "title": i.title, "duration": i.duration} for i in self.items]
+            if self.state != "idle" else [],
             "controller_id": self.controller["id"] if self.controller else None,
             "controller": self.controller["username"] if self.controller else None,
         }
@@ -464,6 +481,8 @@ class BotManager:
             player.skip(-1)
         elif action == "stop":
             player.stop()
+        elif action == "jump":
+            player.jump(int(value))
         elif action == "volume":
             player.set_volume(float(value))
         elif action == "options":

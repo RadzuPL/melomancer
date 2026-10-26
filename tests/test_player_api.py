@@ -112,3 +112,27 @@ def test_a_playlist_directly_under_a_set_plays(env, wavs):
     res = env.client.post("/api/player/111/play", json={"playlist_id": playlist_id})
     assert res.status_code == 200
     assert env.bot.played[-1]["playlist"] == {"id": playlist_id, "name": "Walka", "set": "Druga"}
+
+
+def test_jump_to_a_track_of_the_playing_playlist(env, wavs):
+    login(env, "admin")
+    playlist_id, _ = _playlist_with_tracks(env, wavs, 3)
+    assert env.client.post("/api/player/111/jump", json={"index": 1}).status_code == 409  # nothing plays yet
+    env.client.post("/api/player/111/connect", json={"channel_id": "100100"})
+    env.client.post("/api/player/111/play", json={"playlist_id": playlist_id})
+    res = env.client.post("/api/player/111/jump", json={"index": 2})
+    assert res.status_code == 200 and res.json()["position"] == 3
+    assert env.client.post("/api/player/111/jump", json={"index": -1}).status_code == 422
+
+
+def test_jump_respects_the_controller_lock(env, wavs):
+    owner = make_user(env, "owner")
+    other = make_user(env, "other")
+    _grant(env, owner, ["111"])
+    _grant(env, other, ["111"])
+    login(env, "owner")
+    playlist_id, _ = _playlist_with_tracks(env, wavs, 2)
+    env.client.post("/api/player/111/connect", json={"channel_id": "100100"})
+    env.client.post("/api/player/111/play", json={"playlist_id": playlist_id})
+    login(env, "other")
+    assert env.client.post("/api/player/111/jump", json={"index": 1}).status_code == 409

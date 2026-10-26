@@ -294,6 +294,9 @@ async function viewPlayer(main) {
     onpointerdown: () => { dragging = true; }, onpointerup: () => { dragging = false; }, onchange: () => { dragging = false; },
     oninput: (e) => { volLabel.textContent = e.target.value + "%"; sendVolume(Number(e.target.value)); } });
   const padsBox = h("div", {});
+  const queueBox = h("div", { class: "queue" });
+  const queueWrap = h("div", { class: "hidden" }, h("div", { class: "muted small" }, tr("queue_hint")), queueBox);
+  let queueKey = "";
   const setSel = h("select", { "aria-label": tr("set"), onchange: (e) => { ps.setId = e.target.value; pref("set", ps.setId); fillPads(); } },
     own.map((s) => h("option", { value: s.id, selected: String(s.id) === ps.setId }, s.name + (state.showAllSets ? " (" + s.owner + ")" : ""))));
   const allBox = state.user.role === "admin"
@@ -307,7 +310,8 @@ async function viewPlayer(main) {
       guilds.length === 0 && system.bot_status === "ready" ? h("span", { class: "muted small" }, tr("no_servers")) : null)),
     h("div", { class: "card now" }, titleEl, subEl, h("div", { class: "progress" }, bar), timeEl,
       h("div", { class: "controls" }, prevB, toggleB, nextB, stopB, loopB, shuffleB,
-        h("div", { class: "volume" }, "🔈", vol, volLabel))),
+        h("div", { class: "volume" }, "🔈", vol, volLabel)),
+      queueWrap),
     h("div", { class: "card" }, h("div", { class: "row" }, h("h2", { class: "grow" }, tr("playlists")), setSel, allBox), padsBox));
 
   function fillChannels() {
@@ -350,11 +354,27 @@ async function viewPlayer(main) {
     loopB.classList.toggle("on", !!(s && s.loop));
     shuffleB.classList.toggle("on", !!(s && s.shuffle));
     if (s && !dragging) { vol.value = Math.round(s.volume * 100); volLabel.textContent = vol.value + "%"; }
+    paintQueue(s, playing);
     for (const pad of padsBox.querySelectorAll(".pad")) {
       pad.classList.toggle("active", !!(playing && s.playlist && String(s.playlist.id) === pad.dataset.id));
     }
     tickBar();
   }
+
+  function paintQueue(s, playing) {
+    const queue = playing && s.queue ? s.queue : [];
+    queueWrap.classList.toggle("hidden", queue.length === 0);
+    const key = queue.map((q) => q.track_id).join(",");
+    if (key !== queueKey) {
+      queueKey = key;
+      queueBox.replaceChildren(...queue.map((q, i) => h("button", { class: "qrow", "data-index": i, title: q.title, onclick: () => jump(i) },
+        h("span", { class: "muted small qnum" }, i + 1), h("span", { class: "t" }, q.title), h("span", { class: "muted small" }, fmtTime(q.duration)))));
+    }
+    const current = playing && s.now ? s.now.index : -1;
+    for (const row of queueBox.children) row.classList.toggle("current", Number(row.dataset.index) === current);
+  }
+
+  async function jump(index) { try { applyState(await api("POST", `/api/player/${ps.guildId}/jump`, { index })); } catch (err) { fail(err); } }
 
   function tickBar() {
     const s = ps.st;
@@ -618,8 +638,9 @@ async function choosePlaylist() {
   return v || null;
 }
 
-async function pickTracks(title, multi) {
+async function pickTracks(title, multi, exclude) {
   if (!state.tracks.length) await loadTracks();
+  const skip = exclude || new Set();
   const f = { q: "", tag: "", mine: false };
   const chosen = new Set();
   const listBox = h("div", { class: "picker-list" });
@@ -627,7 +648,9 @@ async function pickTracks(title, multi) {
   const tagSel = h("select", { onchange: (e) => { f.tag = e.target.value; paint(); } },
     h("option", { value: "" }, tr("all_tags")), ...allTagNames().map((x) => h("option", { value: x }, x)));
   function paint() {
-    listBox.replaceChildren(...state.tracks.filter((x) => trackMatches(x, f)).slice(0, 300).map((x) => h("label", {},
+    const candidates = state.tracks.filter((x) => !skip.has(x.id) && trackMatches(x, f));
+    if (!candidates.length) { listBox.replaceChildren(h("p", { class: "muted small pad-text" }, tr(skip.size ? "nothing_left_to_add" : "no_matches"))); return; }
+    listBox.replaceChildren(...candidates.slice(0, 300).map((x) => h("label", {},
       h("input", { type: multi ? "checkbox" : "radio", name: "pick", checked: chosen.has(x.id), onchange: (e) => {
         if (!multi) chosen.clear();
         e.target.checked ? chosen.add(x.id) : chosen.delete(x.id);
@@ -734,7 +757,7 @@ async function viewPlaylists(main) {
         h("label", { class: "row" }, volCheck, tr("own_volume"), volRange)),
       h("div", { class: "row" },
         h("button", { class: "btn primary", onclick: async () => {
-          const ids = await pickTracks(tr("add_tracks"), true);
+          const ids = await pickTracks(tr("add_tracks"), true, new Set(p.items.map((i) => i.track_id)));
           if (ids) { try { await api("POST", `/api/playlists/${id}/items`, { track_ids: ids }); await loadSets(); paintTree(); paintDetail(); } catch (err) { fail(err); } }
         } }, tr("add_tracks")),
         h("span", { class: "muted small" }, tr("n_tracks", { n: p.items.length }) + " · " + fmtTime(total))),
@@ -744,7 +767,7 @@ async function viewPlaylists(main) {
         h("span", { class: "t", title: it.title }, it.title),
         it.deleted ? h("span", { class: "badge warn" }, tr("removed")) : h("span", { class: "muted small" }, fmtTime(it.duration)),
         it.deleted ? h("button", { class: "btn small", onclick: async () => {
-          const picked = await pickTracks(tr("replace_track"), false);
+          const picked = await pickTracks(tr("replace_track"), false, new Set(p.items.map((i) => i.track_id)));
           if (picked) { try { await api("PUT", `/api/playlists/${id}/items/${it.id}`, { track_id: picked[0] }); await loadSets(); paintTree(); paintDetail(); } catch (err) { fail(err); } }
         } }, tr("replace")) : null,
         small("▲", tr("up"), async () => { try { await api("PUT", `/api/playlists/${id}/order`, { ids: move(p.items.map((x) => x.id), i, -1) }); paintDetail(); } catch (err) { fail(err); } }, i === 0),

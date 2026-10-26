@@ -75,6 +75,10 @@ class FakeBot:
             st["state"] = "playing"
         elif action == "stop":
             st.update(state="idle", controller_id=None, controller=None)
+        elif action == "jump":
+            if st["state"] == "idle":
+                raise PlayerError("not_playing", 409)
+            st["position"] = value + 1
         elif action == "volume":
             st["volume"] = value
         elif action == "options":

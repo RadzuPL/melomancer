@@ -53,7 +53,7 @@ Right side: the selected playlist.
 - **Fade in/out**: each track fades in and out over this many seconds (0 turns it off). Useful for ambient music.
 - **Own volume**: when ticked, pressing this playlist sets the bot's volume to this value. When not ticked, the current volume stays.
 - **Move playlist** puts it directly under a set or into any folder (of any of your sets).
-- **Add tracks** opens a picker with search and tag filter, tick any number of tracks.
+- **Add tracks** opens a picker with search and tag filter, tick any number of tracks. Tracks that are already on this playlist are not offered.
 - Arrows move a track, the cross removes it from the playlist (not from the library).
 - A greyed, struck-through entry is a track that was deleted from the library. **Replace** lets you pick another track for the same slot.
 
@@ -62,6 +62,8 @@ Right side: the selected playlist.
 1. Choose the **server** and the **voice channel**. The bot has to be on that server (see [Creating the Discord bot](discord-bot.md)).
 2. Choose a **set**. Its playlists appear as buttons, folders as headings with their playlists below.
 3. Press a playlist. If the bot is not in the channel yet it joins first, then starts playing. The active playlist is highlighted.
+
+Below the controls the **tracks of the playing playlist** are listed, the current one highlighted. Click any track to play it right away; playback then continues from there (with shuffle on, the rest of the shuffled order follows). Missing or deleted tracks are not in the list.
 
 Controls: previous, pause/resume, next, stop, loop, shuffle and the **volume** slider (0 to 150 %). Volume changes apply immediately. Players can also lower the bot individually in Discord.
 

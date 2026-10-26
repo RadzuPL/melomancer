@@ -26,6 +26,10 @@ class VolumeIn(BaseModel):
     volume: float = Field(ge=0, le=1.5)
 
 
+class JumpIn(BaseModel):
+    index: int = Field(ge=0, le=100000)
+
+
 class OptionsIn(BaseModel):
     loop: bool | None = None
     shuffle: bool | None = None
@@ -170,6 +174,19 @@ def volume(guild_id: str, body: VolumeIn, request: Request, user: dict = Depends
     def call():
         _check_lock(bot, gid, user)
         bot.control(gid, "volume", body.volume)
+        return bot.state(gid)
+
+    return _run(call)
+
+
+@router.post("/{guild_id}/jump")
+def jump(guild_id: str, body: JumpIn, request: Request, user: dict = Depends(current_user)):
+    gid = _check(request, user, guild_id)
+    bot = _bot(request)
+
+    def call():
+        _check_lock(bot, gid, user)
+        bot.control(gid, "jump", body.index)
         return bot.state(gid)
 
     return _run(call)
