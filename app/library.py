@@ -98,6 +98,12 @@ def add_shared_tags(conn: sqlite3.Connection, track_id: str, tags: Iterable[str]
     set_shared_tags(conn, track_id, [*existing, *tags])
 
 
+def add_my_tags(conn: sqlite3.Connection, user_id: int, track_id: str, tags: Iterable[str]) -> None:
+    """Personal tags are only added, never replaced: whatever the user tagged before stays."""
+    conn.executemany("INSERT OR IGNORE INTO user_tags(user_id, track_id, tag) VALUES (?, ?, ?)",
+                     [(user_id, track_id, tag) for tag in norm_tags(tags)])
+
+
 def ingest(
     settings: Settings,
     src: Path,
@@ -108,6 +114,7 @@ def ingest(
     source_url: str | None = None,
     title: str | None = None,
     tags: Iterable[str] = (),
+    my_tags: Iterable[str] = (),
 ) -> tuple[dict, str]:
     """Move a finished file into the library.
 
@@ -130,6 +137,7 @@ def ingest(
         shown = stem
     shown = clean_title(shown, fallback=clean_title(stem))
     tag_list = norm_tags(tags)
+    my_list = norm_tags(my_tags)
 
     with tx(settings.db_path) as conn:
         live = conn.execute(
@@ -137,6 +145,10 @@ def ingest(
         ).fetchone()
         if live:
             src.unlink(missing_ok=True)
+            # The file is already there, but the person adding it still wants it tagged for their session.
+            add_my_tags(conn, owner_id, live["id"], my_list)
+            if tag_list and live["owner_id"] == owner_id:
+                add_shared_tags(conn, live["id"], tag_list)
             return dict(live), "duplicate"
 
         tomb = conn.execute(
@@ -164,6 +176,7 @@ def ingest(
                 status = "created"
             if tag_list:
                 add_shared_tags(conn, track_id, tag_list)
+            add_my_tags(conn, owner_id, track_id, my_list)
         except sqlite3.IntegrityError:
             dest.unlink(missing_ok=True)
             raise IngestError("duplicate_race") from None

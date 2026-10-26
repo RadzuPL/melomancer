@@ -129,6 +129,8 @@ MIGRATIONS: list[str] = [
     ALTER TABLE playlists_new RENAME TO playlists;
     CREATE INDEX idx_playlists_set ON playlists(set_id, group_id, position);
     """,
+    # 3: personal tags chosen when a download is queued.
+    "ALTER TABLE downloads ADD COLUMN my_tags TEXT NOT NULL DEFAULT '[]';",
 ]
 
 

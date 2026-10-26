@@ -101,3 +101,20 @@ def test_stream_serves_audio(env, wavs):
     track_id = upload(env, wavs[0]).json()["id"]
     res = env.client.get(f"/api/tracks/{track_id}/stream")
     assert res.status_code == 200 and len(res.content) > 1000
+
+
+def test_tags_given_at_upload_are_applied_and_personal_ones_stay_private(env, wavs):
+    make_user(env, "mg1")
+    make_user(env, "mg2")
+    login(env, "mg1")
+    assert upload(env, wavs[0], tags='["Ambient"]', my_tags='["Sesja 3", "Innsmouth"]').status_code == 201
+    track = env.client.get("/api/tracks").json()[0]
+    assert track["tags"] == ["ambient"] and track["my_tags"] == ["innsmouth", "sesja 3"]
+
+    login(env, "mg2")
+    assert env.client.get("/api/tracks").json()[0]["my_tags"] == []
+    again = upload(env, wavs[0], tags='["Hack"]', my_tags='["Sesja 5"]')  # same file: a duplicate
+    assert again.json()["status"] == "duplicate"
+    track = env.client.get("/api/tracks").json()[0]
+    assert track["my_tags"] == ["sesja 5"]  # still tagged for this person's session
+    assert track["tags"] == ["ambient"]  # but shared tags are not theirs to change

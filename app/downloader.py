@@ -52,7 +52,7 @@ def count_recent(settings: Settings) -> int:
         ).fetchone()[0]
 
 
-def enqueue(settings: Settings, user_id: int, url: str, tags: list[str]) -> int:
+def enqueue(settings: Settings, user_id: int, url: str, tags: list[str], my_tags: list[str] | None = None) -> int:
     if not settings.ytdlp_enabled:
         raise DownloadRejected("downloads_disabled")
     url = validate_url(settings, url)
@@ -60,8 +60,8 @@ def enqueue(settings: Settings, user_id: int, url: str, tags: list[str]) -> int:
         raise DownloadRejected("daily_limit")
     with tx(settings.db_path) as conn:
         cur = conn.execute(
-            "INSERT INTO downloads(user_id, url, tags) VALUES (?,?,?)",
-            (user_id, url, json.dumps(tags)),
+            "INSERT INTO downloads(user_id, url, tags, my_tags) VALUES (?,?,?,?)",
+            (user_id, url, json.dumps(tags), json.dumps(my_tags or [])),
         )
         return int(cur.lastrowid)
 
@@ -70,10 +70,17 @@ def ytdlp_fetch(url: str, workdir: Path, settings: Settings, report: ReportFunc)
     import yt_dlp  # imported lazily so the panel still starts if the package is broken
 
     class _Log:
-        def debug(self, msg: str) -> None: ...
-        def info(self, msg: str) -> None: ...
+        # yt-dlp sends its normal "[youtube] Extracting URL ..." steps to debug(); the container log shows
+        # them with a time stamp, which tells where a slow download spends its time.
+        def debug(self, msg: str) -> None:
+            if not msg.startswith("[debug]"):
+                log.info("yt-dlp: %s", msg)
+
+        def info(self, msg: str) -> None:
+            log.info("yt-dlp: %s", msg)
+
         def warning(self, msg: str) -> None:
-            log.debug("yt-dlp: %s", msg)
+            log.warning("yt-dlp: %s", msg)
 
         def error(self, msg: str) -> None:
             log.warning("yt-dlp: %s", msg)
@@ -146,8 +153,14 @@ class Downloader:
             self._progress.setdefault(job_id, {}).update(fields)
 
     def progress(self) -> dict[int, dict]:
+        now = time.monotonic()
         with self._lock:
-            return {job: dict(values) for job, values in self._progress.items()}
+            result = {}
+            for job, values in self._progress.items():
+                entry = {k: v for k, v in values.items() if k != "started"}
+                entry["elapsed"] = round(now - values["started"]) if "started" in values else None
+                result[job] = entry
+            return result
 
     def pause_remaining(self) -> int:
         """Seconds until the next queued download may start (the deliberate pause between downloads)."""
@@ -195,7 +208,7 @@ class Downloader:
         workdir = self.settings.tmp_dir / f"dl-{job_id}"
         workdir.mkdir(parents=True, exist_ok=True)
         started = time.monotonic()
-        self._report(job_id, stage="preparing", percent=None, speed=None, eta=None)
+        self._report(job_id, stage="preparing", percent=None, speed=None, eta=None, started=started)
         log.info("Download %s started (%s)", job_id, urlsplit(job["url"]).hostname)
         try:
             path, title, final_url = self._fetch(job["url"], workdir, self.settings,
@@ -204,6 +217,7 @@ class Downloader:
             track, status = ingest(
                 self.settings, path, owner_id=job["user_id"], original_name=path.name,
                 source="youtube", source_url=final_url, title=title, tags=json.loads(job["tags"] or "[]"),
+                my_tags=json.loads(job["my_tags"] or "[]"),
             )
             self._finish(job["id"], "done", None if status != "duplicate" else "duplicate",
                          track["id"], track["title"])

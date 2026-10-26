@@ -9,6 +9,7 @@ const state = {
   lib: { q: "", tag: "", mine: false, selected: new Set() },
   player: { guilds: [], guildId: "", channelId: "", setId: "", st: null, stAt: 0, timer: null },
   pl: { selected: null, detail: null },
+  dlTags: { shared: [], mine: [] }, upTags: { shared: [], mine: [] },
 };
 
 function h(tag, attrs, ...kids) {
@@ -174,6 +175,42 @@ function trackMatches(track, f) {
   return true;
 }
 const parseTags = (text) => text.split(",").map((x) => x.trim()).filter(Boolean);
+
+/* Tag field: chosen tags as chips, suggestions from tags that already exist (most used first), free typing for new ones.
+   pool = [{tag, count}], opts = {placeholder, onchange}. Returns {el, get()}. */
+function tagInput(initial, pool, opts) {
+  const options = opts || {};
+  const chosen = new Set(initial || []);
+  const ranked = [...(pool || [])].sort((a, b) => b.count - a.count || a.tag.localeCompare(b.tag));
+  const chipBox = h("div", { class: "taglist" });
+  const input = h("input", { placeholder: options.placeholder || tr("tags_placeholder"), autocomplete: "off", maxlength: 40,
+    "aria-label": options.placeholder || tr("tags_placeholder") });
+  const suggestBox = h("div", { class: "suggest" });
+  const normalise = (raw) => raw.trim().toLowerCase().replace(/\s+/g, " ").slice(0, 40);
+  const changed = () => { if (options.onchange) options.onchange([...chosen]); };
+  const add = (raw) => {
+    for (const part of String(raw).split(",")) { const tag = normalise(part); if (tag) chosen.add(tag); }
+    input.value = ""; paint(); changed();
+  };
+  const remove = (tag) => { chosen.delete(tag); paint(); changed(); };
+  function paint() {
+    chipBox.replaceChildren(...[...chosen].map((t) => h("span", { class: "chip active", title: tr("remove"), onclick: () => remove(t) }, t + " ×")));
+    const q = normalise(input.value);
+    const matches = ranked.filter((x) => !chosen.has(x.tag) && (!q || x.tag.includes(q))).slice(0, 14);
+    suggestBox.replaceChildren(...matches.map((x) => h("span", { class: "chip", onclick: () => { add(x.tag); input.focus(); } },
+      x.tag, h("span", { class: "muted" }, " " + x.count))));
+    if (q && !chosen.has(q) && !ranked.some((x) => x.tag === q)) {
+      suggestBox.append(h("span", { class: "chip new", onclick: () => { add(q); input.focus(); } }, tr("add_tag", { tag: q })));
+    }
+  }
+  input.addEventListener("input", paint);
+  input.addEventListener("keydown", (e) => {
+    if ((e.key === "Enter" || e.key === ",") && input.value.trim()) { e.preventDefault(); e.stopPropagation(); add(input.value); }
+    else if (e.key === "Backspace" && !input.value && chosen.size) remove([...chosen].pop());
+  });
+  paint();
+  return { el: h("div", { class: "taginput" }, chipBox, input, suggestBox), get: () => { if (input.value.trim()) add(input.value); return [...chosen]; } };
+}
 
 /* ---------- shell ---------- */
 
@@ -427,10 +464,11 @@ function dirTags(file) {
   return parts.slice(0, -1);
 }
 
-function queueFiles(files, withFolderTags) {
+function queueFiles(files, withFolderTags, extra) {
   for (const file of files) {
     const m = file.name.toLowerCase().match(/\.[a-z0-9]+$/);
-    const item = { file, status: "wait", msg: "", tags: withFolderTags ? dirTags(file) : [] };
+    const item = { file, status: "wait", msg: "", tags: withFolderTags ? dirTags(file) : [],
+      shared: (extra && extra.shared) || [], mine: (extra && extra.mine) || [] };
     if (!m || !AUDIO_EXT.has(m[0])) { item.status = "skip"; item.msg = tr("err.unsupported_type"); }
     uploader.items.push(item);
   }
@@ -458,6 +496,8 @@ async function sendOne(item) {
   const body = new FormData();
   body.append("file", item.file, item.file.name);
   body.append("folder_tags", JSON.stringify(item.tags));
+  body.append("tags", JSON.stringify(item.shared));
+  body.append("my_tags", JSON.stringify(item.mine));
   try {
     const res = await api("POST", "/api/tracks/upload", body);
     item.status = res.status === "created" || res.status === "revived" ? "ok" : "dup";
@@ -483,14 +523,17 @@ async function viewLibrary(main) {
   uploader.box = uploadBox;
   uploader.onDone = async () => { await loadTracks(); paintTable(); };
   const folderTags = h("input", { type: "checkbox", checked: true });
+  const upShared = tagInput(state.upTags.shared, state.tags.shared, { onchange: (v) => { state.upTags.shared = v; } });
+  const upMine = tagInput(state.upTags.mine, state.tags.mine, { onchange: (v) => { state.upTags.mine = v; } });
+  const extraTags = () => ({ shared: upShared.get(), mine: upMine.get() });
   const fileInput = h("input", { type: "file", multiple: true, accept: "audio/*,.opus,.flac,.m4a,.ogg,.mp3,.wav,.webm,.aac", class: "hidden",
-    onchange: (e) => { queueFiles([...e.target.files], false); e.target.value = ""; } });
+    onchange: (e) => { queueFiles([...e.target.files], false, extraTags()); e.target.value = ""; } });
   const dirInput = h("input", { type: "file", multiple: true, webkitdirectory: true, class: "hidden",
-    onchange: (e) => { queueFiles([...e.target.files], folderTags.checked); e.target.value = ""; } });
+    onchange: (e) => { queueFiles([...e.target.files], folderTags.checked, extraTags()); e.target.value = ""; } });
   const drop = h("div", { class: "drop" }, tr("drop_here"));
   drop.addEventListener("dragover", (e) => { e.preventDefault(); drop.classList.add("over"); });
   drop.addEventListener("dragleave", () => drop.classList.remove("over"));
-  drop.addEventListener("drop", (e) => { e.preventDefault(); drop.classList.remove("over"); queueFiles([...e.dataTransfer.files], false); });
+  drop.addEventListener("drop", (e) => { e.preventDefault(); drop.classList.remove("over"); queueFiles([...e.dataTransfer.files], false, extraTags()); });
 
   const search = h("input", { type: "search", placeholder: tr("search"), value: lib.q, "aria-label": tr("search"),
     oninput: debounce((e) => { lib.q = e.target.value; paintTable(); }, 120) });
@@ -510,6 +553,9 @@ async function viewLibrary(main) {
         h("button", { class: "btn", onclick: () => dirInput.click() }, tr("choose_folder")),
         h("label", { class: "row small" }, folderTags, tr("folders_as_tags")),
         h("span", { class: "muted small" }, tr("max_size", { n: state.system ? state.system.max_upload_mb : "?" }))),
+      h("div", { class: "tagpair" },
+        h("div", {}, h("label", { class: "small" }, tr("shared_tags_new")), upShared.el),
+        h("div", {}, h("label", { class: "small" }, tr("my_tags_new")), upMine.el)),
       fileInput, dirInput, drop, uploadBox),
     h("div", { class: "card" },
       h("div", { class: "row" }, h("h2", { class: "grow" }, tr("tab.library")), counter),
@@ -558,20 +604,20 @@ async function viewLibrary(main) {
 
   async function editTrack(r) {
     const title = h("input", { value: r.title, maxlength: 200, disabled: !r.can_edit });
-    const shared = h("input", { value: r.tags.join(", "), disabled: !r.can_edit });
-    const mine = h("input", { value: r.my_tags.join(", ") });
+    const shared = tagInput(r.tags, state.tags.shared);
+    const mine = tagInput(r.my_tags, state.tags.mine);
     const ok = await modal(tr("edit_track"), h("div", { class: "stack" },
       h("label", {}, tr("title")), title,
-      h("label", {}, tr("shared_tags") + " (" + tr("comma_sep") + ")"), shared,
-      h("label", {}, tr("my_tags") + " (" + tr("comma_sep") + ", " + tr("only_you") + ")"), mine,
+      h("label", {}, tr("shared_tags")), r.can_edit ? shared.el : h("div", { class: "muted small" }, r.tags.join(", ") || "–"),
+      h("label", {}, tr("my_tags") + " (" + tr("only_you") + ")"), mine.el,
       r.source_url ? h("div", { class: "muted small" }, tr("source") + ": " + r.source_url) : null,
       r.title !== r.original_title ? h("div", { class: "muted small" }, tr("original") + ": " + r.original_title) : null), [
       { label: tr("cancel"), value: false },
       {
         label: tr("save"), class: "primary", run: async () => {
           try {
-            if (r.can_edit) await api("PATCH", `/api/tracks/${r.id}`, { title: title.value, tags: parseTags(shared.value) });
-            await api("PUT", `/api/tracks/${r.id}/my-tags`, { tags: parseTags(mine.value) });
+            if (r.can_edit) await api("PATCH", `/api/tracks/${r.id}`, { title: title.value, tags: shared.get() });
+            await api("PUT", `/api/tracks/${r.id}/my-tags`, { tags: mine.get() });
             return true;
           } catch (err) { fail(err); return false; }
         },
@@ -593,9 +639,12 @@ async function viewLibrary(main) {
   }
 
   async function tagSelected() {
-    const text = await promptDialog(tr("add_my_tag"), tr("comma_sep"), "");
-    if (!text) return;
-    const add = parseTags(text);
+    const field = tagInput([], state.tags.mine);
+    const add = await modal(tr("add_my_tag"), h("div", { class: "stack" }, h("label", {}, tr("my_tags") + " (" + tr("only_you") + ")"), field.el), [
+      { label: tr("cancel"), value: null },
+      { label: tr("ok"), class: "primary", run: () => { const v = field.get(); return v.length ? v : false; } },
+    ]);
+    if (!add) return;
     try {
       for (const id of lib.selected) {
         const track = state.tracks.find((x) => x.id === id);
@@ -785,14 +834,22 @@ async function viewDownloads(main) {
   const system = await api("GET", "/api/system");
   state.system = system;
   const list = h("div", {});
-  const url = h("input", { type: "url", placeholder: "https://…", required: true, "aria-label": "URL" });
-  const tags = h("input", { placeholder: tr("tags") + " (" + tr("comma_sep") + ")" });
+  state.tags = await api("GET", "/api/tags");
+  const url = h("input", { type: "url", placeholder: "https://…", required: true, "aria-label": "URL", class: "grow" });
+  // The chosen tags stay between downloads: several tracks for one session usually get the same ones.
+  const sharedTags = tagInput(state.dlTags.shared, state.tags.shared, { onchange: (v) => { state.dlTags.shared = v; } });
+  const myTags = tagInput(state.dlTags.mine, state.tags.mine, { onchange: (v) => { state.dlTags.mine = v; } });
   let timer = null;
-  const form = h("form", { class: "row", onsubmit: async (e) => {
+  const form = h("form", { class: "stack", onsubmit: async (e) => {
     e.preventDefault();
-    try { await api("POST", "/api/downloads", { url: url.value.trim(), tags: parseTags(tags.value) }); url.value = ""; toast(tr("queued"), "ok"); refresh(); }
-    catch (err) { fail(err); }
-  } }, url, tags, h("button", { class: "btn primary", type: "submit", disabled: !system.downloads_enabled }, tr("download")));
+    try {
+      await api("POST", "/api/downloads", { url: url.value.trim(), tags: sharedTags.get(), my_tags: myTags.get() });
+      url.value = ""; toast(tr("queued"), "ok"); refresh();
+    } catch (err) { fail(err); }
+  } }, h("div", { class: "row" }, url, h("button", { class: "btn primary", type: "submit", disabled: !system.downloads_enabled }, tr("download"))),
+  h("div", { class: "tagpair" },
+    h("div", {}, h("label", { class: "small" }, tr("shared_tags_new")), sharedTags.el),
+    h("div", {}, h("label", { class: "small" }, tr("my_tags_new")), myTags.el)));
   put(main, 
     system.downloads_enabled ? null : h("div", { class: "notice" }, tr("downloads_off")),
     h("div", { class: "card" }, h("h2", {}, tr("tab.downloads")), form,
@@ -812,7 +869,8 @@ async function viewDownloads(main) {
     const bar = h("div", {});
     if (known) bar.style.width = Math.min(100, j.percent) + "%";
     const text = [tr("dl." + (j.stage || "preparing")), known ? j.percent.toFixed(0) + "%" : "", fmtSpeed(j.speed),
-      j.eta ? tr("dl.eta", { t: fmtTime(j.eta) }) : ""].filter(Boolean).join(" · ");
+      j.eta ? tr("dl.eta", { t: fmtTime(j.eta) }) : "",
+      j.elapsed !== null && j.elapsed !== undefined && j.stage !== "downloading" ? j.elapsed + " s" : ""].filter(Boolean).join(" · ");
     return h("div", {}, h("div", { class: "progress" + (known ? "" : " indeterminate") }, bar), h("div", { class: "muted small" }, text));
   }
 

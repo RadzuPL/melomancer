@@ -28,6 +28,8 @@ The panel has five tabs: **Player**, **Library**, **Playlists**, **Downloads** a
 
 A file that is already in the library (same content) is not added twice: you see "already in the library". If the track was deleted earlier and still sits greyed out in somebody's playlist, uploading the same file brings it back and the playlist entry lights up again.
 
+**Tags when adding.** Both the upload area and the download form have two tag fields: **shared tags** and **my tags** (only you). Tags that already exist are offered under each field, most used first: click one to add it, or type to filter the suggestions; Enter adds what you typed as a new tag. A download for a session can be tagged right away, for example my tag `sesja 3`. The chosen tags are kept between downloads and apply to every file added until you remove them. If a file is already in the library, it is not added twice but still gets your personal tags (and the shared ones, only if you are its owner).
+
 **Finding music.** Type in the search box (title or tag), pick a tag, or tick "mine only". Click a tag chip in the table to filter by it.
 
 **Tags.** Every track has two kinds of tags:
@@ -79,7 +81,7 @@ The bot leaves a channel after 30 minutes without any human in it (`IDLE_LEAVE_M
 
 Paste the address of **one** video or track from an allowed site (YouTube, SoundCloud, Bandcamp by default) and press **Download**. The server fetches the audio once, converts it, and adds it to the shared library, with the tags you typed. After that it plays from disk, so nothing depends on YouTube during the session.
 
-The list shows what each download is doing: preparing (contacting the site, this can take several seconds), downloading with a progress bar, speed and time left, converting, and adding to the library. A job waiting in the queue shows how many seconds are left of the pause between downloads. A message pops up when a download finishes or fails.
+The list shows what each download is doing: preparing (contacting the site, this can take several seconds, the seconds so far are counted), downloading with a progress bar, speed and time left, converting, and adding to the library. A job waiting in the queue shows how many seconds are left of the pause between downloads. A message pops up when a download finishes or fails.
 
 Rules that protect your IP address: one download at a time, a pause between them, a daily limit (see [Configuration](configuration.md)), playlists are not expanded. A failed job shows the reason, for example YouTube asking to "sign in to confirm you are not a bot". Pulling a fresh image brings a newer `yt-dlp`, see [Troubleshooting](troubleshooting.md). Read the notes on terms of service in [Security](security.md) first. Uploading your own files or using music with a free licence is always the safe route.
 

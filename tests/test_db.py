@@ -46,6 +46,7 @@ def test_fresh_database_gets_every_migration_without_a_backup(tmp_path):
     init_db(path)
     conn = sqlite3.connect(path)
     assert conn.execute("PRAGMA user_version").fetchone()[0] == len(MIGRATIONS)
+    assert "my_tags" in [r[1] for r in conn.execute("PRAGMA table_info(downloads)")]
     conn.close()
     assert not list(tmp_path.glob("*.before-*"))
     init_db(path)  # running again changes nothing

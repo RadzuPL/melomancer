@@ -28,6 +28,8 @@ Panel ma pięć zakładek: **Odtwarzacz**, **Biblioteka**, **Playlisty**, **Pobi
 
 Plik, który już jest w bibliotece (ta sama zawartość), nie zostanie dodany drugi raz: zobaczysz „już w bibliotece”. Jeśli utwór został wcześniej usunięty i wisi wyszarzony w czyjejś playliście, wgranie tego samego pliku przywraca go i wpis na playliście znów się „zapala”.
 
+**Tagi przy dodawaniu.** Pole wgrywania i formularz pobierania mają po dwa pola tagów: **tagi wspólne** i **moje tagi** (tylko dla ciebie). Pod każdym polem proponowane są tagi, które już istnieją, najczęściej używane na początku: kliknij, żeby dodać, albo zacznij pisać, żeby zawęzić podpowiedzi; Enter dodaje wpisany tekst jako nowy tag. Pobranie na konkretną sesję możesz od razu otagować, np. moim tagiem `sesja 3`. Wybrane tagi zostają między pobraniami i dotyczą każdego dodawanego pliku, dopóki ich nie usuniesz. Jeśli plik już jest w bibliotece, nie jest dodawany drugi raz, ale dostaje twoje tagi osobiste (a wspólne tylko wtedy, gdy jesteś jego właścicielem).
+
 **Szukanie muzyki.** Wpisz tekst w polu wyszukiwania (tytuł lub tag), wybierz tag albo zaznacz „tylko moje”. Kliknięcie tagu w tabeli filtruje po nim.
 
 **Tagi.** Każdy utwór ma dwa rodzaje tagów:
@@ -79,7 +81,7 @@ Bot opuszcza kanał po 30 minutach bez żadnego człowieka w środku (`IDLE_LEAV
 
 Wklej adres **jednego** filmu lub utworu z dozwolonego serwisu (domyślnie YouTube, SoundCloud, Bandcamp) i naciśnij **Pobierz**. Serwer pobiera dźwięk jeden raz, konwertuje go i dodaje do wspólnej biblioteki z wpisanymi tagami. Potem gra z dysku, więc w trakcie sesji nic nie zależy od YouTube.
 
-Lista pokazuje, co robi każde pobieranie: przygotowanie (łączenie z serwisem, potrafi trwać kilka sekund), pobieranie z paskiem postępu, szybkością i czasem do końca, konwersję oraz dodawanie do biblioteki. Zlecenie czekające w kolejce pokazuje, ile sekund zostało z przerwy między pobraniami. Po zakończeniu lub błędzie pobierania pojawia się komunikat.
+Lista pokazuje, co robi każde pobieranie: przygotowanie (łączenie z serwisem, potrafi trwać kilka sekund, liczone są sekundy od startu), pobieranie z paskiem postępu, szybkością i czasem do końca, konwersję oraz dodawanie do biblioteki. Zlecenie czekające w kolejce pokazuje, ile sekund zostało z przerwy między pobraniami. Po zakończeniu lub błędzie pobierania pojawia się komunikat.
 
 Zasady chroniące twój adres IP: jedno pobieranie naraz, przerwa między nimi, dzienny limit (zobacz [Konfiguracja](configuration.md)), playlisty nie są rozwijane. Nieudane zlecenie pokazuje powód, np. YouTube prosi o „potwierdzenie, że nie jesteś botem”. Pobranie świeżego obrazu przynosi nowszy `yt-dlp`, zobacz [Rozwiązywanie problemów](troubleshooting.md). Najpierw przeczytaj uwagi o regulaminach w [Bezpieczeństwie](security.md). Wgrywanie własnych plików albo muzyka na wolnych licencjach to zawsze bezpieczna droga.
 

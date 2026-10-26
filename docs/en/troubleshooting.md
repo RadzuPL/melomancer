@@ -51,7 +51,7 @@ Only mp3, ogg, opus, flac, wav, m4a, aac and webm files that contain an audio st
 Open the Downloads tab, the error text is shown next to the job.
 
 **A download seems stuck.**
-Look at the stage text under the title. "Preparing" can last 10 to 30 seconds (the site is contacted and a JavaScript challenge is solved), "Downloading" shows a percentage, and a queued job shows "starts in N s": that is the deliberate pause between downloads (`YTDLP_MIN_GAP_SECONDS`). The log has a line for the start and the end of every download with its duration:
+Look at the stage text under the title. "Preparing" can last 10 to 30 seconds (the site is contacted and a JavaScript challenge is solved), "Downloading" shows a percentage, and a queued job shows "starts in N s": that is the deliberate pause between downloads (`YTDLP_MIN_GAP_SECONDS`). The log has a line for the start and the end of every download with its duration, and every step yt-dlp reports in between with a time stamp (for example `yt-dlp: [youtube] Extracting URL`, downloading the page, solving the JavaScript challenge), so you can see which step takes the time:
 
 ```
 docker logs --tail 50 melomancer

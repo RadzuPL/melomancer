@@ -51,7 +51,7 @@ Przyjmowane są tylko pliki mp3, ogg, opus, flac, wav, m4a, aac i webm, które z
 Otwórz zakładkę Pobieranie, tekst błędu jest obok zlecenia.
 
 **Pobieranie wygląda na zawieszone.**
-Patrz na tekst etapu pod tytułem. „Przygotowanie” może trwać 10 do 30 sekund (łączenie z serwisem i rozwiązanie zadania JavaScript), „Pobieranie” pokazuje procenty, a zlecenie w kolejce pokazuje „start za N s”: to celowa przerwa między pobraniami (`YTDLP_MIN_GAP_SECONDS`). W logu jest linia o starcie i końcu każdego pobrania z czasem trwania:
+Patrz na tekst etapu pod tytułem. „Przygotowanie” może trwać 10 do 30 sekund (łączenie z serwisem i rozwiązanie zadania JavaScript), „Pobieranie” pokazuje procenty, a zlecenie w kolejce pokazuje „start za N s”: to celowa przerwa między pobraniami (`YTDLP_MIN_GAP_SECONDS`). W logu jest linia o starcie i końcu każdego pobrania z czasem trwania oraz każdy krok zgłaszany w międzyczasie przez yt-dlp ze znacznikiem czasu (np. `yt-dlp: [youtube] Extracting URL`, pobieranie strony, rozwiązywanie zadania JavaScript), więc widać, który krok zabiera czas:
 
 ```
 docker logs --tail 50 melomancer

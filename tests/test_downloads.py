@@ -51,21 +51,39 @@ def test_worker_ingests_a_finished_download(settings, tmp_path):
         return make_wav(workdir / "clip.wav", 500), "Rain on the glass", url
 
     seen = []
-    job = enqueue(settings, 1, "https://youtu.be/rain", ["Rain"])
+    job = enqueue(settings, 1, "https://youtu.be/rain", ["Rain"], ["Sesja 3"])
     worker = Downloader(settings, fetch=fetch)
     assert worker.process_one() is True
     assert worker.process_one() is False  # queue empty
     assert seen and seen[0]["percent"] == 42.0 and seen[0]["stage"] == "downloading"
+    assert isinstance(seen[0]["elapsed"], int) and "started" not in seen[0]
     assert worker.progress() == {}  # nothing is reported for a finished job
 
     with tx(settings.db_path) as conn:
         row = conn.execute("SELECT * FROM downloads WHERE id=?", (job,)).fetchone()
         track = conn.execute("SELECT * FROM tracks WHERE id=?", (row["track_id"],)).fetchone()
         tags = [r["tag"] for r in conn.execute("SELECT tag FROM track_tags WHERE track_id=?", (track["id"],))]
+        mine = [r["tag"] for r in conn.execute("SELECT tag FROM user_tags WHERE track_id=?", (track["id"],))]
     assert row["status"] == "done"
     assert track["title"] == "Rain on the glass" and track["source"] == "youtube"
-    assert tags == ["rain"]
+    assert tags == ["rain"] and mine == ["sesja 3"]
     assert not list(settings.tmp_dir.glob("dl-*"))
+
+
+def test_a_duplicate_download_still_gets_the_personal_tags(settings):
+    def fetch(url, workdir, cfg, report):
+        return make_wav(workdir / "clip.wav", 500), "Rain", url
+
+    worker = Downloader(settings, fetch=fetch)
+    enqueue(settings, 1, "https://youtu.be/one", [], ["Sesja 3"])
+    enqueue(settings, 1, "https://youtu.be/two", [], ["Sesja 4"])
+    assert worker.process_one() and worker.process_one()
+    with tx(settings.db_path) as conn:
+        statuses = [r["error"] for r in conn.execute("SELECT error FROM downloads ORDER BY id")]
+        mine = sorted(r["tag"] for r in conn.execute("SELECT tag FROM user_tags"))
+        tracks = conn.execute("SELECT COUNT(*) FROM tracks").fetchone()[0]
+    assert statuses == [None, "duplicate"] and tracks == 1
+    assert mine == ["sesja 3", "sesja 4"]
 
 
 def test_worker_records_failures_and_keeps_going(settings):
@@ -84,7 +102,7 @@ def test_download_api_validates_and_scopes_jobs(env):
     assert login(env, "admin").status_code == 200
     bad = env.client.post("/api/downloads", json={"url": "https://evil.example/x.mp3"})
     assert bad.status_code == 400 and bad.json()["detail"] == "host_not_allowed"
-    ok = env.client.post("/api/downloads", json={"url": "https://youtu.be/abc", "tags": ["Ambient"]})
+    ok = env.client.post("/api/downloads", json={"url": "https://youtu.be/abc", "tags": ["Ambient"], "my_tags": ["Sesja 3"]})
     assert ok.status_code == 201
     listing = env.client.get("/api/downloads").json()
     assert [d["status"] for d in listing["jobs"]] == ["queued"] and listing["pause_remaining"] == 0

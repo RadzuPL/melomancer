@@ -29,6 +29,15 @@ class TagsIn(BaseModel):
 class DownloadIn(BaseModel):
     url: str = Field(min_length=8, max_length=500)
     tags: list[str] = Field(default_factory=list, max_length=30)
+    my_tags: list[str] = Field(default_factory=list, max_length=30)
+
+
+def _json_list(text: str) -> list[str]:
+    try:
+        value = json.loads(text) if text else []
+    except json.JSONDecodeError:
+        return []
+    return [str(item) for item in value] if isinstance(value, list) else []
 
 
 def _editable_track(conn, user: dict, track_id: str):
@@ -55,18 +64,15 @@ def list_tracks(request: Request, user: dict = Depends(current_user)):
 
 
 @router.post("/tracks/upload", status_code=201)
-def upload(request: Request, file: UploadFile = File(...), folder_tags: str = Form(""),
-           user: dict = Depends(current_user)):
+def upload(request: Request, file: UploadFile = File(...), folder_tags: str = Form(""), tags: str = Form(""),
+           my_tags: str = Form(""), user: dict = Depends(current_user)):
     settings = get_settings(request)
     name = file.filename or "upload"
     ext = Path(name).suffix.lower()
     if ext not in library.ALLOWED_EXT:
         raise HTTPException(415, "unsupported_type")
-    try:
-        tags = json.loads(folder_tags) if folder_tags else []
-        tags = [str(t) for t in tags] if isinstance(tags, list) else []
-    except json.JSONDecodeError:
-        tags = []
+    shared = [*_json_list(folder_tags), *_json_list(tags)]
+    mine = _json_list(my_tags)
     settings.tmp_dir.mkdir(parents=True, exist_ok=True)
     tmp = settings.tmp_dir / f"up-{uuid.uuid4().hex}{ext}"
     limit = settings.max_upload_mb * 1024 * 1024
@@ -80,7 +86,7 @@ def upload(request: Request, file: UploadFile = File(...), folder_tags: str = Fo
                 out.write(chunk)
         try:
             track, status = library.ingest(settings, tmp, owner_id=user["id"], original_name=name,
-                                           source="upload", tags=tags)
+                                           source="upload", tags=shared, my_tags=mine)
         except library.IngestError as exc:
             raise HTTPException(422, exc.code) from None
     finally:
@@ -178,7 +184,7 @@ def list_downloads(request: Request, user: dict = Depends(current_user)):
         jobs.append({"id": r["id"], "url": r["url"], "status": r["status"], "error": r["error"],
                      "title": r["title"] or extra.get("title"), "track_id": r["track_id"], "user": r["username"],
                      "created_at": r["created_at"], "stage": extra.get("stage"), "percent": extra.get("percent"),
-                     "speed": extra.get("speed"), "eta": extra.get("eta")})
+                     "speed": extra.get("speed"), "eta": extra.get("eta"), "elapsed": extra.get("elapsed")})
     return {"jobs": jobs, "pause_remaining": worker.pause_remaining()}
 
 
@@ -186,7 +192,8 @@ def list_downloads(request: Request, user: dict = Depends(current_user)):
 def create_download(body: DownloadIn, request: Request, user: dict = Depends(current_user)):
     settings = get_settings(request)
     try:
-        job = downloader.enqueue(settings, user["id"], body.url, library.norm_tags(body.tags))
+        job = downloader.enqueue(settings, user["id"], body.url, library.norm_tags(body.tags),
+                                 library.norm_tags(body.my_tags))
     except downloader.DownloadRejected as exc:
         status = 429 if exc.code == "daily_limit" else 400
         raise HTTPException(status, exc.code) from None
