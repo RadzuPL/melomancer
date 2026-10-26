@@ -1,0 +1,7 @@
+fastapi>=0.115,<1
+uvicorn>=0.30,<1
+python-multipart>=0.0.9
+argon2-cffi>=23.1
+discord.py[voice]>=2.7.1,<3
+davey
+yt-dlp[default]>=2025.11.12

@@ -1,0 +1,141 @@
+"""SQLite access: schema migrations and a small transaction helper."""
+from __future__ import annotations
+
+import sqlite3
+from contextlib import contextmanager
+from pathlib import Path
+from typing import Iterator
+
+# Each entry is applied once, in order; PRAGMA user_version records how many ran.
+MIGRATIONS: list[str] = [
+    """
+    CREATE TABLE users (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        username TEXT NOT NULL UNIQUE COLLATE NOCASE,
+        pw_hash TEXT NOT NULL,
+        role TEXT NOT NULL DEFAULT 'user' CHECK (role IN ('admin', 'user')),
+        disabled INTEGER NOT NULL DEFAULT 0,
+        lang TEXT NOT NULL DEFAULT 'pl',
+        created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+
+    CREATE TABLE sessions (
+        token_hash TEXT PRIMARY KEY,
+        user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        expires_at TEXT NOT NULL,
+        created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+
+    CREATE TABLE guild_access (
+        user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        guild_id TEXT NOT NULL,
+        PRIMARY KEY (user_id, guild_id)
+    );
+
+    CREATE TABLE tracks (
+        id TEXT PRIMARY KEY,
+        owner_id INTEGER NOT NULL REFERENCES users(id),
+        title TEXT NOT NULL,
+        original_title TEXT NOT NULL,
+        ext TEXT NOT NULL,
+        sha256 TEXT NOT NULL,
+        duration REAL,
+        size INTEGER NOT NULL DEFAULT 0,
+        source TEXT NOT NULL DEFAULT 'upload',
+        source_url TEXT,
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        deleted_at TEXT
+    );
+    CREATE UNIQUE INDEX idx_tracks_sha_live ON tracks(sha256) WHERE deleted_at IS NULL;
+    CREATE INDEX idx_tracks_sha ON tracks(sha256);
+
+    CREATE TABLE track_tags (
+        track_id TEXT NOT NULL REFERENCES tracks(id) ON DELETE CASCADE,
+        tag TEXT NOT NULL,
+        PRIMARY KEY (track_id, tag)
+    );
+
+    CREATE TABLE user_tags (
+        user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        track_id TEXT NOT NULL REFERENCES tracks(id) ON DELETE CASCADE,
+        tag TEXT NOT NULL,
+        PRIMARY KEY (user_id, track_id, tag)
+    );
+
+    CREATE TABLE sets (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        owner_id INTEGER NOT NULL REFERENCES users(id),
+        name TEXT NOT NULL,
+        created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+
+    CREATE TABLE set_groups (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        set_id INTEGER NOT NULL REFERENCES sets(id) ON DELETE CASCADE,
+        name TEXT NOT NULL,
+        position INTEGER NOT NULL DEFAULT 0
+    );
+
+    CREATE TABLE playlists (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        group_id INTEGER NOT NULL REFERENCES set_groups(id) ON DELETE CASCADE,
+        name TEXT NOT NULL,
+        position INTEGER NOT NULL DEFAULT 0,
+        loop INTEGER NOT NULL DEFAULT 1,
+        shuffle INTEGER NOT NULL DEFAULT 0,
+        volume REAL,
+        fade REAL NOT NULL DEFAULT 2
+    );
+
+    CREATE TABLE playlist_items (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        playlist_id INTEGER NOT NULL REFERENCES playlists(id) ON DELETE CASCADE,
+        track_id TEXT NOT NULL REFERENCES tracks(id),
+        position INTEGER NOT NULL
+    );
+    CREATE INDEX idx_items_playlist ON playlist_items(playlist_id, position);
+
+    CREATE TABLE downloads (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER NOT NULL REFERENCES users(id),
+        url TEXT NOT NULL,
+        status TEXT NOT NULL DEFAULT 'queued',
+        error TEXT,
+        track_id TEXT,
+        title TEXT,
+        tags TEXT NOT NULL DEFAULT '[]',
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+    """,
+]
+
+
+def init_db(path: Path) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    conn = sqlite3.connect(path)
+    try:
+        conn.execute("PRAGMA journal_mode=WAL")
+        version = conn.execute("PRAGMA user_version").fetchone()[0]
+        for number, script in enumerate(MIGRATIONS[version:], start=version + 1):
+            conn.executescript(script)
+            conn.execute(f"PRAGMA user_version={number}")
+        conn.commit()
+    finally:
+        conn.close()
+
+
+@contextmanager
+def tx(path: Path) -> Iterator[sqlite3.Connection]:
+    """One connection, one transaction: commit on success, roll back on error."""
+    conn = sqlite3.connect(path, timeout=15)
+    conn.row_factory = sqlite3.Row
+    conn.execute("PRAGMA foreign_keys=ON")
+    try:
+        yield conn
+        conn.commit()
+    except BaseException:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()

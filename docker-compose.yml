@@ -1,0 +1,19 @@
+services:
+  melomancer:
+    image: ghcr.io/radzupl/melomancer:latest
+    container_name: melomancer
+    restart: unless-stopped
+    environment:
+      DISCORD_TOKEN: ${DISCORD_TOKEN:?Set DISCORD_TOKEN in .env}
+      ADMIN_USERNAME: ${ADMIN_USERNAME:-admin}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:?Set ADMIN_PASSWORD in .env (min. 10 characters)}
+      PUID: ${PUID:-1000}
+      PGID: ${PGID:-1000}
+      TZ: ${TZ:-Europe/Warsaw}
+      YTDLP_ENABLED: ${YTDLP_ENABLED:-true}
+      YTDLP_DAILY_LIMIT: ${YTDLP_DAILY_LIMIT:-50}
+      MAX_UPLOAD_MB: ${MAX_UPLOAD_MB:-300}
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./data:/data
