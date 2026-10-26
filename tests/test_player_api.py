@@ -38,7 +38,7 @@ def test_play_playlist_skips_deleted_tracks(env, wavs):
     login(env, "admin")
     playlist_id, ids = _playlist_with_tracks(env, wavs, 3)
     env.client.delete(f"/api/tracks/{ids[1]}?force=true")
-    env.client.post("/api/player/111/connect", json={"channel_id": "1001"})
+    env.client.post("/api/player/111/connect", json={"channel_id": "100100"})
     res = env.client.post("/api/player/111/play", json={"playlist_id": playlist_id})
     assert res.status_code == 200 and res.json()["state"] == "playing"
     assert env.bot.played[-1]["titles"] == ["tone0", "tone2"]
@@ -60,22 +60,22 @@ def test_playing_a_foreign_playlist_is_not_found(env, wavs):
     playlist_id, _ = _playlist_with_tracks(env, wavs, 1)
     _grant(env, other, ["111"])
     login(env, "other")
-    env.client.post("/api/player/111/connect", json={"channel_id": "1001"})
+    env.client.post("/api/player/111/connect", json={"channel_id": "100100"})
     assert env.client.post("/api/player/111/play", json={"playlist_id": playlist_id}).status_code == 404
     assert owner != other
 
 
 def test_only_one_controller_per_server(env, wavs):
-    a = make_user(env, "a")
-    b = make_user(env, "b")
+    a = make_user(env, "alpha")
+    b = make_user(env, "bravo")
     _grant(env, a, ["111"])
     _grant(env, b, ["111"])
-    login(env, "a")
+    login(env, "alpha")
     playlist_id, _ = _playlist_with_tracks(env, wavs, 1)
-    env.client.post("/api/player/111/connect", json={"channel_id": "1001"})
+    env.client.post("/api/player/111/connect", json={"channel_id": "100100"})
     assert env.client.post("/api/player/111/play", json={"playlist_id": playlist_id}).status_code == 200
 
-    login(env, "b")
+    login(env, "bravo")
     busy = env.client.post("/api/player/111/pause")
     assert busy.status_code == 409 and busy.json()["detail"] == "busy"
     assert env.client.post("/api/player/111/volume", json={"volume": 0.2}).status_code == 409
@@ -83,9 +83,9 @@ def test_only_one_controller_per_server(env, wavs):
     login(env, "admin")
     assert env.client.post("/api/player/111/pause").status_code == 200
 
-    login(env, "a")
+    login(env, "alpha")
     assert env.client.post("/api/player/111/stop").json()["state"] == "idle"
-    login(env, "b")
+    login(env, "bravo")
     assert env.client.post("/api/player/111/volume", json={"volume": 0.2}).status_code == 200
 
 

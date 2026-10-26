@@ -59,14 +59,14 @@ def test_only_owner_or_admin_edits(env, wavs):
 
 
 def test_personal_tags_are_private(env, wavs):
-    make_user(env, "a")
-    make_user(env, "b")
-    login(env, "a")
+    make_user(env, "alpha")
+    make_user(env, "bravo")
+    login(env, "alpha")
     track_id = upload(env, wavs[0]).json()["id"]
     assert env.client.put(f"/api/tracks/{track_id}/my-tags", json={"tags": ["Innsmouth"]}).status_code == 200
     assert _first(env)["my_tags"] == ["innsmouth"]
 
-    login(env, "b")
+    login(env, "bravo")
     assert _first(env)["my_tags"] == []
     assert env.client.get("/api/tags").json()["mine"] == []
 

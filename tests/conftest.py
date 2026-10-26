@@ -29,8 +29,8 @@ class FakeBot:
     def __init__(self) -> None:
         self.status = "ready"
         self.guild_list = [
-            {"id": "111", "name": "Guild A", "channels": [{"id": "1001", "name": "Voice A"}]},
-            {"id": "222", "name": "Guild B", "channels": [{"id": "2001", "name": "Voice B"}]},
+            {"id": "111", "name": "Guild A", "channels": [{"id": "100100", "name": "Voice A"}]},
+            {"id": "222", "name": "Guild B", "channels": [{"id": "200100", "name": "Voice B"}]},
         ]
         self.states: dict[int, dict] = {}
         self.played: list[dict] = []
