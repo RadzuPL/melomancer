@@ -1,0 +1,87 @@
+# Using the panel
+
+Languages: **English** · [Polski](../pl/usage.md)
+
+The panel has five tabs: **Player**, **Library**, **Playlists**, **Downloads** and, for administrators, **Administration**. The language (Polish or English) is switched in the top bar and remembered per user.
+
+## The idea in one minute
+
+- The **Library** is one shared pool of music. Everyone logged in sees every track with its original title.
+- **Playlists** are private. They live in a tree: **set** (a game system or a scenario, for example "Call of Cthulhu: Druga"), **group** (for example a location or a type of scene), **playlist** (a list of tracks from the library).
+- Names and structure of your sets, groups and playlists are visible only to you (and to administrators). Another game master cannot see that your playlist is called "Innsmouth harbour".
+- On the **Player** tab you pick a server and a voice channel and press a playlist.
+
+## Roles
+
+| | User | Administrator |
+|---|---|---|
+| See the whole library, preview tracks | yes | yes |
+| Upload and download music | yes | yes |
+| Edit or delete a track | own tracks | all tracks |
+| See and edit sets, groups, playlists | own only | all (switch "show everyone's sets") |
+| Control the bot | only on servers granted by an administrator | all servers |
+| Manage users and server access | no | yes |
+
+## Library
+
+**Adding music.** Press **Choose files** or **Choose folder**, or drag audio files onto the dashed area. Many files at once are fine, they are sent one after another (two at a time) with a status line for each. Accepted types: mp3, ogg, opus, flac, wav, m4a, aac, webm. Folder upload can turn folder names into **shared tags** (the checkbox next to the buttons).
+
+A file that is already in the library (same content) is not added twice: you see "already in the library". If the track was deleted earlier and still sits greyed out in somebody's playlist, uploading the same file brings it back and the playlist entry lights up again.
+
+**Finding music.** Type in the search box (title or tag), pick a tag, or tick "mine only". Click a tag chip in the table to filter by it.
+
+**Tags.** Every track has two kinds of tags:
+
+- **Shared tags** (grey) are visible to everybody and are edited by the track's owner or an administrator. Use neutral ones: ambient, combat, tavern, rain.
+- **My tags** (purple outline) are visible only to you, on any track in the library. Use them for anything that would be a spoiler, for example a location name.
+
+**Editing.** The pencil button opens the edit dialog: title and shared tags (owner or administrator), your own tags (anyone). The original title is kept and shown in the dialog.
+
+**Deleting.** Only the owner or an administrator can delete a track. If the track is used in playlists, you are told **how many** (not which ones, so nothing about other people's scenarios leaks). After deletion the audio file is gone, but the title stays in those playlists as a greyed-out, struck-through entry so the playlist's author notices and can replace it.
+
+**Bulk actions.** Tick tracks (the header checkbox selects all visible ones). A bar appears at the bottom: **Add to playlist** puts the selection at the end of one of your playlists, **Add my tag** gives them a personal tag.
+
+**Preview.** The play button streams the track in your browser (not into Discord).
+
+## Playlists
+
+Left side: your tree. Use **+ Set**, then the **+** buttons on a set (new group) and on a group (new playlist). The pencil renames, the cross deletes, the arrows change the order. Deleting a set, group or playlist never deletes music from the library.
+
+Right side: the selected playlist.
+
+- **Loop**: play the list again and again. **Shuffle**: random order (re-shuffled on each lap).
+- **Fade in/out**: each track fades in and out over this many seconds (0 turns it off). Useful for ambient music.
+- **Own volume**: when ticked, pressing this playlist sets the bot's volume to this value. When not ticked, the current volume stays.
+- **Add tracks** opens a picker with search and tag filter, tick any number of tracks.
+- Arrows move a track, the cross removes it from the playlist (not from the library).
+- A greyed, struck-through entry is a track that was deleted from the library. **Replace** lets you pick another track for the same slot.
+
+## Player
+
+1. Choose the **server** and the **voice channel**. The bot has to be on that server (see [Creating the Discord bot](discord-bot.md)).
+2. Choose a **set**. Its groups and playlists appear as buttons.
+3. Press a playlist. If the bot is not in the channel yet it joins first, then starts playing. The active playlist is highlighted.
+
+Controls: previous, pause/resume, next, stop, loop, shuffle and the **volume** slider (0 to 150 %). Volume changes apply immediately. Players can also lower the bot individually in Discord.
+
+**Connect / Disconnect / Move here** manage the bot's presence in the channel. Playing a playlist on another channel needs a click on **Move here** first.
+
+**One controller per server.** While somebody's playlist is playing on a server, another (non-administrator) user gets "Someone else is controlling this server right now" until that session is stopped. Administrators can always take over.
+
+If the connection drops on its own, the bot waits about 35 seconds before it can join again. This is deliberate, a quicker rejoin tends to make Discord kill the new session as well. You will see the remaining seconds in the message.
+
+The bot leaves a channel after 30 minutes without any human in it (`IDLE_LEAVE_MINUTES`).
+
+## Downloads
+
+Paste the address of **one** video or track from an allowed site (YouTube, SoundCloud, Bandcamp by default) and press **Download**. The server fetches the audio once, converts it, and adds it to the shared library, with the tags you typed. After that it plays from disk, so nothing depends on YouTube during the session.
+
+Rules that protect your IP address: one download at a time, a pause between them, a daily limit (see [Configuration](configuration.md)), playlists are not expanded. A failed job shows the reason, for example YouTube asking to "sign in to confirm you are not a bot". Pulling a fresh image brings a newer `yt-dlp`, see [Troubleshooting](troubleshooting.md). Read the notes on terms of service in [Security](security.md) first. Uploading your own files or using music with a free licence is always the safe route.
+
+## Administration
+
+- **Users**: create accounts (username, password of at least 10 characters, role), change roles, reset a password, disable or enable an account. A disabled account is logged out immediately. The last active administrator cannot be demoted or disabled.
+- **Servers**: for every non-administrator, tick the Discord servers they may control. A user without any ticked server sees an empty Player tab.
+- **System**: the version and the bot status.
+
+Your own name in the top bar opens the account dialog: change your password. Changing a password logs you out everywhere else.

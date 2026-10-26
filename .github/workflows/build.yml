@@ -90,7 +90,24 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - uses: docker/build-push-action@v6
+      # Build once into the local Docker daemon and test the real image before anything is published.
+      - name: Build the image for the smoke test
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          load: true
+          tags: melomancer:ci
+          build-args: |
+            APP_VERSION=${{ steps.version.outputs.value }}
+            PIP_CACHE_BUST=${{ steps.version.outputs.week }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Smoke test the image
+        run: bash scripts/smoke_test.sh melomancer:ci
+
+      - name: Publish the image
+        uses: docker/build-push-action@v6
         with:
           context: .
           push: true
