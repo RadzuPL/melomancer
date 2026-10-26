@@ -43,7 +43,23 @@ jobs:
           node --check app/static/i18n.js
           node scripts/check_i18n.js
 
-      - run: python -m pytest
+      - name: Run the tests
+        shell: bash
+        run: python -m pytest --tb=short -rf 2>&1 | tee pytest.log
+
+      # The job log is not always reachable from outside GitHub, annotations are: show the tail of a failed run there.
+      - name: Show the failure as annotations
+        if: failure()
+        run: |
+          python - <<'PY'
+          import os
+          lines = open("pytest.log").read().splitlines() if os.path.exists("pytest.log") else ["no pytest.log"]
+          lines = lines[-150:]
+          chunks = ["\n".join(lines[i:i + 15]) for i in range(0, len(lines), 15)][-10:]
+          for chunk in chunks:
+              chunk = chunk.replace("%", "%25").replace("\r", "%0D").replace("\n", "%0A")
+              print(f"::error title=pytest::{chunk}")
+          PY
 
   release:
     needs: test
