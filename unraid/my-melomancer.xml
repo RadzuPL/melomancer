@@ -11,7 +11,7 @@
   <Overview>Discord music bot with a web panel for tabletop RPG sessions. Shared music library (upload files or fetch single videos with yt-dlp), private playlists grouped into sets and groups (per system, scenario or location), one-click playback, volume control, several users. The bot needs only a bot token; the panel runs on port 8080. First start creates the administrator from ADMIN_USERNAME and ADMIN_PASSWORD. / Bot muzyczny Discord z panelem webowym na sesje RPG: wspolna biblioteka, prywatne playlisty w zestawach, odpalanie jednym przyciskiem, regulacja glosnosci, wielu uzytkownikow.</Overview>
   <Category>MediaServer:Music Tools:</Category>
   <WebUI>http://[IP]:[PORT:8080]/</WebUI>
-  <TemplateURL>https://raw.githubusercontent.com/RadzuPL/melomancer/main/unraid/melomancer.xml</TemplateURL>
+  <TemplateURL>https://raw.githubusercontent.com/RadzuPL/melomancer/main/unraid/my-melomancer.xml</TemplateURL>
   <Icon></Icon>
   <ExtraParams>--restart=unless-stopped</ExtraParams>
   <PostArgs></PostArgs>

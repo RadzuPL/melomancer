@@ -80,10 +80,10 @@ Biblioteka muzyczna i baza trafiają do folderu `./data` obok pliku compose.
 
 ## 4. Unraid
 
-Na Unraidzie kontenery zwykle dodaje się z szablonu w zakładce Docker. Szablon leży w repozytorium jako `unraid/melomancer.xml`.
+Na Unraidzie kontenery zwykle dodaje się z szablonu w zakładce Docker. Szablon leży w repozytorium jako `unraid/my-melomancer.xml`.
 
-1. Pobierz `unraid/melomancer.xml` z repozytorium (https://github.com/RadzuPL/melomancer/blob/main/unraid/melomancer.xml, przycisk Raw).
-2. Skopiuj go na pendrive Unraida jako `/boot/config/plugins/dockerMan/templates-user/my-melomancer.xml`. Przez sieć jest to udział `\\TOWER\flash\config\plugins\dockerMan\templates-user\` (zamień `TOWER` na nazwę swojego serwera).
+1. Pobierz `unraid/my-melomancer.xml` z repozytorium (https://github.com/RadzuPL/melomancer/blob/main/unraid/my-melomancer.xml, przycisk Raw).
+2. Skopiuj go na pendrive Unraida jako `/boot/config/plugins/dockerMan/templates-user/my-melomancer.xml` (nazwa pliku musi zaczynać się od `my-`, inaczej Unraid nie pokaże go w *User templates*). Przez sieć jest to udział `\\TOWER\flash\config\plugins\dockerMan\templates-user\` (zamień `TOWER` na nazwę swojego serwera).
 3. Otwórz zakładkę **Docker**, kliknij **Add Container**, rozwiń listę **Template** i wybierz **melomancer** w sekcji *User templates*.
 4. Wypełnij pola:
 
@@ -111,7 +111,7 @@ Dalej:
 
 1. Zakładka **Administracja**: załóż konta pozostałym MG i zaznacz, którymi serwerami Discord każdy może sterować.
 2. Zakładka **Biblioteka**: wgraj muzykę.
-3. Zakładka **Playlisty**: utwórz zestaw, grupę i playlistę.
+3. Zakładka **Playlisty**: utwórz zestaw i playlistę w nim (foldery są opcjonalne).
 4. Zakładka **Odtwarzacz**: wybierz serwer i kanał, i naciśnij playlistę.
 
 Panel opisuje [Obsługa panelu](usage.md).

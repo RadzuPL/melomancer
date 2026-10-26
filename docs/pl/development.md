@@ -76,4 +76,4 @@ bash scripts/smoke_test.sh melomancer:dev
 - API nie zna szczegółów Discorda. Trasy rozmawiają z `BotManager`, testy z atrapą.
 - Jako `detail` zwracaj krótkie kody maszynowe (`not_found`, `in_use`, ...). Panel tłumaczy je w `i18n.js` pod `err.<kod>`.
 - Wszystko, co pochodzi od użytkownika, trafia na stronę przez `textContent` lub `createTextNode`, nigdy jako HTML.
-- Zmiany w bazie dodawaj jako nowy wpis na końcu `MIGRATIONS` w `app/db.py`, nigdy nie edytuj starego.
+- Zmiany w bazie dodawaj jako nowy wpis na końcu `MIGRATIONS` w `app/db.py`, nigdy nie edytuj starego. Przed aktualizacją istniejącej bazy obok niej zapisywana jest kopia `melomancer.db.before-vN`. Dodaj test, który aktualizuje bazę zbudowaną ze starszych migracji (zobacz `tests/test_db.py`).

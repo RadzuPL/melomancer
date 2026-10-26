@@ -80,10 +80,10 @@ The music library and the database end up in `./data` next to the compose file.
 
 ## 4. Unraid
 
-Unraid users normally add containers from a template in the Docker tab. The template ships in the repository as `unraid/melomancer.xml`.
+Unraid users normally add containers from a template in the Docker tab. The template ships in the repository as `unraid/my-melomancer.xml`.
 
-1. Download `unraid/melomancer.xml` from the repository (https://github.com/RadzuPL/melomancer/blob/main/unraid/melomancer.xml, use the Raw button).
-2. Copy it to the Unraid flash drive as `/boot/config/plugins/dockerMan/templates-user/my-melomancer.xml`. Over the network this is the share `\\TOWER\flash\config\plugins\dockerMan\templates-user\` (replace `TOWER` with your server name).
+1. Download `unraid/my-melomancer.xml` from the repository (https://github.com/RadzuPL/melomancer/blob/main/unraid/my-melomancer.xml, use the Raw button).
+2. Copy it to the Unraid flash drive as `/boot/config/plugins/dockerMan/templates-user/my-melomancer.xml` (the file name has to start with `my-`, otherwise Unraid does not list it under *User templates*). Over the network this is the share `\\TOWER\flash\config\plugins\dockerMan\templates-user\` (replace `TOWER` with your server name).
 3. Open the **Docker** tab, click **Add Container**, open the **Template** drop-down and choose **melomancer** under *User templates*.
 4. Fill in the fields:
 
@@ -111,7 +111,7 @@ Then:
 
 1. **Administration** tab: create accounts for your other game masters and tick which Discord servers each one may control.
 2. **Library** tab: upload some music.
-3. **Playlists** tab: create a set, a group and a playlist.
+3. **Playlists** tab: create a set and a playlist in it (folders are optional).
 4. **Player** tab: pick the server and channel and press a playlist.
 
 The panel is explained in [Using the panel](usage.md).

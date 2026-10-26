@@ -324,12 +324,14 @@ async function viewPlayer(main) {
     const set = state.sets.find((s) => String(s.id) === ps.setId);
     padsBox.replaceChildren();
     if (!set) { padsBox.append(h("p", { class: "muted" }, tr("no_sets_hint"))); return; }
-    if (!set.groups.length) padsBox.append(h("p", { class: "muted" }, tr("no_groups_hint")));
+    if (!set.playlists.length && !set.groups.some((g) => g.playlists.length)) padsBox.append(h("p", { class: "muted" }, tr("no_groups_hint")));
+    const pad = (p) => h("button", {
+      class: "pad" + (ps.st && ps.st.playlist && ps.st.playlist.id === p.id ? " active" : ""), "data-id": p.id,
+      onclick: () => playPad(p),
+    }, p.name, h("span", { class: "count" }, tr("n_tracks", { n: p.count - p.missing }) + (p.missing ? " ⚠ " + p.missing : "")));
+    if (set.playlists.length) padsBox.append(h("div", { class: "pads" }, set.playlists.map(pad)));
     for (const group of set.groups) {
-      padsBox.append(h("h3", {}, group.name), h("div", { class: "pads" }, group.playlists.map((p) => h("button", {
-        class: "pad" + (ps.st && ps.st.playlist && ps.st.playlist.id === p.id ? " active" : ""), "data-id": p.id,
-        onclick: () => playPad(p),
-      }, p.name, h("span", { class: "count" }, tr("n_tracks", { n: p.count - p.missing }) + (p.missing ? " ⚠ " + p.missing : ""))))));
+      if (group.playlists.length) padsBox.append(h("h3", {}, "📁 " + group.name), h("div", { class: "pads" }, group.playlists.map(pad)));
     }
   }
 
@@ -603,7 +605,10 @@ async function viewLibrary(main) {
 async function choosePlaylist() {
   const sets = state.sets.filter((s) => s.owner_id === state.user.id);
   const options = [];
-  for (const s of sets) for (const g of s.groups) for (const p of g.playlists) options.push({ id: p.id, label: `${s.name} › ${g.name} › ${p.name}` });
+  for (const s of sets) {
+    for (const p of s.playlists) options.push({ id: p.id, label: `${s.name} › ${p.name}` });
+    for (const g of s.groups) for (const p of g.playlists) options.push({ id: p.id, label: `${s.name} › 📁 ${g.name} › ${p.name}` });
+  }
   if (!options.length) { toast(tr("no_playlists_yet"), "err"); return null; }
   const sel = h("select", { "aria-label": tr("playlist") }, options.map((o) => h("option", { value: o.id }, o.label)));
   const v = await modal(tr("add_to_playlist"), h("div", { class: "stack" }, sel), [
@@ -648,8 +653,17 @@ async function viewPlaylists(main) {
   const move = (ids, index, delta) => { const copy = [...ids]; const [x] = copy.splice(index, 1); copy.splice(index + delta, 0, x); return copy; };
   const small = (label, title, fn, disabled) => h("button", { class: "btn small icon", title, "aria-label": title, onclick: fn, disabled }, label);
 
+  function plRow(p, siblings, index, orderUrl, root) {
+    const ids = siblings.map((x) => x.id);
+    return h("div", { class: "pl" + (root ? " root" : "") + (state.pl.selected === p.id ? " active" : "") },
+      h("button", { class: "name", onclick: () => { state.pl.selected = p.id; paintTree(); paintDetail().catch(fail); } },
+        p.name + " (" + (p.count - p.missing) + (p.missing ? " ⚠" + p.missing : "") + ")"),
+      small("▲", tr("up"), () => act(() => api("PUT", orderUrl, { ids: move(ids, index, -1) })), index === 0),
+      small("▼", tr("down"), () => act(() => api("PUT", orderUrl, { ids: move(ids, index, 1) })), index === siblings.length - 1));
+  }
+
   function paintTree() {
-    fill(tree, 
+    fill(tree,
       h("div", { class: "row" }, h("h2", { class: "grow" }, tr("sets")),
         state.user.role === "admin" ? h("label", { class: "row small" }, h("input", { type: "checkbox", checked: state.showAllSets,
           onchange: async (e) => { state.showAllSets = e.target.checked; await loadSets(); paintTree(); } }), tr("show_all_sets")) : null,
@@ -664,20 +678,36 @@ async function viewPlaylists(main) {
           h("div", { class: "head" }, h("span", { class: "grow" }, s.name, mine ? null : h("span", { class: "owner" }, " (" + s.owner + ")")),
             small("✎", tr("rename"), async () => { const name = await promptDialog(tr("rename"), tr("name"), s.name); if (name) act(() => api("PATCH", `/api/sets/${s.id}`, { name })); }),
             small("✕", tr("delete"), async () => { if (await confirmDialog(tr("delete_set", { name: s.name }), true)) { state.pl.selected = null; state.pl.detail = null; act(() => api("DELETE", `/api/sets/${s.id}`)); } }),
-            small("+", tr("new_group"), async () => { const name = await promptDialog(tr("new_group"), tr("name"), ""); if (name) act(() => api("POST", `/api/sets/${s.id}/groups`, { name })); })),
+            small("♪+", tr("new_playlist"), async () => { const name = await promptDialog(tr("new_playlist"), tr("name"), ""); if (name) act(() => api("POST", `/api/sets/${s.id}/playlists`, { name })); }),
+            small("📁+", tr("new_group"), async () => { const name = await promptDialog(tr("new_group"), tr("name"), ""); if (name) act(() => api("POST", `/api/sets/${s.id}/groups`, { name })); })),
+          s.playlists.map((p, pi) => plRow(p, s.playlists, pi, `/api/sets/${s.id}/playlists/order`, true)),
           s.groups.map((g, gi) => h("div", { class: "group" },
-            h("div", { class: "head" }, h("span", { class: "grow" }, g.name),
+            h("div", { class: "head" }, h("span", { class: "grow" }, "📁 " + g.name),
               small("▲", tr("up"), () => act(() => api("PUT", `/api/sets/${s.id}/groups/order`, { ids: move(s.groups.map((x) => x.id), gi, -1) })), gi === 0),
               small("▼", tr("down"), () => act(() => api("PUT", `/api/sets/${s.id}/groups/order`, { ids: move(s.groups.map((x) => x.id), gi, 1) })), gi === s.groups.length - 1),
               small("✎", tr("rename"), async () => { const name = await promptDialog(tr("rename"), tr("name"), g.name); if (name) act(() => api("PATCH", `/api/groups/${g.id}`, { name })); }),
               small("✕", tr("delete"), async () => { if (await confirmDialog(tr("delete_group", { name: g.name }), true)) act(() => api("DELETE", `/api/groups/${g.id}`)); }),
-              small("+", tr("new_playlist"), async () => { const name = await promptDialog(tr("new_playlist"), tr("name"), ""); if (name) act(() => api("POST", `/api/groups/${g.id}/playlists`, { name })); })),
-            g.playlists.map((p, pi) => h("div", { class: "pl" + (state.pl.selected === p.id ? " active" : "") },
-              h("button", { class: "name", onclick: () => { state.pl.selected = p.id; paintTree(); paintDetail().catch(fail); } },
-                p.name + " (" + (p.count - p.missing) + (p.missing ? " ⚠" + p.missing : "") + ")"),
-              small("▲", tr("up"), () => act(() => api("PUT", `/api/groups/${g.id}/playlists/order`, { ids: move(g.playlists.map((x) => x.id), pi, -1) })), pi === 0),
-              small("▼", tr("down"), () => act(() => api("PUT", `/api/groups/${g.id}/playlists/order`, { ids: move(g.playlists.map((x) => x.id), pi, 1) })), pi === g.playlists.length - 1))))));
+              small("♪+", tr("new_playlist"), async () => { const name = await promptDialog(tr("new_playlist"), tr("name"), ""); if (name) act(() => api("POST", `/api/groups/${g.id}/playlists`, { name })); })),
+            g.playlists.map((p, pi) => plRow(p, g.playlists, pi, `/api/groups/${g.id}/playlists/order`, false)))));
       }));
+  }
+
+  async function movePlaylist(p) {
+    const options = [];
+    for (const s of state.sets) {
+      options.push({ value: "s:" + s.id, label: s.name + " › " + tr("no_folder") });
+      for (const g of s.groups) options.push({ value: "g:" + g.id, label: s.name + " › 📁 " + g.name });
+    }
+    const here = p.group_id ? "g:" + p.group_id : "s:" + p.set_id;
+    const sel = h("select", { "aria-label": tr("move_playlist") },
+      options.map((o) => h("option", { value: o.value, selected: o.value === here }, o.label)));
+    const target = await modal(tr("move_playlist"), h("div", { class: "stack" }, sel), [
+      { label: tr("cancel"), value: null },
+      { label: tr("ok"), class: "primary", run: () => sel.value },
+    ]);
+    if (!target || target === here) return;
+    const body = target.startsWith("g:") ? { group_id: Number(target.slice(2)) } : { group_id: null, set_id: Number(target.slice(2)) };
+    act(() => api("PATCH", `/api/playlists/${p.id}`, body));
   }
 
   async function paintDetail() {
@@ -693,6 +723,7 @@ async function viewPlaylists(main) {
     const total = p.items.filter((i) => !i.deleted).reduce((sum, i) => sum + (i.duration || 0), 0);
     fill(detail, 
       h("div", { class: "row" }, h("h2", { class: "grow" }, p.name),
+        h("button", { class: "btn small", onclick: () => movePlaylist(p) }, tr("move_playlist")),
         h("button", { class: "btn small", onclick: async () => { const name = await promptDialog(tr("rename"), tr("name"), p.name); if (name) { await patch({ name }); paintDetail(); } } }, tr("rename")),
         h("button", { class: "btn small danger", onclick: async () => { if (await confirmDialog(tr("delete_playlist", { name: p.name }), true)) { state.pl.selected = null; act(() => api("DELETE", `/api/playlists/${id}`)); } } }, tr("delete"))),
       h("div", { class: "row" },

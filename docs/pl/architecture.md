@@ -10,7 +10,7 @@ Jeden proces Pythona, jeden kontener:
  przeglądarka ──HTTP──► FastAPI (app/main.py) ──► SQLite  /data/melomancer.db
                           │   ├─ routes_auth       logowanie, użytkownicy, system
                           │   ├─ routes_library    wgrywanie, tagi, utwory, pobrania
-                          │   ├─ routes_playlists  zestawy, grupy, playlisty
+                          │   ├─ routes_playlists  zestawy, foldery, playlisty
                           │   └─ routes_player     połączenie, odtwarzanie, głośność
                           │
                           ├─► BotManager (app/player.py) ──► discord.py ──► gateway + głos Discorda (UDP)
@@ -48,12 +48,13 @@ users ──< sessions
   ├──< tracks (właściciel)  ──< track_tags (tagi wspólne)
   │        │             └──< user_tags (użytkownik, utwór, tag osobisty)
   │        └──────────────┐
-  └──< sets ──< set_groups ──< playlists ──< playlist_items ─┘
+  └──< sets ──< playlists ──< playlist_items ─┘
+         └──< set_groups (folder, optional) ──< playlists
 downloads (użytkownik, url, stan, utwór)
 ```
 
 - **tracks** nigdy nie są fizycznie usuwane. Usunięcie ustawia `deleted_at` i kasuje plik, więc `playlist_items` nadal wskazują wiersz ze starym tytułem (wyszarzony wpis). Częściowy indeks unikalny pilnuje unikalności `sha256` tylko wśród żywych utworów, więc ponowne wgranie identycznej zawartości przywraca stary wiersz (to samo id).
-- Zestawy, grupy i playlisty usuwają się kaskadowo. Utworów to nie dotyka.
+- Zestawy, foldery i playlisty usuwają się kaskadowo. Utworów to nie dotyka.
 - Pozycje to liczby całkowite, przepisywane przy zapisie kolejności.
 
 ## Uprawnienia
@@ -63,7 +64,7 @@ downloads (użytkownik, url, stan, utwór)
 | Lista biblioteki, podgląd | każdy użytkownik | nie dotyczy |
 | Tytuł utworu, tagi wspólne, usunięcie | każdy użytkownik | właściciel, administrator |
 | Tagi osobiste | tylko autor | autor |
-| Zestawy, grupy, playlisty | właściciel, administrator | właściciel, administrator |
+| Zestawy, foldery, playlisty | właściciel, administrator | właściciel, administrator |
 | Zlecenia pobrań | właściciel, administrator | właściciel, administrator |
 | Użytkownicy, dostęp do serwerów | administrator | administrator |
 | Odtwarzacz serwera Discord | użytkownicy z nadanym serwerem, administratorzy | tak samo, jeden sterujący naraz |
@@ -96,7 +97,7 @@ Wszystkie ścieżki są pod `/api`; żądania zmieniające stan wymagają nagł�
 | Użytkownicy | `GET/POST /users`, `PATCH /users/{id}`, `PUT /users/{id}/guilds` |
 | Biblioteka | `GET /tracks`, `POST /tracks/upload`, `PATCH/DELETE /tracks/{id}`, `GET /tracks/{id}/usage`, `GET /tracks/{id}/stream`, `PUT /tracks/{id}/my-tags`, `GET /tags` |
 | Pobrania | `GET/POST /downloads`, `DELETE /downloads/{id}` |
-| Playlisty | `GET/POST /sets`, `PATCH/DELETE /sets/{id}`, `POST /sets/{id}/groups`, `PUT /sets/{id}/groups/order`, `PATCH/DELETE /groups/{id}`, `POST /groups/{id}/playlists`, `PUT /groups/{id}/playlists/order`, `GET/PATCH/DELETE /playlists/{id}`, `POST /playlists/{id}/items`, `PUT /playlists/{id}/order`, `PUT/DELETE /playlists/{id}/items/{item}` |
+| Playlisty | `GET/POST /sets`, `PATCH/DELETE /sets/{id}`, `POST /sets/{id}/playlists`, `PUT /sets/{id}/playlists/order`, `POST /sets/{id}/groups`, `PUT /sets/{id}/groups/order`, `PATCH/DELETE /groups/{id}`, `POST /groups/{id}/playlists`, `PUT /groups/{id}/playlists/order`, `GET/PATCH/DELETE /playlists/{id}`, `POST /playlists/{id}/items`, `PUT /playlists/{id}/order`, `PUT/DELETE /playlists/{id}/items/{item}` |
 | Odtwarzacz | `GET /player/guilds`, `GET /player/{guild}/state`, `POST /player/{guild}/connect`, `disconnect`, `play`, `pause`, `resume`, `next`, `prev`, `stop`, `volume`, `PATCH /player/{guild}/options` |
 | System | `GET /system`, `GET /health` |
 

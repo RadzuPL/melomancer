@@ -7,8 +7,8 @@ Panel ma pięć zakładek: **Odtwarzacz**, **Biblioteka**, **Playlisty**, **Pobi
 ## Idea w minutę
 
 - **Biblioteka** to jedna wspólna pula muzyki. Każdy zalogowany widzi każdy utwór z oryginalnym tytułem.
-- **Playlisty** są prywatne. Mieszkają w drzewie: **zestaw** (system gry albo scenariusz, np. „Zew Cthulhu: Druga”), **grupa** (np. lokacja albo rodzaj sceny), **playlista** (lista utworów z biblioteki).
-- Nazwy i układ twoich zestawów, grup i playlist widzisz tylko ty (oraz administratorzy). Inny mistrz gry nie zobaczy, że twoja playlista nazywa się „Port w Innsmouth”.
+- **Playlisty** są prywatne. Mieszkają w drzewie: **zestaw** (system gry albo scenariusz, np. „Zew Cthulhu: Druga”) zawiera **playlisty** (listy utworów z biblioteki). Gdy w zestawie robi się tłoczno, możesz w nim dodać **foldery** (np. lokację albo rodzaj sceny) i wkładać do nich playlisty; folder to jeden poziom, bez zagnieżdżania, i w pełni opcjonalny.
+- Nazwy i układ twoich zestawów, folderów i playlist widzisz tylko ty (oraz administratorzy). Inny mistrz gry nie zobaczy, że twoja playlista nazywa się „Port w Innsmouth”.
 - W zakładce **Odtwarzacz** wybierasz serwer i kanał głosowy i naciskasz playlistę.
 
 ## Role
@@ -18,7 +18,7 @@ Panel ma pięć zakładek: **Odtwarzacz**, **Biblioteka**, **Playlisty**, **Pobi
 | Widzi całą bibliotekę, odsłuchuje utwory | tak | tak |
 | Wgrywa i pobiera muzykę | tak | tak |
 | Edytuje lub usuwa utwór | własne utwory | wszystkie utwory |
-| Widzi i edytuje zestawy, grupy, playlisty | tylko własne | wszystkie (przełącznik „pokaż zestawy wszystkich”) |
+| Widzi i edytuje zestawy, foldery, playlisty | tylko własne | wszystkie (przełącznik „pokaż zestawy wszystkich”) |
 | Steruje botem | tylko na serwerach nadanych przez administratora | wszystkie serwery |
 | Zarządza użytkownikami i dostępem do serwerów | nie | tak |
 
@@ -45,13 +45,14 @@ Plik, który już jest w bibliotece (ta sama zawartość), nie zostanie dodany d
 
 ## Playlisty
 
-Po lewej twoje drzewo. Użyj **+ Zestaw**, potem przycisków **+** przy zestawie (nowa grupa) i przy grupie (nowa playlista). Ołówek zmienia nazwę, krzyżyk usuwa, strzałki zmieniają kolejność. Usunięcie zestawu, grupy lub playlisty nigdy nie usuwa muzyki z biblioteki.
+Po lewej twoje drzewo. Użyj **+ Zestaw**, potem przycisku **♪+** przy zestawie (nowa playlista wprost w zestawie) albo **📁+** (nowy folder). Folder ma własny **♪+** na playlisty w środku. Ołówek zmienia nazwę, krzyżyk usuwa, strzałki zmieniają kolejność. Usunięcie zestawu, grupy lub playlisty nigdy nie usuwa muzyki z biblioteki.
 
 Po prawej wybrana playlista.
 
 - **Pętla**: odtwarzaj listę w kółko. **Losowo**: losowa kolejność (przy każdej rundzie na nowo).
 - **Płynne wejście/wyjście**: każdy utwór wchodzi i wychodzi przez tyle sekund (0 wyłącza). Przydatne przy muzyce tła.
 - **Własna głośność**: po zaznaczeniu naciśnięcie tej playlisty ustawia głośność bota na tę wartość. Bez zaznaczenia zostaje obecna głośność.
+- **Przenieś playlistę** umieszcza ją wprost w zestawie albo w dowolnym folderze (w dowolnym z twoich zestawów).
 - **Dodaj utwory** otwiera wybieralkę z wyszukiwaniem i filtrem tagów, zaznacz dowolną liczbę utworów.
 - Strzałki przesuwają utwór, krzyżyk usuwa go z playlisty (nie z biblioteki).
 - Wyszarzony, przekreślony wpis to utwór usunięty z biblioteki. **Zastąp** pozwala wybrać inny utwór na to samo miejsce.
@@ -59,7 +60,7 @@ Po prawej wybrana playlista.
 ## Odtwarzacz
 
 1. Wybierz **serwer** i **kanał głosowy**. Bot musi być na tym serwerze (zobacz [Tworzenie bota Discord](discord-bot.md)).
-2. Wybierz **zestaw**. Jego grupy i playlisty pojawią się jako przyciski.
+2. Wybierz **zestaw**. Jego playlisty pojawią się jako przyciski, foldery jako nagłówki z playlistami pod spodem.
 3. Naciśnij playlistę. Jeśli bota nie ma jeszcze na kanale, najpierw do niego dołączy, potem zacznie grać. Aktywna playlista jest podświetlona.
 
 Sterowanie: poprzedni, pauza/wznów, następny, stop, pętla, losowo oraz suwak **głośności** (0 do 150 %). Zmiany głośności działają od razu. Gracze mogą też osobno ściszyć bota w Discordzie.

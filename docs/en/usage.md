@@ -7,8 +7,8 @@ The panel has five tabs: **Player**, **Library**, **Playlists**, **Downloads** a
 ## The idea in one minute
 
 - The **Library** is one shared pool of music. Everyone logged in sees every track with its original title.
-- **Playlists** are private. They live in a tree: **set** (a game system or a scenario, for example "Call of Cthulhu: Druga"), **group** (for example a location or a type of scene), **playlist** (a list of tracks from the library).
-- Names and structure of your sets, groups and playlists are visible only to you (and to administrators). Another game master cannot see that your playlist is called "Innsmouth harbour".
+- **Playlists** are private. They live in a tree: **set** (a game system or a scenario, for example "Call of Cthulhu: Druga") containing **playlists** (lists of tracks from the library). When a set gets crowded you can add **folders** (for example a location or a type of scene) inside it and put playlists there; a folder is one level, not nested further, and entirely optional.
+- Names and structure of your sets, folders and playlists are visible only to you (and to administrators). Another game master cannot see that your playlist is called "Innsmouth harbour".
 - On the **Player** tab you pick a server and a voice channel and press a playlist.
 
 ## Roles
@@ -18,7 +18,7 @@ The panel has five tabs: **Player**, **Library**, **Playlists**, **Downloads** a
 | See the whole library, preview tracks | yes | yes |
 | Upload and download music | yes | yes |
 | Edit or delete a track | own tracks | all tracks |
-| See and edit sets, groups, playlists | own only | all (switch "show everyone's sets") |
+| See and edit sets, folders, playlists | own only | all (switch "show everyone's sets") |
 | Control the bot | only on servers granted by an administrator | all servers |
 | Manage users and server access | no | yes |
 
@@ -45,13 +45,14 @@ A file that is already in the library (same content) is not added twice: you see
 
 ## Playlists
 
-Left side: your tree. Use **+ Set**, then the **+** buttons on a set (new group) and on a group (new playlist). The pencil renames, the cross deletes, the arrows change the order. Deleting a set, group or playlist never deletes music from the library.
+Left side: your tree. Use **+ Set**, then the **♪+** button on a set (new playlist directly in the set) or the **📁+** button (new folder). A folder has its own **♪+** for playlists inside it. The pencil renames, the cross deletes, the arrows change the order. Deleting a set, group or playlist never deletes music from the library.
 
 Right side: the selected playlist.
 
 - **Loop**: play the list again and again. **Shuffle**: random order (re-shuffled on each lap).
 - **Fade in/out**: each track fades in and out over this many seconds (0 turns it off). Useful for ambient music.
 - **Own volume**: when ticked, pressing this playlist sets the bot's volume to this value. When not ticked, the current volume stays.
+- **Move playlist** puts it directly under a set or into any folder (of any of your sets).
 - **Add tracks** opens a picker with search and tag filter, tick any number of tracks.
 - Arrows move a track, the cross removes it from the playlist (not from the library).
 - A greyed, struck-through entry is a track that was deleted from the library. **Replace** lets you pick another track for the same slot.
@@ -59,7 +60,7 @@ Right side: the selected playlist.
 ## Player
 
 1. Choose the **server** and the **voice channel**. The bot has to be on that server (see [Creating the Discord bot](discord-bot.md)).
-2. Choose a **set**. Its groups and playlists appear as buttons.
+2. Choose a **set**. Its playlists appear as buttons, folders as headings with their playlists below.
 3. Press a playlist. If the bot is not in the channel yet it joins first, then starts playing. The active playlist is highlighted.
 
 Controls: previous, pause/resume, next, stop, loop, shuffle and the **volume** slider (0 to 150 %). Volume changes apply immediately. Players can also lower the bot individually in Discord.

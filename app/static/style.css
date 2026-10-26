@@ -106,6 +106,7 @@ tr.selected { background: rgba(122, 82, 214, .18); }
 .tree .set > .head { display: flex; gap: .3rem; align-items: center; font-weight: 600; }
 .tree .group { margin: .4rem 0 .4rem .8rem; }
 .tree .group > .head { display: flex; gap: .3rem; align-items: center; color: var(--muted); }
+.tree .pl.root { margin-left: .8rem; }
 .tree .pl { display: flex; gap: .3rem; align-items: center; margin: .15rem 0 .15rem 1.2rem; }
 .tree .pl .name { flex: 1; text-align: left; background: none; border: 0; color: var(--text); cursor: pointer; padding: .2rem .4rem; border-radius: 6px; font: inherit; overflow: hidden; text-overflow: ellipsis; }
 .tree .pl .name:hover { background: var(--panel-2); }

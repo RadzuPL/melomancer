@@ -34,6 +34,7 @@ Wszystko konfiguruje się zmiennymi środowiskowymi. Uwagi wymagają tylko `DISC
 ```
 /data
 ├── melomancer.db        baza SQLite: użytkownicy, utwory, tagi, zestawy, playlisty, zlecenia pobrań
+├── melomancer.db.before-v2   automatyczna kopia sprzed aktualizacji bazy (zostaje, skasuj ją, gdy wszystko działa)
 ├── music/               pliki audio, nazwane <id utworu>.<rozszerzenie>
 └── tmp/                 wgrywania i pobrania w toku (czyszczone przy starcie)
 ```

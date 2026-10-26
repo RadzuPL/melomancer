@@ -75,3 +75,63 @@ def test_deleting_a_set_removes_its_contents(env):
     set_id, _, playlist_id = _tree(env)
     assert env.client.delete(f"/api/sets/{set_id}").status_code == 200
     assert env.client.get(f"/api/playlists/{playlist_id}").status_code == 404
+
+
+def test_playlists_can_live_directly_under_a_set(env):
+    login(env, "admin")
+    set_id = env.client.post("/api/sets", json={"name": "Druga"}).json()["id"]
+    walka = env.client.post(f"/api/sets/{set_id}/playlists", json={"name": "Walka"}).json()["id"]
+    spokoj = env.client.post(f"/api/sets/{set_id}/playlists", json={"name": "Spokoj"}).json()["id"]
+    folder = env.client.post(f"/api/sets/{set_id}/groups", json={"name": "Specjalne"}).json()["id"]
+    inner = env.client.post(f"/api/groups/{folder}/playlists", json={"name": "Wewnatrz"}).json()["id"]
+
+    tree = env.client.get("/api/sets").json()[0]
+    assert [p["name"] for p in tree["playlists"]] == ["Walka", "Spokoj"]
+    assert [g["name"] for g in tree["groups"]] == ["Specjalne"]
+    assert [p["name"] for p in tree["groups"][0]["playlists"]] == ["Wewnatrz"]
+
+    assert env.client.put(f"/api/sets/{set_id}/playlists/order", json={"ids": [spokoj, walka]}).status_code == 200
+    assert [p["name"] for p in env.client.get("/api/sets").json()[0]["playlists"]] == ["Spokoj", "Walka"]
+    assert env.client.put(f"/api/sets/{set_id}/playlists/order", json={"ids": [spokoj, walka, inner]}).status_code == 400
+
+    detail = env.client.get(f"/api/playlists/{walka}").json()
+    assert detail["set_id"] == set_id and detail["group_id"] is None
+
+
+def test_playlists_can_be_moved_between_folder_and_set_root(env):
+    login(env, "admin")
+    set_id = env.client.post("/api/sets", json={"name": "Druga"}).json()["id"]
+    other_set = env.client.post("/api/sets", json={"name": "Inny"}).json()["id"]
+    folder = env.client.post(f"/api/sets/{set_id}/groups", json={"name": "Specjalne"}).json()["id"]
+    playlist = env.client.post(f"/api/groups/{folder}/playlists", json={"name": "Walka"}).json()["id"]
+
+    assert env.client.patch(f"/api/playlists/{playlist}", json={"group_id": None}).status_code == 200
+    tree = {s["name"]: s for s in env.client.get("/api/sets").json()}
+    assert [p["name"] for p in tree["Druga"]["playlists"]] == ["Walka"]
+    assert tree["Druga"]["groups"][0]["playlists"] == []
+
+    assert env.client.patch(f"/api/playlists/{playlist}", json={"group_id": folder}).status_code == 200
+    detail = env.client.get(f"/api/playlists/{playlist}").json()
+    assert detail["group_id"] == folder and detail["set_id"] == set_id
+
+    assert env.client.patch(f"/api/playlists/{playlist}", json={"set_id": other_set, "group_id": None}).status_code == 200
+    detail = env.client.get(f"/api/playlists/{playlist}").json()
+    assert detail["group_id"] is None and detail["set_id"] == other_set
+
+
+def test_root_playlists_are_private_too(env):
+    make_user(env, "mg1")
+    make_user(env, "mg2")
+    login(env, "mg1")
+    set_id = env.client.post("/api/sets", json={"name": "Moj"}).json()["id"]
+    playlist = env.client.post(f"/api/sets/{set_id}/playlists", json={"name": "Sekret"}).json()["id"]
+    folder = env.client.post(f"/api/sets/{set_id}/groups", json={"name": "F"}).json()["id"]
+
+    login(env, "mg2")
+    assert env.client.post(f"/api/sets/{set_id}/playlists", json={"name": "x"}).status_code == 404
+    assert env.client.put(f"/api/sets/{set_id}/playlists/order", json={"ids": [playlist]}).status_code == 404
+    assert env.client.get(f"/api/playlists/{playlist}").status_code == 404
+    own = env.client.post("/api/sets", json={"name": "Wlasny"}).json()["id"]
+    mine = env.client.post(f"/api/sets/{own}/playlists", json={"name": "Moja"}).json()["id"]
+    assert env.client.patch(f"/api/playlists/{mine}", json={"group_id": folder}).status_code == 404
+    assert env.client.patch(f"/api/playlists/{mine}", json={"set_id": set_id, "group_id": None}).status_code == 404

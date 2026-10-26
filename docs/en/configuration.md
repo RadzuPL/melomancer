@@ -34,6 +34,7 @@ Everything is configured with environment variables. Only `DISCORD_TOKEN` and th
 ```
 /data
 ├── melomancer.db        SQLite database: users, tracks, tags, sets, playlists, download jobs
+├── melomancer.db.before-v2   automatic copy made before a database upgrade (kept, delete it when all is well)
 ├── music/               audio files, named <track id>.<extension>
 └── tmp/                 uploads and downloads in progress (emptied at start)
 ```

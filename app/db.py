@@ -108,7 +108,42 @@ MIGRATIONS: list[str] = [
         updated_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
     """,
+    # 2: playlists belong to a set directly; the folder (set_groups row) became optional.
+    # SQLite cannot drop NOT NULL in place, so the table is rebuilt (foreign keys are off while migrating).
+    """
+    CREATE TABLE playlists_new (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        set_id INTEGER NOT NULL REFERENCES sets(id) ON DELETE CASCADE,
+        group_id INTEGER REFERENCES set_groups(id) ON DELETE CASCADE,
+        name TEXT NOT NULL,
+        position INTEGER NOT NULL DEFAULT 0,
+        loop INTEGER NOT NULL DEFAULT 1,
+        shuffle INTEGER NOT NULL DEFAULT 0,
+        volume REAL,
+        fade REAL NOT NULL DEFAULT 2
+    );
+    INSERT INTO playlists_new(id, set_id, group_id, name, position, loop, shuffle, volume, fade)
+        SELECT p.id, g.set_id, p.group_id, p.name, p.position, p.loop, p.shuffle, p.volume, p.fade
+        FROM playlists p JOIN set_groups g ON g.id = p.group_id;
+    DROP TABLE playlists;
+    ALTER TABLE playlists_new RENAME TO playlists;
+    CREATE INDEX idx_playlists_set ON playlists(set_id, group_id, position);
+    """,
 ]
+
+
+def _backup_before_migration(path: Path, version: int) -> None:
+    """Keep a copy of the database as it was before a schema change."""
+    target = path.with_name(f"{path.name}.before-v{version + 1}")
+    if target.exists():
+        return
+    source = sqlite3.connect(path)
+    copy = sqlite3.connect(target)
+    try:
+        source.backup(copy)
+    finally:
+        copy.close()
+        source.close()
 
 
 def init_db(path: Path) -> None:
@@ -117,6 +152,8 @@ def init_db(path: Path) -> None:
     try:
         conn.execute("PRAGMA journal_mode=WAL")
         version = conn.execute("PRAGMA user_version").fetchone()[0]
+        if 0 < version < len(MIGRATIONS):
+            _backup_before_migration(path, version)
         for number, script in enumerate(MIGRATIONS[version:], start=version + 1):
             conn.executescript(script)
             conn.execute(f"PRAGMA user_version={number}")

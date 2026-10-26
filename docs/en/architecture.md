@@ -10,7 +10,7 @@ One Python process, one container:
  browser ──HTTP──► FastAPI (app/main.py) ──► SQLite  /data/melomancer.db
                      │   ├─ routes_auth       login, users, system
                      │   ├─ routes_library    upload, tags, tracks, downloads
-                     │   ├─ routes_playlists  sets, groups, playlists
+                     │   ├─ routes_playlists  sets, folders, playlists
                      │   └─ routes_player     connect, play, volume
                      │
                      ├─► BotManager (app/player.py) ──► discord.py ──► Discord gateway + voice (UDP)
@@ -48,12 +48,13 @@ users ──< sessions
   ├──< tracks (owner)  ──< track_tags (shared tags)
   │        │         └──< user_tags (user, track, personal tag)
   │        └──────────────┐
-  └──< sets ──< set_groups ──< playlists ──< playlist_items ─┘
+  └──< sets ──< playlists ──< playlist_items ─┘
+         └──< set_groups (folder, optional) ──< playlists
 downloads (user, url, status, track)
 ```
 
 - **tracks** are never physically deleted. Deleting sets `deleted_at` and removes the file, so `playlist_items` keep pointing at a row with the old title (the greyed-out entry). A partial unique index keeps `sha256` unique among live tracks only, so re-uploading identical content revives the old row (same id).
-- Sets, groups and playlists cascade on delete. Tracks are never touched by that.
+- Sets, folders and playlists cascade on delete. Tracks are never touched by that.
 - Positions are integers, rewritten when an order is saved.
 
 ## Permissions
@@ -63,7 +64,7 @@ downloads (user, url, status, track)
 | Library listing, preview | any user | n/a |
 | Track title, shared tags, deletion | any user | owner, administrator |
 | Personal tags | author only | author |
-| Sets, groups, playlists | owner, administrator | owner, administrator |
+| Sets, folders, playlists | owner, administrator | owner, administrator |
 | Download jobs | owner, administrator | owner, administrator |
 | Users, server access | administrator | administrator |
 | Player of a Discord server | users granted that server, administrators | same, one controller at a time |
@@ -96,7 +97,7 @@ All paths are under `/api`; state-changing requests need the header `X-Melomance
 | Users | `GET/POST /users`, `PATCH /users/{id}`, `PUT /users/{id}/guilds` |
 | Library | `GET /tracks`, `POST /tracks/upload`, `PATCH/DELETE /tracks/{id}`, `GET /tracks/{id}/usage`, `GET /tracks/{id}/stream`, `PUT /tracks/{id}/my-tags`, `GET /tags` |
 | Downloads | `GET/POST /downloads`, `DELETE /downloads/{id}` |
-| Playlists | `GET/POST /sets`, `PATCH/DELETE /sets/{id}`, `POST /sets/{id}/groups`, `PUT /sets/{id}/groups/order`, `PATCH/DELETE /groups/{id}`, `POST /groups/{id}/playlists`, `PUT /groups/{id}/playlists/order`, `GET/PATCH/DELETE /playlists/{id}`, `POST /playlists/{id}/items`, `PUT /playlists/{id}/order`, `PUT/DELETE /playlists/{id}/items/{item}` |
+| Playlists | `GET/POST /sets`, `PATCH/DELETE /sets/{id}`, `POST /sets/{id}/playlists`, `PUT /sets/{id}/playlists/order`, `POST /sets/{id}/groups`, `PUT /sets/{id}/groups/order`, `PATCH/DELETE /groups/{id}`, `POST /groups/{id}/playlists`, `PUT /groups/{id}/playlists/order`, `GET/PATCH/DELETE /playlists/{id}`, `POST /playlists/{id}/items`, `PUT /playlists/{id}/order`, `PUT/DELETE /playlists/{id}/items/{item}` |
 | Player | `GET /player/guilds`, `GET /player/{guild}/state`, `POST /player/{guild}/connect`, `disconnect`, `play`, `pause`, `resume`, `next`, `prev`, `stop`, `volume`, `PATCH /player/{guild}/options` |
 | System | `GET /system`, `GET /health` |
 

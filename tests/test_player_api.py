@@ -100,3 +100,15 @@ def test_bad_channel_or_guild_ids_are_rejected(env):
     login(env, "admin")
     assert env.client.post("/api/player/111/connect", json={"channel_id": "abc"}).status_code == 422
     assert env.client.get("/api/player/not-a-number/state").status_code == 400
+
+
+def test_a_playlist_directly_under_a_set_plays(env, wavs):
+    login(env, "admin")
+    track_id = upload(env, wavs[0]).json()["id"]
+    set_id = env.client.post("/api/sets", json={"name": "Druga"}).json()["id"]
+    playlist_id = env.client.post(f"/api/sets/{set_id}/playlists", json={"name": "Walka"}).json()["id"]
+    env.client.post(f"/api/playlists/{playlist_id}/items", json={"track_ids": [track_id]})
+    env.client.post("/api/player/111/connect", json={"channel_id": "100100"})
+    res = env.client.post("/api/player/111/play", json={"playlist_id": playlist_id})
+    assert res.status_code == 200
+    assert env.bot.played[-1]["playlist"] == {"id": playlist_id, "name": "Walka", "set": "Druga"}

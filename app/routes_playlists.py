@@ -1,4 +1,4 @@
-"""Sets, groups and playlists. Everything here is private to the owner (admins see all).
+"""Sets, folders (groups) and playlists. Everything here is private to the owner (admins see all).
 
 Other users get 404 instead of 403 so that the existence of someone else's scenario is not revealed.
 """
@@ -25,7 +25,9 @@ class PlaylistPatchIn(BaseModel):
     shuffle: bool | None = None
     volume: float | None = Field(default=None, ge=0, le=1.5)
     fade: float | None = Field(default=None, ge=0, le=10)
+    # Moving: group_id = target folder; group_id null (+ optional set_id) = directly under a set.
     group_id: int | None = None
+    set_id: int | None = None
 
 
 class TrackIdsIn(BaseModel):
@@ -61,8 +63,7 @@ def _group_for(conn: sqlite3.Connection, user: dict, group_id: int):
 
 def playlist_for(conn: sqlite3.Connection, user: dict, playlist_id: int):
     row = conn.execute(
-        "SELECT p.*, s.owner_id, s.id AS set_id, s.name AS set_name FROM playlists p "
-        "JOIN set_groups g ON g.id = p.group_id JOIN sets s ON s.id = g.set_id WHERE p.id=?",
+        "SELECT p.*, s.owner_id, s.name AS set_name FROM playlists p JOIN sets s ON s.id = p.set_id WHERE p.id=?",
         (playlist_id,)).fetchone()
     if not row or (row["owner_id"] != user["id"] and user["role"] != "admin"):
         raise HTTPException(404, "not_found")
@@ -72,6 +73,23 @@ def playlist_for(conn: sqlite3.Connection, user: dict, playlist_id: int):
 def _next_position(conn: sqlite3.Connection, table: str, column: str, value: int) -> int:
     row = conn.execute(f"SELECT COALESCE(MAX(position), -1) + 1 FROM {table} WHERE {column}=?", (value,)).fetchone()
     return int(row[0])
+
+
+def _next_playlist_position(conn: sqlite3.Connection, set_id: int, group_id: int | None) -> int:
+    if group_id is None:
+        row = conn.execute("SELECT COALESCE(MAX(position), -1) + 1 FROM playlists WHERE set_id=? AND group_id IS NULL",
+                           (set_id,)).fetchone()
+    else:
+        row = conn.execute("SELECT COALESCE(MAX(position), -1) + 1 FROM playlists WHERE group_id=?",
+                           (group_id,)).fetchone()
+    return int(row[0])
+
+
+def _playlist_with_stats(conn: sqlite3.Connection, row) -> dict:
+    stats = conn.execute(
+        "SELECT COUNT(*) AS n, COALESCE(SUM(t.deleted_at IS NOT NULL), 0) AS gone "
+        "FROM playlist_items i JOIN tracks t ON t.id = i.track_id WHERE i.playlist_id=?", (row["id"],)).fetchone()
+    return _playlist_json(row, stats["n"], stats["gone"])
 
 
 def playlist_items(conn: sqlite3.Connection, playlist_id: int) -> list[dict]:
@@ -97,18 +115,15 @@ def list_sets(request: Request, all: bool = False, user: dict = Depends(current_
             () if show_all else (user["id"],)).fetchall()
         result = []
         for s in sets:
-            groups = []
+            direct = [_playlist_with_stats(conn, p) for p in conn.execute(
+                "SELECT * FROM playlists WHERE set_id=? AND group_id IS NULL ORDER BY position, id", (s["id"],))]
+            folders = []
             for g in conn.execute("SELECT * FROM set_groups WHERE set_id=? ORDER BY position, id", (s["id"],)):
-                playlists = []
-                for p in conn.execute("SELECT * FROM playlists WHERE group_id=? ORDER BY position, id", (g["id"],)):
-                    stats = conn.execute(
-                        "SELECT COUNT(*) AS n, COALESCE(SUM(t.deleted_at IS NOT NULL), 0) AS gone "
-                        "FROM playlist_items i JOIN tracks t ON t.id = i.track_id WHERE i.playlist_id=?",
-                        (p["id"],)).fetchone()
-                    playlists.append(_playlist_json(p, stats["n"], stats["gone"]))
-                groups.append({"id": g["id"], "name": g["name"], "playlists": playlists})
+                inside = [_playlist_with_stats(conn, p) for p in conn.execute(
+                    "SELECT * FROM playlists WHERE group_id=? ORDER BY position, id", (g["id"],))]
+                folders.append({"id": g["id"], "name": g["name"], "playlists": inside})
             result.append({"id": s["id"], "name": s["name"], "owner_id": s["owner_id"], "owner": s["owner"],
-                           "groups": groups})
+                           "playlists": direct, "groups": folders})
         return result
 
 
@@ -144,6 +159,24 @@ def create_group(set_id: int, body: NameIn, request: Request, user: dict = Depen
         return {"id": cur.lastrowid}
 
 
+@router.post("/sets/{set_id}/playlists", status_code=201)
+def create_root_playlist(set_id: int, body: NameIn, request: Request, user: dict = Depends(current_user)):
+    """A playlist directly under a set, without a folder."""
+    with tx(get_settings(request).db_path) as conn:
+        _set_for(conn, user, set_id)
+        cur = conn.execute("INSERT INTO playlists(set_id, group_id, name, position) VALUES (?,NULL,?,?)",
+                           (set_id, _name(body.name), _next_playlist_position(conn, set_id, None)))
+        return {"id": cur.lastrowid}
+
+
+@router.put("/sets/{set_id}/playlists/order")
+def order_root_playlists(set_id: int, body: OrderIn, request: Request, user: dict = Depends(current_user)):
+    with tx(get_settings(request).db_path) as conn:
+        _set_for(conn, user, set_id)
+        _apply_order(conn, "playlists", "set_id", set_id, body.ids, "AND group_id IS NULL")
+    return {"ok": True}
+
+
 @router.put("/sets/{set_id}/groups/order")
 def order_groups(set_id: int, body: OrderIn, request: Request, user: dict = Depends(current_user)):
     with tx(get_settings(request).db_path) as conn:
@@ -171,9 +204,9 @@ def delete_group(group_id: int, request: Request, user: dict = Depends(current_u
 @router.post("/groups/{group_id}/playlists", status_code=201)
 def create_playlist(group_id: int, body: NameIn, request: Request, user: dict = Depends(current_user)):
     with tx(get_settings(request).db_path) as conn:
-        _group_for(conn, user, group_id)
-        cur = conn.execute("INSERT INTO playlists(group_id, name, position) VALUES (?,?,?)",
-                           (group_id, _name(body.name), _next_position(conn, "playlists", "group_id", group_id)))
+        group = _group_for(conn, user, group_id)
+        cur = conn.execute("INSERT INTO playlists(set_id, group_id, name, position) VALUES (?,?,?,?)",
+                           (group["set_id"], group_id, _name(body.name), _next_playlist_position(conn, group["set_id"], group_id)))
         return {"id": cur.lastrowid}
 
 
@@ -185,8 +218,9 @@ def order_playlists(group_id: int, body: OrderIn, request: Request, user: dict =
     return {"ok": True}
 
 
-def _apply_order(conn: sqlite3.Connection, table: str, column: str, value: int, ids: list[int]) -> None:
-    current = {r[0] for r in conn.execute(f"SELECT id FROM {table} WHERE {column}=?", (value,))}
+def _apply_order(conn: sqlite3.Connection, table: str, column: str, value: int, ids: list[int],
+                 extra: str = "") -> None:
+    current = {r[0] for r in conn.execute(f"SELECT id FROM {table} WHERE {column}=? {extra}", (value,))}
     if set(ids) != current or len(ids) != len(current):
         raise HTTPException(400, "bad_order")
     conn.executemany(f"UPDATE {table} SET position=? WHERE id=?", [(pos, item) for pos, item in enumerate(ids)])
@@ -205,12 +239,19 @@ def get_playlist(playlist_id: int, request: Request, user: dict = Depends(curren
 def patch_playlist(playlist_id: int, body: PlaylistPatchIn, request: Request, user: dict = Depends(current_user)):
     changes = body.model_dump(exclude_unset=True)
     with tx(get_settings(request).db_path) as conn:
-        playlist_for(conn, user, playlist_id)
-        if "group_id" in changes and changes["group_id"] is not None:
-            _group_for(conn, user, changes["group_id"])
-            conn.execute("UPDATE playlists SET group_id=?, position=? WHERE id=?",
-                         (changes["group_id"], _next_position(conn, "playlists", "group_id", changes["group_id"]),
-                          playlist_id))
+        current = playlist_for(conn, user, playlist_id)
+        if "group_id" in changes or "set_id" in changes:
+            if changes.get("group_id") is not None:
+                group = _group_for(conn, user, changes["group_id"])
+                target_set, target_group = group["set_id"], group["id"]
+            else:
+                target_set = changes.get("set_id") or current["set_id"]
+                _set_for(conn, user, target_set)
+                target_group = None
+            if (target_set, target_group) != (current["set_id"], current["group_id"]):
+                conn.execute("UPDATE playlists SET set_id=?, group_id=?, position=? WHERE id=?",
+                             (target_set, target_group, _next_playlist_position(conn, target_set, target_group),
+                              playlist_id))
         for field in ("loop", "shuffle"):
             if changes.get(field) is not None:
                 conn.execute(f"UPDATE playlists SET {field}=? WHERE id=?", (int(changes[field]), playlist_id))
