@@ -5,7 +5,6 @@
 .env
 .env.*
 docs
-tests
 scripts
 unraid
 data
@@ -14,6 +13,4 @@ __pycache__
 *.pyc
 .pytest_cache
 README.md
-pytest.ini
-requirements-dev.txt
 docker-compose.yml

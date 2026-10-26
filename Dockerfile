@@ -1,4 +1,4 @@
-FROM python:3.12-slim-bookworm
+FROM python:3.12-slim-bookworm AS base
 
 ARG APP_VERSION=dev
 # Changes weekly in CI so that the pip layer (and with it yt-dlp) is rebuilt instead of served from cache.
@@ -41,3 +41,14 @@ HEALTHCHECK --interval=30s --timeout=5s --start-period=40s --retries=3 \
 
 ENTRYPOINT ["docker-entrypoint.sh"]
 CMD ["uvicorn", "app.main:app_factory", "--factory", "--host", "0.0.0.0", "--port", "8080", "--proxy-headers", "--forwarded-allow-ips", "*"]
+
+# Test image: the same system packages and Python as production plus the test tools.
+# `docker build --target test -t melomancer:test .` then
+# `docker run --rm --entrypoint python melomancer:test -m pytest -p no:cacheprovider`
+FROM base AS test
+COPY requirements-dev.txt pytest.ini ./
+RUN pip install -r requirements-dev.txt
+COPY tests ./tests
+
+# The last stage is what a plain `docker build .` produces.
+FROM base AS release

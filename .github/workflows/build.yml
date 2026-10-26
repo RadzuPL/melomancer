@@ -23,22 +23,19 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions/setup-python@v5
+      # Tests run inside the image built from the Dockerfile: same Python, ffmpeg and libraries as production,
+      # and no dependence on what the runner image happens to ship.
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Build the test image
+        uses: docker/build-push-action@v6
         with:
-          python-version: "3.12"
-          cache: pip
-          cache-dependency-path: requirements*.txt
-
-      - name: Make sure ffmpeg and ffprobe are present
-        run: |
-          if ! command -v ffprobe >/dev/null; then
-            export DEBIAN_FRONTEND=noninteractive
-            sudo timeout 300 apt-get -o Acquire::Retries=3 -o Acquire::http::Timeout=20 update
-            sudo timeout 600 apt-get -o Acquire::Retries=3 -o Acquire::http::Timeout=20 install -y --no-install-recommends ffmpeg
-          fi
-          ffprobe -version | head -n1
-
-      - run: pip install -r requirements-dev.txt
+          context: .
+          target: test
+          load: true
+          tags: melomancer:test
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
       - name: Check the panel scripts
         run: |
@@ -48,13 +45,13 @@ jobs:
 
       - name: Run the tests
         shell: bash
-        run: python -m pytest --tb=short -rf 2>&1 | tee pytest.log
+        run: docker run --rm --entrypoint python melomancer:test -m pytest -p no:cacheprovider --tb=short -rf 2>&1 | tee pytest.log
 
       # The job log is not always reachable from outside GitHub, annotations are: show the tail of a failed run there.
       - name: Show the failure as annotations
         if: failure()
         run: |
-          python - <<'PY'
+          python3 - <<'PY'
           import os
           lines = open("pytest.log").read().splitlines() if os.path.exists("pytest.log") else ["no pytest.log"]
           lines = lines[-150:]

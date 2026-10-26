@@ -26,6 +26,16 @@ Otwórz http://localhost:8080/. Bez `DISCORD_TOKEN` panel działa, a bot pozosta
 .venv/bin/python -m pytest
 ```
 
+Albo w tym samym obrazie, którego używa CI (bez lokalnego Pythona):
+
+```
+docker build --target test -t melomancer:test .
+```
+
+```
+docker run --rm --entrypoint python melomancer:test -m pytest -p no:cacheprovider
+```
+
 Testy uruchamiają prawdziwe API na tymczasowej bazie i prawdziwych plikach audio zrobionych przez ffmpeg. Stronę Discorda zastępuje atrapa o tym samym interfejsie (`tests/conftest.py`), a wątek pobierania dostaje wstrzykniętą funkcję pobierającą, więc żaden test nie dotyka sieci. Kontrole skryptów panelu:
 
 ```
