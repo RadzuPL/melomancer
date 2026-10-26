@@ -19,6 +19,7 @@ permissions:
 jobs:
   test:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
 
@@ -31,7 +32,9 @@ jobs:
       - name: Make sure ffmpeg and ffprobe are present
         run: |
           if ! command -v ffprobe >/dev/null; then
-            sudo apt-get update && sudo apt-get install -y --no-install-recommends ffmpeg
+            export DEBIAN_FRONTEND=noninteractive
+            sudo timeout 300 apt-get -o Acquire::Retries=3 -o Acquire::http::Timeout=20 update
+            sudo timeout 600 apt-get -o Acquire::Retries=3 -o Acquire::http::Timeout=20 install -y --no-install-recommends ffmpeg
           fi
           ffprobe -version | head -n1
 
@@ -63,6 +66,7 @@ jobs:
 
   release:
     needs: test
+    timeout-minutes: 30
     if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     permissions:
