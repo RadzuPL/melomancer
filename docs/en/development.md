@@ -56,10 +56,10 @@ The workflow `.github/workflows/build.yml` does the following:
 |---|---|---|---|
 | Pull request | yes | no | no |
 | Push to `main` | yes | built, smoke tested, pushed as `latest` and `X.Y.Z` | new tag and GitHub release |
-| Monday 03:23 UTC (schedule) | yes | rebuilt with fresh base image and the newest yt-dlp, pushed as `latest` and the current version | none |
+| Monday 03:23 UTC (schedule) | yes | rebuilt with fresh base image, ffmpeg and the newest yt-dlp, pushed as `latest` and a new version | new tag and release, middle number up |
 | Manual run | yes | like a push | like a push |
 
-The version is computed by `scripts/next_version.sh` from the newest `vX.Y.Z` tag and the commit messages since it. Every push to `main` is a patch release (`0.6.1`, `0.6.2` ...). The first or the middle number changes only when the **subject line** of a commit (its first line) ends with a marker; text elsewhere in a commit message is ignored:
+The version is computed by `scripts/next_version.sh` from the newest `vX.Y.Z` tag and the commit messages since it. Every push to `main` is a patch release (`0.6.1`, `0.6.2` ...). The weekly rebuild raises the middle number and resets the last one (`0.6.7` becomes `0.7.0`), so every refreshed image has a version of its own and a version number always points at one fixed image. The first or the middle number changes only when the **subject line** of a commit (its first line) ends with a marker; text elsewhere in a commit message is ignored:
 
 | Commit subject ends with | Bump |
 |---|---|

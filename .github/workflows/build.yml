@@ -5,7 +5,7 @@ on:
     branches: [main]
   pull_request:
   schedule:
-    # Weekly rebuild: fresh base image, ffmpeg and the newest yt-dlp. Does not create a release.
+    # Weekly rebuild: fresh base image, ffmpeg and the newest yt-dlp. It is a release of its own (middle number up).
     - cron: "23 3 * * 1"
   workflow_dispatch:
 
@@ -77,7 +77,7 @@ jobs:
       - name: Work out the version
         id: version
         run: |
-          if [ "${{ github.event_name }}" = "schedule" ]; then export NO_BUMP=1; fi
+          if [ "${{ github.event_name }}" = "schedule" ]; then export FORCE_MINOR=1; fi
           version=$(bash scripts/next_version.sh)
           echo "Version: $version"
           echo "value=$version" >> "$GITHUB_OUTPUT"
@@ -123,7 +123,6 @@ jobs:
 
       # The tag is created only after the image was pushed, so a failed build does not use up a version number.
       - name: Tag and publish the release
-        if: github.event_name != 'schedule'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -131,5 +130,10 @@ jobs:
           if git rev-parse -q --verify "refs/tags/v${version}" >/dev/null; then
             echo "Tag v${version} already exists, nothing to publish."
           else
-            gh release create "v${version}" --target "$GITHUB_SHA" --title "v${version}" --generate-notes
+            if [ "${{ github.event_name }}" = "schedule" ]; then
+              gh release create "v${version}" --target "$GITHUB_SHA" --title "v${version} (weekly rebuild)" \
+                --notes "Scheduled rebuild: fresh base image, ffmpeg and yt-dlp. No code changes."
+            else
+              gh release create "v${version}" --target "$GITHUB_SHA" --title "v${version}" --generate-notes
+            fi
           fi

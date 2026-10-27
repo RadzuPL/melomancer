@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 # Prints the version (without the leading "v") to build for the current commit.
 #
+#   FORCE_MINOR=1 (the weekly rebuild)  -> the newest tag with the middle number raised, even when nothing
+#                                          was committed, so that every refreshed image gets its own number
 #   HEAD already carries a vX.Y.Z tag  -> that version (re-runs do not burn numbers)
 #   no vX.Y.Z tag exists yet           -> 0.1.0
 #   otherwise the newest tag, bumped according to the commit messages since it:
@@ -10,32 +12,34 @@
 #   Only the subject line (the first line) counts, and only at its very end, so text in a commit body that
 #   merely talks about the markers changes nothing. The type of a commit ("feat:", "fix:" ...) does not matter.
 #
-# NO_BUMP=1 prints the newest existing version without bumping (used by the weekly rebuild,
-# which only refreshes the image and must not create a release).
 set -euo pipefail
 
 pattern='v[0-9]*.[0-9]*.[0-9]*'
 
 newest_tag() { git tag --list "$pattern" --sort=-v:refname | head -n1 || true; }
 
-at_head=$(git tag --points-at HEAD --list "$pattern" --sort=-v:refname | head -n1 || true)
-if [ -n "$at_head" ]; then
-  echo "${at_head#v}"
-  exit 0
+last=$(newest_tag)
+
+if [ "${FORCE_MINOR:-0}" != "1" ]; then
+  at_head=$(git tag --points-at HEAD --list "$pattern" --sort=-v:refname | head -n1 || true)
+  if [ -n "$at_head" ]; then
+    echo "${at_head#v}"
+    exit 0
+  fi
 fi
 
-last=$(newest_tag)
 if [ -z "$last" ]; then
   echo "0.1.0"
   exit 0
 fi
 
-if [ "${NO_BUMP:-0}" = "1" ]; then
-  echo "${last#v}"
+IFS=. read -r major minor patch <<<"${last#v}"
+
+if [ "${FORCE_MINOR:-0}" = "1" ]; then
+  echo "${major}.$((minor + 1)).0"
   exit 0
 fi
 
-IFS=. read -r major minor patch <<<"${last#v}"
 subjects=$(git log --format=%s "${last}..HEAD")
 
 if grep -Eq '\[major\]\s*$' <<<"$subjects"; then

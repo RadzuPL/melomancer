@@ -56,10 +56,10 @@ Workflow `.github/workflows/build.yml` robi to:
 |---|---|---|---|
 | Pull request | tak | nie | nie |
 | Push na `main` | tak | zbudowany, przetestowany dymnie, wypchnięty jako `latest` i `X.Y.Z` | nowy tag i wydanie GitHub |
-| Poniedziałek 03:23 UTC (harmonogram) | tak | przebudowany ze świeżym obrazem bazowym i najnowszym yt-dlp, wypchnięty jako `latest` i bieżąca wersja | brak |
+| Poniedziałek 03:23 UTC (harmonogram) | tak | przebudowany ze świeżym obrazem bazowym, ffmpeg i najnowszym yt-dlp, wypchnięty jako `latest` i nowa wersja | nowy tag i wydanie, środkowa liczba w górę |
 | Uruchomienie ręczne | tak | jak push | jak push |
 
-Wersję liczy `scripts/next_version.sh` z najnowszego tagu `vX.Y.Z` i komunikatów commitów od niego. Każdy push na `main` to wydanie poprawkowe (`0.6.1`, `0.6.2` ...). Pierwsza lub środkowa liczba zmienia się tylko wtedy, gdy **temat commita** (jego pierwsza linia) kończy się znacznikiem; tekst w innym miejscu komunikatu jest ignorowany:
+Wersję liczy `scripts/next_version.sh` z najnowszego tagu `vX.Y.Z` i komunikatów commitów od niego. Każdy push na `main` to wydanie poprawkowe (`0.6.1`, `0.6.2` ...). Cotygodniowa przebudowa podnosi środkową liczbę i zeruje ostatnią (`0.6.7` zmienia się w `0.7.0`), więc każdy odświeżony obraz ma własną wersję, a numer wersji zawsze wskazuje jeden niezmienny obraz. Pierwsza lub środkowa liczba zmienia się tylko wtedy, gdy **temat commita** (jego pierwsza linia) kończy się znacznikiem; tekst w innym miejscu komunikatu jest ignorowany:
 
 | Temat commita kończy się na | Podbicie |
 |---|---|
