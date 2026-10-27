@@ -20,7 +20,7 @@ The token is wrong or was reset. Copy a new one: Developer Portal, your applicat
 
 **The bot is online but my server is not in the Player tab.**
 - The bot was not invited to that server. Use the invite link from [Creating the Discord bot](discord-bot.md).
-- You are not an administrator and nobody ticked the server for you (Administration tab, **Servers**).
+- You are not an administrator and nobody ticked the server for you (Users tab, **Servers**).
 - Only voice channels where the bot may **Connect** are listed. Check the channel's permissions.
 
 **"The bot lacks permissions in that channel."**

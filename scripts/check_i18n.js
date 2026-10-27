@@ -10,7 +10,7 @@ const app = fs.readFileSync(path.join(dir, "app.js"), "utf8");
 
 // Keys built at run time (prefix + value) are listed here so that they are checked as well.
 const dynamic = [
-  "tab.player", "tab.library", "tab.playlists", "tab.downloads", "tab.admin",
+  "tab.player", "tab.library", "tab.playlists", "tab.downloads", "tab.users", "tab.settings",
   "upload.created", "upload.revived", "upload.duplicate",
   "dl.queued", "dl.running", "dl.done", "dl.error",
   "dl.preparing", "dl.downloading", "dl.converting", "dl.importing",

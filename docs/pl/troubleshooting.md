@@ -20,7 +20,7 @@ Token jest błędny albo został zresetowany. Skopiuj nowy: Developer Portal, tw
 
 **Bot jest online, ale mojego serwera nie ma w zakładce Odtwarzacz.**
 - Bot nie został zaproszony na ten serwer. Użyj linku z [Tworzenie bota Discord](discord-bot.md).
-- Nie jesteś administratorem i nikt nie zaznaczył ci tego serwera (zakładka Administracja, **Serwery**).
+- Nie jesteś administratorem i nikt nie zaznaczył ci tego serwera (zakładka Użytkownicy, **Serwery**).
 - Na liście są tylko kanały głosowe, na które bot może się **Połączyć**. Sprawdź uprawnienia kanału.
 
 **„Bot nie ma uprawnień na tym kanale.”**

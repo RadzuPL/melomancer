@@ -47,7 +47,7 @@ Zaproszenie powtórz dla każdego serwera, na którym chcesz grać.
 1. Uruchom kontener z ustawionym tokenem.
 2. W Discordzie bot powinien pojawić się jako online na liście członków serwera.
 3. Otwórz panel i przejdź do zakładki **Odtwarzacz**: twoje serwery i ich kanały głosowe pojawią się automatycznie. Nie musisz kopiować żadnych ID.
-4. Administratorzy widzą wszystkie serwery, na których jest bot. Pozostałym użytkownikom administrator zaznacza w zakładce **Administracja**, którymi serwerami mogą sterować.
+4. Administratorzy widzą wszystkie serwery, na których jest bot. Pozostałym użytkownikom administrator zaznacza w zakładce **Użytkownicy**, którymi serwerami mogą sterować.
 
 ## Warto wiedzieć
 

@@ -109,7 +109,7 @@ Open the panel and log in with `ADMIN_USERNAME` and `ADMIN_PASSWORD`. These vari
 
 Then:
 
-1. **Administration** tab: create accounts for your other game masters and tick which Discord servers each one may control.
+1. **Users** tab: create accounts for your other game masters and tick which Discord servers each one may control.
 2. **Library** tab: upload some music.
 3. **Playlists** tab: create a set and a playlist in it (folders are optional).
 4. **Player** tab: pick the server and channel and press a playlist.

@@ -3,7 +3,7 @@
 const I18N = {
   pl: {
     "tab.player": "Odtwarzacz", "tab.library": "Biblioteka", "tab.playlists": "Playlisty",
-    "tab.downloads": "Pobieranie", "tab.admin": "Administracja",
+    "tab.downloads": "Pobieranie", "tab.users": "Użytkownicy", "tab.settings": "Ustawienia",
     account: "Konto", add_music: "Dodaj muzykę", add_my_tag: "Dodaj mój tag", add_to_playlist: "Dodaj do playlisty",
     add_tracks: "Dodaj utwory", added_n: "Dodano utworów: {n}", all_servers: "wszystkie", all_tags: "Wszystkie tagi",
     playlist_type: "Rodzaj playlisty", kind_manual: "Ręczna (sam wybieram utwory)", kind_tags: "Automatyczna (utwory z wybranymi tagami)",
@@ -111,7 +111,7 @@ const I18N = {
   },
   en: {
     "tab.player": "Player", "tab.library": "Library", "tab.playlists": "Playlists",
-    "tab.downloads": "Downloads", "tab.admin": "Administration",
+    "tab.downloads": "Downloads", "tab.users": "Users", "tab.settings": "Settings",
     account: "Account", add_music: "Add music", add_my_tag: "Add my tag", add_to_playlist: "Add to playlist",
     add_tracks: "Add tracks", added_n: "Tracks added: {n}", all_servers: "all", all_tags: "All tags",
     playlist_type: "Playlist type", kind_manual: "Manual (I pick the tracks)", kind_tags: "Automatic (tracks with chosen tags)",

@@ -37,7 +37,7 @@ Strona przeglądarkowa to statyczna strona (`app/static`): zwykły JavaScript, b
 | `app/downloader.py` | Walidacja adresów, dzienny limit, wątek roboczy z kolejką wokół yt-dlp |
 | `app/player.py` | `GuildPlayer` (kolejka, głośność, odstęp po zerwaniu) i `BotManager` |
 | `app/loudness.py` | Analiza w tle (głośność i cisza jednym przebiegiem ffmpeg), wzmocnienie przy odtwarzaniu, `RuntimeSettings` (wszystko, co administrator zmienia w panelu) |
-| `app/sysload.py` | CPU i pamięć kontenera z cgroup (v2 lub v1), próbkowane co 2 s, dla zakładki Administracja |
+| `app/sysload.py` | CPU i pamięć kontenera z cgroup (v2 lub v1), próbkowane co 2 s, dla zakładki Ustawienia |
 | `app/mixer.py` | Mikser PCM: warstwy dekodowane z wyprzedzeniem przez wątki, przejścia equal-power, następny utwór kolejkowany przed końcem bieżącego |
 | `app/routes_*.py` | API HTTP |
 | `app/cli.py` | Polecenie ratunkowe `reset-password` |

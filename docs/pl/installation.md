@@ -109,7 +109,7 @@ Otwórz panel i zaloguj się danymi z `ADMIN_USERNAME` i `ADMIN_PASSWORD`. Te zm
 
 Dalej:
 
-1. Zakładka **Administracja**: załóż konta pozostałym MG i zaznacz, którymi serwerami Discord każdy może sterować.
+1. Zakładka **Użytkownicy**: załóż konta pozostałym MG i zaznacz, którymi serwerami Discord każdy może sterować.
 2. Zakładka **Biblioteka**: wgraj muzykę.
 3. Zakładka **Playlisty**: utwórz zestaw i playlistę w nim (foldery są opcjonalne).
 4. Zakładka **Odtwarzacz**: wybierz serwer i kanał, i naciśnij playlistę.

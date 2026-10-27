@@ -37,7 +37,7 @@ The browser side is a static page (`app/static`): plain JavaScript, no build ste
 | `app/downloader.py` | URL validation, daily limit, queue worker around yt-dlp |
 | `app/player.py` | `GuildPlayer` (queue, volume, reconnect cool-down) and `BotManager` |
 | `app/loudness.py` | Background analysis (loudness and silence in one ffmpeg pass), the playback gain, `RuntimeSettings` (everything the administrator changes in the panel) |
-| `app/sysload.py` | Container CPU and memory from the cgroup (v2 or v1), sampled every 2 s, for the Administration tab |
+| `app/sysload.py` | Container CPU and memory from the cgroup (v2 or v1), sampled every 2 s, for the Settings tab |
 | `app/mixer.py` | PCM mixer: layers decoded ahead by threads, equal-power cross-fades, the next track queued before the current one ends |
 | `app/routes_*.py` | HTTP API |
 | `app/cli.py` | `reset-password` recovery command |

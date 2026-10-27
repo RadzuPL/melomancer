@@ -252,7 +252,7 @@ function render() {
   document.documentElement.lang = state.lang;
   if (!state.user) { root.append(viewLogin()); return; }
   const tabs = [["player", "tab.player"], ["library", "tab.library"], ["playlists", "tab.playlists"], ["downloads", "tab.downloads"]];
-  if (state.user.role === "admin") tabs.push(["admin", "tab.admin"]);
+  if (state.user.role === "admin") tabs.push(["users", "tab.users"], ["settings", "tab.settings"]);
   const main = h("main", {});
   root.append(
     h("header", { class: "top" },
@@ -264,7 +264,7 @@ function render() {
       h("div", { class: "hdr-right" }, themeMenu(), langToggle(), userMenu())),
     main,
     footer());
-  const views = { player: viewPlayer, library: viewLibrary, playlists: viewPlaylists, downloads: viewDownloads, admin: viewAdmin };
+  const views = { player: viewPlayer, library: viewLibrary, playlists: viewPlaylists, downloads: viewDownloads, users: viewUsers, settings: viewSettings };
   views[state.tab](main).catch(fail);
 }
 
@@ -1109,13 +1109,10 @@ async function viewDownloads(main) {
 
 /* ---------- admin ---------- */
 
-async function viewAdmin(main) {
-  const [users, guilds, system] = await Promise.all([api("GET", "/api/users"), api("GET", "/api/player/guilds"), api("GET", "/api/system")]);
+async function viewSettings(main) {
+  const system = await api("GET", "/api/system");
   state.system = system;
   const refresh = () => { render(); };
-  const name = h("input", { placeholder: tr("username"), autocomplete: "off" });
-  const pass = h("input", { type: "password", placeholder: tr("password") + " (" + tr("min_chars", { n: 10 }) + ")", autocomplete: "new-password" });
-  const role = h("select", {}, h("option", { value: "user" }, tr("role.user")), h("option", { value: "admin" }, tr("role.admin")));
 
   const saveNormalize = async (body) => {
     try { state.system = await api("PATCH", "/api/system", body); toast(tr("saved"), "ok"); } catch (err) { fail(err); }
@@ -1165,8 +1162,18 @@ async function viewAdmin(main) {
             "aria-label": tr("silence_label"), onchange: (e) => saveNormalize({ silence_threshold: Math.min(-30, Math.max(-70, Number(e.target.value))) }) }))),
       h("div", { class: "muted small" }, tr("trim_hint")),
       h("div", { class: "muted small" }, tr("normalize_status", { measured: loud.measured, total: loud.total })
-        + (loud.waiting ? " · " + tr("normalize_waiting", { n: loud.waiting }) : ""))),
-    h("div", { class: "card" }, h("h2", {}, tr("tab.admin")),
+        + (loud.waiting ? " · " + tr("normalize_waiting", { n: loud.waiting }) : ""))));
+}
+
+async function viewUsers(main) {
+  const [users, guilds] = await Promise.all([api("GET", "/api/users"), api("GET", "/api/player/guilds")]);
+  const refresh = () => { render(); };
+  const name = h("input", { placeholder: tr("username"), autocomplete: "off" });
+  const pass = h("input", { type: "password", placeholder: tr("password") + " (" + tr("min_chars", { n: 10 }) + ")", autocomplete: "new-password" });
+  const role = h("select", {}, h("option", { value: "user" }, tr("role.user")), h("option", { value: "admin" }, tr("role.admin")));
+
+  put(main,
+    h("div", { class: "card" }, h("h2", {}, tr("tab.users")),
       h("table", {}, h("thead", {}, h("tr", {}, h("th", {}, tr("username")), h("th", {}, tr("role")), h("th", {}, tr("servers")), h("th", {}))),
         h("tbody", {}, users.map((u) => h("tr", {},
           h("td", {}, u.username, u.disabled ? h("span", { class: "badge bad" }, " " + tr("disabled")) : null),

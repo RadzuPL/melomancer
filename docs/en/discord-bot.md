@@ -47,7 +47,7 @@ Repeat the invite for every server you want to play on.
 1. Start the container with the token set.
 2. In Discord the bot should appear as online in the member list of the server.
 3. Open the panel, go to the **Player** tab: your servers and their voice channels are listed automatically. You do not need to copy any IDs.
-4. Administrators see all servers the bot is on. For other users, an administrator ticks the servers they may control in the **Administration** tab.
+4. Administrators see all servers the bot is on. For other users, an administrator ticks the servers they may control in the **Users** tab.
 
 ## Good to know
 
