@@ -35,7 +35,8 @@ Strona przeglądarkowa to statyczna strona (`app/static`): zwykły JavaScript, b
 | `app/deps.py` | Uwierzytelnianie, sprawdzenie administratora, kontrola nagłówka CSRF |
 | `app/library.py` | Sprawdzanie ffprobe, deduplikacja po SHA-256, tagi, nadgrobki, lista utworów |
 | `app/downloader.py` | Walidacja adresów, dzienny limit, wątek roboczy z kolejką wokół yt-dlp |
-| `app/player.py` | `GuildPlayer` (kolejka, głośność, fade, odstęp po zerwaniu) i `BotManager` |
+| `app/player.py` | `GuildPlayer` (kolejka, głośność, odstęp po zerwaniu) i `BotManager` |
+| `app/mixer.py` | Mikser PCM: warstwy dekodowane z wyprzedzeniem przez wątki, przejścia equal-power, następny utwór kolejkowany przed końcem bieżącego |
 | `app/routes_*.py` | API HTTP |
 | `app/cli.py` | Polecenie ratunkowe `reset-password` |
 
@@ -75,7 +76,7 @@ downloads (użytkownik, url, stan, utwór)
 
 - Jeden `GuildPlayer` na serwer Discord trzyma kolejkę (id utworów, tytuły, ścieżki), kolejność (losową lub nie), flagi pętli i losowania, głośność i sterującego użytkownika.
 - Każdy utwór gra przez `FFmpegPCMAudio` owinięte w `PCMVolumeTransformer`. Zmiana głośności ustawia głośność transformera, więc działa w obrębie jednej ramki (20 ms).
-- **Płynne wejście/wyjście.** Gdy playlista ma czas fade, filtr ffmpeg `afade` wycisza i podgłaśnia każdy utwór. Utwory następują po sobie, nie nakładają się.
+- **Miksowanie i przejścia.** Klient głosowy gra jedno `MixerSource` na całą playlistę, a nie jedno źródło na utwór. `app/mixer.py` trzyma do trzech *warstw* (każda to `discord.FFmpegPCMAudio` czytane z wyprzedzeniem przez własny wątek, więc wątek audio co 20 ms nigdy nie czeka na pipe), przechodzi między nimi krzywymi equal-power (sin przy wejściu, cos przy wyjściu, stosowane cztery razy na ramkę) i oddaje sumę. Gdy bieżącej warstwie zostaje `crossfade + 2,5 s`, mikser zgłasza *preroll*; player planuje wtedy następny utwór (`GuildPlayer._plan_next`, który zawija i tasuje od nowa, gdy playlista się zapętla) i kolejkuje go przez `set_next`. Zakolejkowana warstwa zaczyna wchodzić, gdy bieżącej zostaje `crossfade` sekund, a player dostaje zdarzenie *transition*, żeby `pos` szedł za dźwiękiem. Ręczne następny, poprzedni, skok, przewinięcie i nowa playlista używają zamiast tego `switch_to`: nowa warstwa wchodzi, gdy tylko zdekoduje pierwszą ramkę, a stare się wyciszają. Przewinięcie to takie przełączenie na ten sam utwór z innym offsetem, z krótkim przejściem. Mikser, któremu skończy się dźwięk (ostatni utwór, nieznana długość, uszkodzony utwór), kończy źródło klienta głosowego, a `after` każe playerowi uruchomić nowe, i to samo dzieje się, gdy przejście wynosi 0. Wtedy działa starszy filtr ffmpeg `afade` z czasem fade z playlisty; przy włączonym przejściu jest pomijany, bo oba naraz dawałyby podwójne ściszenie.
 - **Licznik generacji.** Każde uruchomione lub zatrzymane źródło podbija licznik. Callback `after` źródła, które zostało zastąpione lub zatrzymane, widzi starą liczbę i nic nie robi, dzięki czemu pomijanie, stop i zamiana nie ścigają się ze sobą.
 - **Awarie.** Utwór, który kończy się w ciągu 1,5 s lub zgłasza błąd, liczy się jako porażka. Jeśli wszystkie utwory kolejki zawiodą pod rząd, odtwarzanie się zatrzymuje zamiast kręcić się w nieskończoność. Brakujące pliki są pomijane.
 - **Ponowne łączenie.** Jeśli sesja głosowa zakończy się niespodziewanie, odtwarzacz się resetuje i przez 35 sekund odrzuca nowe połączenia. `discord.py` trzyma timer starej sesji przez około 30 sekund, a ponowne wejście w tym oknie potrafi zabić każdą nową sesję. Tę samą lekcję zawiera projekt `discord-stream-bot`.
@@ -106,4 +107,4 @@ Wszystkie ścieżki są pod `/api`; żądania zmieniające stan wymagają nagł�
 
 ## Jeszcze nie zrobione
 
-Nakładające się przejście między utworami (crossfade), warstwy ambientu pod muzyką, tablica efektów dźwiękowych. Model danych nie stoi na drodze żadnemu z tych pomysłów.
+Warstwy ambientu pod muzyką i tablica efektów dźwiękowych (mikser jest miejscem dla obu). Model danych nie stoi na drodze żadnemu z tych pomysłów.

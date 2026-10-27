@@ -95,7 +95,7 @@ def test_system_shows_the_switch_and_only_an_admin_can_flip_it(env):
     login(env, "admin")
     res = env.client.patch("/api/system", json={"normalize": False})
     assert res.status_code == 200 and res.json()["normalize"] is False
-    assert env.bot.gain_refreshed == 1  # what is playing right now was told to follow
+    assert env.bot.settings_refreshed == 1  # what is playing right now was told to follow
 
     fresh = RuntimeSettings(env.settings)
     assert fresh.normalize is True  # the built-in default ...
@@ -108,13 +108,26 @@ def test_target_and_boost_are_stored_and_validated(env):
     res = env.client.patch("/api/system", json={"normalize_target": -20, "normalize_max_boost": 3})
     assert res.status_code == 200
     assert (res.json()["normalize"], res.json()["normalize_target"], res.json()["normalize_max_boost"]) == (True, -20.0, 3.0)
-    assert env.bot.gain_refreshed == 1
+    assert env.bot.settings_refreshed == 1
 
     fresh = RuntimeSettings(env.settings)
     fresh.load()
     assert (fresh.normalize, fresh.target, fresh.max_boost) == (True, -20.0, 3.0)  # survives a restart
 
     for bad in ({"normalize_target": -5}, {"normalize_target": -40}, {"normalize_max_boost": 20},
-                {"normalize_max_boost": -1}):
+                {"normalize_max_boost": -1}, {"crossfade_seconds": 30}, {"crossfade_seconds": -1},
+                {"scrub_seconds": 5}):
         assert env.client.patch("/api/system", json=bad).status_code == 422, bad
     assert env.client.get("/api/system").json()["normalize_target"] == -20.0  # nothing was changed by the bad ones
+
+
+def test_fade_times_default_to_three_seconds_and_a_third_are_stored_and_validated(env):
+    login(env, "admin")
+    info = env.client.get("/api/system").json()
+    assert (info["crossfade_seconds"], info["scrub_seconds"]) == (3.0, 0.3)
+    res = env.client.patch("/api/system", json={"crossfade_seconds": 5, "scrub_seconds": 0})
+    assert res.status_code == 200 and (res.json()["crossfade_seconds"], res.json()["scrub_seconds"]) == (5.0, 0.0)
+    fresh = RuntimeSettings(env.settings)
+    fresh.load()
+    assert (fresh.crossfade, fresh.scrub) == (5.0, 0.0)  # 0 is a valid value: it means a hard cut
+    assert env.bot.settings_refreshed == 1

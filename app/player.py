@@ -13,6 +13,7 @@ import discord
 
 from .config import Settings
 from .loudness import RuntimeSettings, linear_gain
+from .mixer import Layer, Mixer
 
 log = logging.getLogger("melomancer.player")
 
@@ -39,6 +40,22 @@ class QueueItem:
     peak: float | None = None      # measured true peak in dBTP
 
 
+class MixerSource(discord.AudioSource):
+    """What the voice client plays: it asks the mixer for the next 20 ms frame."""
+
+    def __init__(self, mixer: Mixer) -> None:
+        self.mixer = mixer
+
+    def read(self) -> bytes:
+        return self.mixer.read()
+
+    def is_opus(self) -> bool:
+        return False
+
+    def cleanup(self) -> None:
+        self.mixer.close()
+
+
 class GuildPlayer:
     def __init__(self, manager: "BotManager", guild_id: int, volume: float) -> None:
         self.manager = manager
@@ -60,6 +77,8 @@ class GuildPlayer:
         self._fail_streak = 0
         self._t_start = 0.0
         self._elapsed_base = 0.0
+        self._mixer: Mixer | None = None   # what the voice client is playing; lives across tracks
+        self._layer: Layer | None = None   # the track that is "now playing" (the newest one in the mix)
 
     # ---- helpers ---------------------------------------------------------
 
@@ -76,14 +95,17 @@ class GuildPlayer:
         vc = self.vc
         return bool(vc and vc.is_connected())
 
-    def _build_order(self, first: int | None = None) -> None:
+    def _fresh_order(self, first: int | None = None) -> list[int]:
         indexes = list(range(len(self.items)))
         if self.shuffle:
             random.shuffle(indexes)
             if first is not None and first in indexes:
                 indexes.remove(first)
                 indexes.insert(0, first)
-        self.order = indexes
+        return indexes
+
+    def _build_order(self, first: int | None = None) -> None:
+        self.order = self._fresh_order(first)
 
     def elapsed(self) -> float:
         if self.state == "playing":
@@ -92,7 +114,8 @@ class GuildPlayer:
 
     def _ffmpeg_options(self, item: QueueItem, offset: float = 0.0) -> str:
         options = "-vn"
-        fade = self.fade
+        # With a cross-fade the mixer does the fading between tracks; the per-playlist fade is the old way.
+        fade = self.fade if self.manager.crossfade_seconds() <= 0 else 0.0
         if fade > 0:
             filters = [f"afade=t=in:st=0:d={fade:g}"]
             remaining = (item.duration or 0) - offset  # the filter clock starts at the seek position
@@ -100,6 +123,11 @@ class GuildPlayer:
                 filters.append(f"afade=t=out:st={remaining - fade:.2f}:d={fade:g}")
             options += " -af " + ",".join(filters)
         return options
+
+    def _new_layer(self, item: QueueItem, offset: float = 0.0) -> Layer:
+        before = f"-ss {offset:.2f}" if offset > 0 else None
+        source = discord.FFmpegPCMAudio(item.path, before_options=before, options=self._ffmpeg_options(item, offset))
+        return Layer(source, item=item, offset=offset, duration=item.duration, gain=self.manager.gain_for(item))
 
     # ---- connection ------------------------------------------------------
 
@@ -160,14 +188,21 @@ class GuildPlayer:
 
     def _reset_playback(self) -> None:
         self._gen += 1
-        vc = self.vc
-        if vc and (vc.is_playing() or vc.is_paused()):
-            vc.stop()
+        self._stop_audio()
         self.state = "idle"
         self.items, self.order, self.pos = [], [], -1
         self.playlist = None
         self.controller = None
         self._elapsed_base = 0.0
+
+    def _stop_audio(self) -> None:
+        """Silence now: stop the voice client and free every stream of the mix."""
+        mixer, self._mixer, self._layer = self._mixer, None, None
+        vc = self.vc
+        if vc and (vc.is_playing() or vc.is_paused()):
+            vc.stop()
+        if mixer:
+            mixer.close()
 
     async def play(self, items: list[QueueItem], playlist: dict | None, controller: dict, *, loop: bool,
                    shuffle: bool, fade: float, volume: float | None) -> None:
@@ -177,9 +212,6 @@ class GuildPlayer:
         if not playable:
             raise PlayerError("empty_playlist", 400)
         self._gen += 1
-        vc = self.vc
-        if vc and (vc.is_playing() or vc.is_paused()):
-            vc.stop()
         self.items = playable
         self.playlist, self.controller = playlist, controller
         self.loop, self.shuffle, self.fade = loop, shuffle, fade
@@ -188,32 +220,106 @@ class GuildPlayer:
         self._build_order()
         self.pos = 0
         self._fail_streak = 0
-        self._start_current()
+        self._start_current()  # whatever plays now is cross-faded into the new playlist
 
-    def _start_current(self, offset: float = 0.0) -> None:
+    def _play_layer(self, layer: Layer, fade: float, keep_paused: bool = False) -> bool:
+        """Make `layer` the audio. Returns True when the player stays paused (only a seek can ask for that).
+
+        A running mix takes the layer in with a cross-fade; otherwise a new mix is started on the voice client.
+        """
+        vc = self.vc
+        assert vc is not None
+        mixer = self._mixer
+        if mixer is not None and (vc.is_playing() or vc.is_paused()) and mixer.switch_to(layer, fade, fade):
+            if vc.is_paused() and not keep_paused:
+                vc.resume()
+                return False
+            return vc.is_paused()
+        if vc.is_playing() or vc.is_paused():
+            vc.stop()
+        loop = self.manager.loop
+        mixer = Mixer(
+            volume=self.volume, crossfade=self.manager.crossfade_seconds(),
+            on_preroll=lambda lay: loop.call_soon_threadsafe(self._on_preroll, lay),
+            on_transition=lambda token: loop.call_soon_threadsafe(self._on_transition, token))
+        mixer.switch_to(layer, fade, 0.0)
+        self._mixer = mixer
+        vc.play(MixerSource(mixer), after=lambda err, m=mixer: loop.call_soon_threadsafe(self._on_mixer_end, m, err))
+        return False
+
+    def _start_current(self, offset: float = 0.0, *, fade: float | None = None, keep_paused: bool = False) -> None:
         vc = self.vc
         if not (vc and vc.is_connected()):
             self.state = "idle"
             return
         item = self.items[self.order[self.pos]]
         self._gen += 1
-        gen = self._gen
+        if fade is None:
+            fade = self.manager.crossfade_seconds()
+        layer = None
         try:
-            before = f"-ss {offset:.2f}" if offset > 0 else None
-            source = discord.FFmpegPCMAudio(item.path, before_options=before, options=self._ffmpeg_options(item, offset))
-            source = discord.PCMVolumeTransformer(source, volume=self.volume * self.manager.gain_for(item))
-            vc.play(source, after=lambda err, g=gen: self.manager.loop.call_soon_threadsafe(self._on_after, g, err))
+            layer = self._new_layer(item, offset)
+            paused = self._play_layer(layer, fade, keep_paused)
         except Exception as exc:  # noqa: BLE001
             log.warning("Could not start %s: %s", item.track_id, exc)
+            if layer:
+                layer.close()
             self.state = "idle"
             return
-        self.state = "playing"
+        self._layer = layer
+        self.state = "paused" if paused else "playing"
         self._t_start = time.monotonic()
         self._elapsed_base = offset
 
-    def _on_after(self, gen: int, err: Exception | None) -> None:
-        if gen != self._gen or self.state != "playing":
-            return  # a stopped or replaced source reporting in late
+    def _plan_next(self) -> tuple[list[int], int] | None:
+        """Where the queue goes after the current track, without touching the queue itself."""
+        order, pos, count = self.order, self.pos, len(self.order)
+        for _ in range(count):
+            pos += 1
+            if pos >= count:
+                if not self.loop:
+                    return None
+                order, pos = self._fresh_order(), 0
+            if os.path.isfile(self.items[order[pos]].path):
+                return order, pos
+        return None
+
+    def _on_preroll(self, layer: Layer) -> None:
+        """The current track is about to end: prepare the next one so that it can fade in over it."""
+        mixer = self._mixer
+        if mixer is None or layer is not self._layer:
+            return
+        if self.state != "playing":  # paused in the meantime: ask again after resume
+            mixer.cancel_pending(rearm=True)
+            return
+        fade = self.manager.crossfade_seconds()
+        plan = self._plan_next() if fade > 0 else None
+        if plan is None:
+            return
+        order, pos = plan
+        try:
+            following = self._new_layer(self.items[order[pos]])
+        except Exception as exc:  # noqa: BLE001
+            log.warning("Could not prepare the next track: %s", exc)
+            return
+        if not mixer.set_next(following, fade=fade, after=layer, token=(self._gen, order, pos, following)):
+            following.close()
+
+    def _on_transition(self, token: tuple) -> None:
+        """The prepared track has started to fade in: it is now the current one."""
+        gen, order, pos, layer = token
+        if gen != self._gen or self._mixer is None:
+            return
+        self.order, self.pos, self._layer = order, pos, layer
+        self._fail_streak = 0
+        self._t_start = time.monotonic()
+        self._elapsed_base = 0.0
+
+    def _on_mixer_end(self, mixer: Mixer, err: Exception | None) -> None:
+        """The whole mix ran dry: no cross-fade was possible (last track, unknown length, a failure)."""
+        if mixer is not self._mixer or self.state != "playing":
+            return  # a stopped or replaced mix reporting in late
+        self._mixer = self._layer = None
         quick = (time.monotonic() - self._t_start) < 1.5
         if err or quick:
             self._fail_streak += 1
@@ -247,16 +353,13 @@ class GuildPlayer:
 
     def _finish(self) -> None:
         self._gen += 1
+        self._stop_audio()
         self.state = "idle"
         self.controller = None
         self.playlist = None
         self._elapsed_base = 0.0
 
     def stop(self) -> None:
-        self._gen += 1
-        vc = self.vc
-        if vc and (vc.is_playing() or vc.is_paused()):
-            vc.stop()
         self._finish()
 
     def pause(self) -> None:
@@ -279,9 +382,6 @@ class GuildPlayer:
         if self.state == "idle":
             raise PlayerError("not_playing", 409)
         self._gen += 1
-        vc = self.vc
-        if vc and (vc.is_playing() or vc.is_paused()):
-            vc.stop()
         self.state = "playing"
         self._advance(step)
 
@@ -292,16 +392,13 @@ class GuildPlayer:
         if not 0 <= index < len(self.items):
             raise PlayerError("bad_index", 400)
         self._gen += 1
-        vc = self.vc
-        if vc and (vc.is_playing() or vc.is_paused()):
-            vc.stop()
         self.pos = self.order.index(index)
         self.state = "playing"
         self._fail_streak = 0
         self._start_current()
 
     def seek(self, seconds: float) -> None:
-        """Continue the current track from this position (a paused player stays paused)."""
+        """Continue the current track from this position, cross-faded (a paused player stays paused)."""
         if self.state == "idle" or not 0 <= self.pos < len(self.order):
             raise PlayerError("not_playing", 409)
         item = self.items[self.order[self.pos]]
@@ -312,38 +409,35 @@ class GuildPlayer:
         was_paused = self.state == "paused"
         self._gen += 1
         self._fail_streak = 0
-        vc = self.vc
-        if vc and (vc.is_playing() or vc.is_paused()):
-            vc.stop()
-        self._start_current(target)
-        if was_paused and self.state == "playing" and vc:
-            vc.pause()
-            self._elapsed_base = target
-            self.state = "paused"
-
-    def _apply_volume(self) -> None:
-        """Put the volume (and the loudness gain of the current track) on the source that is playing now."""
-        vc = self.vc
-        if vc and isinstance(vc.source, discord.PCMVolumeTransformer) and 0 <= self.pos < len(self.order):
-            item = self.items[self.order[self.pos]]
-            vc.source.volume = self.volume * self.manager.gain_for(item)
+        self._start_current(target, fade=self.manager.scrub_seconds(), keep_paused=was_paused)
 
     def set_volume(self, volume: float) -> None:
         self.volume = max(0.0, min(volume, 1.5))
-        self._apply_volume()
+        if self._mixer:
+            self._mixer.volume = self.volume
 
-    def refresh_gain(self) -> None:
-        self._apply_volume()
+    def refresh_settings(self) -> None:
+        """The administrator changed the loudness or fade settings: apply them to what is playing right now."""
+        mixer = self._mixer
+        if mixer is None:
+            return
+        mixer.crossfade = self.manager.crossfade_seconds()
+        for layer in mixer.layers():
+            if layer.item is not None:
+                layer.gain = self.manager.gain_for(layer.item)
 
     def set_options(self, loop: bool | None, shuffle: bool | None) -> None:
-        if loop is not None:
-            self.loop = loop
+        changed = False
+        if loop is not None and loop != self.loop:
+            self.loop, changed = loop, True
         if shuffle is not None and shuffle != self.shuffle:
-            self.shuffle = shuffle
+            self.shuffle, changed = shuffle, True
             if self.order and 0 <= self.pos < len(self.order):
                 current = self.order[self.pos]
                 self._build_order(first=current)
                 self.pos = 0 if shuffle else current
+        if changed and self._mixer:  # the next track was planned with the old options: plan it again
+            self._mixer.cancel_pending(rearm=True)
 
     def snapshot(self) -> dict:
         vc = self.vc
@@ -468,10 +562,16 @@ class BotManager:
             return 1.0
         return linear_gain(item.loudness, item.peak, self.runtime.target, self.runtime.max_boost)
 
-    def refresh_gain(self) -> None:
-        """The administrator changed the loudness settings: apply them to what is playing right now."""
+    def crossfade_seconds(self) -> float:
+        return self.runtime.crossfade
+
+    def scrub_seconds(self) -> float:
+        return self.runtime.scrub
+
+    def refresh_settings(self) -> None:
+        """The administrator changed the loudness or fade settings: apply them to what is playing right now."""
         for player in self._players.values():
-            player.refresh_gain()
+            player.refresh_settings()
 
     def player(self, guild_id: int) -> GuildPlayer:
         if guild_id not in self._players:

@@ -35,7 +35,8 @@ The browser side is a static page (`app/static`): plain JavaScript, no build ste
 | `app/deps.py` | Authentication, administrator check, CSRF header check |
 | `app/library.py` | Probing with ffprobe, de-duplication by SHA-256, tags, tombstones, track listing |
 | `app/downloader.py` | URL validation, daily limit, queue worker around yt-dlp |
-| `app/player.py` | `GuildPlayer` (queue, volume, fades, reconnect cool-down) and `BotManager` |
+| `app/player.py` | `GuildPlayer` (queue, volume, reconnect cool-down) and `BotManager` |
+| `app/mixer.py` | PCM mixer: layers decoded ahead by threads, equal-power cross-fades, the next track queued before the current one ends |
 | `app/routes_*.py` | HTTP API |
 | `app/cli.py` | `reset-password` recovery command |
 
@@ -75,7 +76,7 @@ downloads (user, url, status, track)
 
 - One `GuildPlayer` per Discord server holds the queue (track ids, titles, paths), the order (shuffled or not), loop and shuffle flags, volume and the controlling user.
 - Each track is played through `FFmpegPCMAudio` wrapped in `PCMVolumeTransformer`. Changing the volume sets the transformer's volume, so it applies within a frame (20 ms).
-- **Fades.** When a playlist has a fade time, the ffmpeg filter `afade` fades each track in and out. Tracks follow one another, they do not overlap.
+- **Mixing and cross-fades.** The voice client plays one `MixerSource` for the whole playlist, not one source per track. `app/mixer.py` keeps up to three *layers* (each a `discord.FFmpegPCMAudio` read ahead by its own thread, so the 20 ms audio thread never waits on a pipe), fades them against each other with equal-power curves (sin in, cos out, applied four times per frame) and hands out the sum. When the current layer has `crossfade + 2.5 s` left, the mixer reports a *preroll*; the player then plans the next track (`GuildPlayer._plan_next`, which wraps and reshuffles when the playlist loops) and queues it with `set_next`. The queued layer starts fading in when the current one has `crossfade` seconds left, and the player is told with a *transition* event so `pos` follows the audio. A manual next, previous, jump, seek or a new playlist uses `switch_to` instead: the new layer fades in as soon as it has decoded its first frame, and the old ones fade out. Seeking is such a switch to the same track at another offset, with the short seek fade. A mix that runs dry (last track, unknown length, a failing track) ends the voice-client source and `after` makes the player start a new one, which is also the fallback when the cross-fade is 0. In that case the older ffmpeg filter `afade` applies the per-playlist fade; with the cross-fade on it is skipped, because both together would dip twice.
 - **Generation counter.** Every started or stopped source bumps a counter. The `after` callback of a source that was replaced or stopped sees an old number and does nothing, which makes skip, stop and replace race-free.
 - **Failures.** A track that ends within 1.5 s or errors counts as a failure. If every track of a queue fails in a row, playback stops instead of looping forever. Missing files are skipped.
 - **Reconnects.** If the voice session ends unexpectedly, the player resets and refuses new connections for 35 seconds. `discord.py` keeps a timer for the old session for about 30 seconds, and joining again inside that window can get every new session killed. The same lesson is built into the `discord-stream-bot` project.
@@ -106,4 +107,4 @@ All paths are under `/api`; state-changing requests need the header `X-Melomance
 
 ## Not built yet
 
-Overlapping cross-fade between tracks, ambient layers under the music, a sound-effects board. The data model does not stand in the way of any of them.
+Ambient layers under the music and a sound-effects board (the mixer is the place for both). The data model does not stand in the way of any of them.

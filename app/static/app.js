@@ -1125,6 +1125,9 @@ async function viewAdmin(main) {
   const normNumber = (key, min, max, label) => h("label", { class: "row" }, label,
     h("input", { type: "number", min, max, step: 1, value: system[key], disabled: !system.normalize, "aria-label": label,
       onchange: (e) => saveNormalize({ [key]: Math.min(max, Math.max(min, Number(e.target.value))) }) }));
+  const fadeNumber = (key, max, step, label) => h("label", { class: "row" }, label,
+    h("input", { type: "number", min: 0, max, step, value: system[key], "aria-label": label,
+      onchange: (e) => saveNormalize({ [key]: Math.min(max, Math.max(0, Number(e.target.value))) }) }));
   const loud = system.loudness;
 
   put(main, 
@@ -1135,6 +1138,10 @@ async function viewAdmin(main) {
         normNumber("normalize_target", -30, -8, tr("normalize_target")),
         normNumber("normalize_max_boost", 0, 12, tr("normalize_boost"))),
       h("div", { class: "muted small" }, tr("normalize_hint")),
+      h("div", { class: "row" },
+        fadeNumber("crossfade_seconds", 12, 0.5, tr("crossfade_label")),
+        fadeNumber("scrub_seconds", 2, 0.1, tr("scrub_label"))),
+      h("div", { class: "muted small" }, tr("fade_hint")),
       h("div", { class: "muted small" }, tr("normalize_status", { measured: loud.measured, total: loud.total })
         + (loud.waiting ? " · " + tr("normalize_waiting", { n: loud.waiting }) : ""))),
     h("div", { class: "card" }, h("h2", {}, tr("tab.admin")),

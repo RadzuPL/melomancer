@@ -32,6 +32,12 @@ DEFAULT_TARGET = -16.0               # LUFS: a comfortable level for music over 
 DEFAULT_MAX_BOOST = 6.0              # dB: a very quiet track is raised by at most this much
 TARGET_RANGE = (-30.0, -8.0)
 BOOST_RANGE = (0.0, 12.0)
+SETTING_CROSSFADE = "crossfade_seconds"
+SETTING_SCRUB = "scrub_seconds"
+DEFAULT_CROSSFADE = 3.0              # seconds of overlap between two tracks (0 = hard cut)
+DEFAULT_SCRUB = 0.3                  # seconds of overlap when jumping inside a track (0 = hard cut)
+CROSSFADE_RANGE = (0.0, 12.0)
+SCRUB_RANGE = (0.0, 2.0)
 
 
 def measure(path: Path) -> tuple[float, float] | None:
@@ -79,20 +85,24 @@ class RuntimeSettings:
         self.normalize = True
         self.target = DEFAULT_TARGET
         self.max_boost = DEFAULT_MAX_BOOST
+        self.crossfade = DEFAULT_CROSSFADE
+        self.scrub = DEFAULT_SCRUB
 
     def load(self) -> None:
         with tx(self._settings.db_path) as conn:
             stored = {r["key"]: r["value"] for r in conn.execute("SELECT key, value FROM app_settings")}
         if SETTING_NORMALIZE in stored:
             self.normalize = stored[SETTING_NORMALIZE] == "1"
-        for key, attr, (low, high) in ((SETTING_TARGET, "target", TARGET_RANGE), (SETTING_BOOST, "max_boost", BOOST_RANGE)):
+        for key, attr, (low, high) in ((SETTING_TARGET, "target", TARGET_RANGE), (SETTING_BOOST, "max_boost", BOOST_RANGE),
+                                       (SETTING_CROSSFADE, "crossfade", CROSSFADE_RANGE),
+                                       (SETTING_SCRUB, "scrub", SCRUB_RANGE)):
             try:
                 setattr(self, attr, min(max(float(stored[key]), low), high))
             except (KeyError, ValueError):
                 pass  # not set (or damaged): the default stays
 
     def update(self, *, normalize: bool | None = None, target: float | None = None,
-               max_boost: float | None = None) -> None:
+               max_boost: float | None = None, crossfade: float | None = None, scrub: float | None = None) -> None:
         changes: dict[str, str] = {}
         if normalize is not None:
             self.normalize = normalize
@@ -103,6 +113,12 @@ class RuntimeSettings:
         if max_boost is not None:
             self.max_boost = min(max(float(max_boost), BOOST_RANGE[0]), BOOST_RANGE[1])
             changes[SETTING_BOOST] = f"{self.max_boost:g}"
+        if crossfade is not None:
+            self.crossfade = min(max(float(crossfade), CROSSFADE_RANGE[0]), CROSSFADE_RANGE[1])
+            changes[SETTING_CROSSFADE] = f"{self.crossfade:g}"
+        if scrub is not None:
+            self.scrub = min(max(float(scrub), SCRUB_RANGE[0]), SCRUB_RANGE[1])
+            changes[SETTING_SCRUB] = f"{self.scrub:g}"
         with tx(self._settings.db_path) as conn:
             for key, value in changes.items():
                 conn.execute("INSERT INTO app_settings(key, value) VALUES (?, ?) "

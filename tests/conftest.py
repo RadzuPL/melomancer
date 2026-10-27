@@ -48,8 +48,8 @@ class FakeBot:
     async def start(self): ...
     async def stop(self): ...
 
-    def refresh_gain(self):
-        self.gain_refreshed = getattr(self, "gain_refreshed", 0) + 1
+    def refresh_settings(self):
+        self.settings_refreshed = getattr(self, "settings_refreshed", 0) + 1
 
     def _st(self, gid: int) -> dict:
         return self.states.setdefault(gid, {

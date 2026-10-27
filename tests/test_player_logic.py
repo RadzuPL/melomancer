@@ -1,23 +1,43 @@
-"""GuildPlayer without Discord: a fake voice client records what would be played."""
+"""GuildPlayer without Discord: a fake voice client records what would be played, and the test plays the part of the
+voice client's audio thread by asking the real mixer for frames."""
 from __future__ import annotations
 
 import asyncio
+import time
+from array import array
 from types import SimpleNamespace
 
 import pytest
 
+import app.mixer as mixer_mod
 import app.player as player_mod
 from app.player import GuildPlayer, PlayerError, QueueItem
 
+DEFAULT_FRAMES = 6000  # a 120 s track
+CREATED: list = []
+FRAMES: dict[str, int] = {}
+
 
 class FakeSource:
+    """Stands in for discord.FFmpegPCMAudio: frames of a constant level (track n has level (n + 1) * 1000)."""
+
     def __init__(self, path, before_options=None, options=None):
         self.path, self.before_options, self.options = path, before_options, options
+        stem = path.rsplit("/", 1)[1].split(".")[0]
+        offset = float(before_options.split()[1]) if before_options else 0.0
+        self.left = max(0, FRAMES.get(stem, DEFAULT_FRAMES) - int(offset * 50))
+        self.frame = array("h", [(int(stem) + 1) * 1000]).tobytes() * (mixer_mod.FRAME_BYTES // 2)
+        self.cleaned = False
+        CREATED.append(self)
 
+    def read(self):
+        if self.left <= 0:
+            return b""
+        self.left -= 1
+        return self.frame
 
-class FakeVolume:
-    def __init__(self, source, volume=1.0):
-        self.source, self.volume = source, volume
+    def cleanup(self):
+        self.cleaned = True
 
 
 class FakeVoiceClient:
@@ -30,10 +50,11 @@ class FakeVoiceClient:
     def pause(self): self._paused = True
     def resume(self): self._paused = False
     def is_connected(self): return True
-    def is_playing(self): return self._playing
+    def is_playing(self): return self._playing and not self._paused
     def is_paused(self): return self._paused
 
     def play(self, source, after=None):
+        assert not self._playing, "Already playing audio."
         self.sources.append(source)
         self.afters.append(after)
         self.source, self._playing = source, True
@@ -43,22 +64,34 @@ class FakeVoiceClient:
         self._playing = self._paused = False
 
 
+def wait_for(condition, seconds=3.0):
+    end = time.monotonic() + seconds
+    while time.monotonic() < end:
+        if condition():
+            return
+        time.sleep(0.002)
+    raise AssertionError("timed out")
+
+
 @pytest.fixture
 def rig(tmp_path, monkeypatch):
+    CREATED.clear()
+    FRAMES.clear()
     monkeypatch.setattr(player_mod.discord, "FFmpegPCMAudio", FakeSource)
-    monkeypatch.setattr(player_mod.discord, "PCMVolumeTransformer", FakeVolume)
     vc = FakeVoiceClient()
     guild = SimpleNamespace(voice_client=vc)
+    fades = {"crossfade": 0.0, "scrub": 0.0}
     manager = SimpleNamespace(client=SimpleNamespace(get_guild=lambda gid: guild),
                               loop=SimpleNamespace(call_soon_threadsafe=lambda fn, *a: fn(*a)),
-                              gain_for=lambda item: 1.0)
+                              gain_for=lambda item: 1.0,
+                              crossfade_seconds=lambda: fades["crossfade"], scrub_seconds=lambda: fades["scrub"])
     items = []
     for n in range(4):
         path = tmp_path / f"{n}.opus"
         path.write_bytes(b"x")
         items.append(QueueItem(f"t{n}", f"Track {n}", str(path), 120.0))
-    player = GuildPlayer(manager, 1, 0.4)
-    return SimpleNamespace(player=player, vc=vc, items=items)
+    player = GuildPlayer(manager, 1, 1.0)
+    return SimpleNamespace(player=player, vc=vc, items=items, fades=fades, manager=manager)
 
 
 def start(rig, **kw):
@@ -68,18 +101,47 @@ def start(rig, **kw):
 
 
 def played_paths(rig):
-    return [s.source.path.rsplit("/", 1)[1] for s in rig.vc.sources]
+    return [src.path.rsplit("/", 1)[1] for src in CREATED]
 
 
-def test_jump_plays_the_chosen_track_and_ignores_the_old_source(rig):
+def settle(rig):
+    """Wait until every stream of the mix has decoded its first frame (ffmpeg needs a moment in real life)."""
+    mixer = rig.player._mixer
+    wait_for(lambda: all(layer.state() != "wait" for layer in mixer.layers()))
+
+
+def pull(rig):
+    """What the voice client's audio thread does: ask for the next frame. Returns its level, None at the end."""
+    for _ in range(3000):
+        frame = rig.vc.source.read()
+        if frame == b"":
+            return None
+        if frame != mixer_mod.SILENCE:
+            return array("h", frame)[0]
+        time.sleep(0.001)
+    raise AssertionError("no audio")
+
+
+def test_jump_switches_the_running_mix_to_the_chosen_track(rig):
     start(rig)
+    settle(rig)
+    assert pull(rig) == 1000
     assert played_paths(rig) == ["0.opus"]
     rig.player.jump(2)
     assert played_paths(rig) == ["0.opus", "2.opus"]
+    assert len(rig.vc.sources) == 1                  # the same voice-client source goes on: no gap, no restart
+    settle(rig)
+    assert pull(rig) == 3000                         # hard cut with a cross-fade of 0
     assert rig.player.snapshot()["now"]["index"] == 2
 
-    rig.vc.afters[0](None)  # the replaced source reports its end late: must change nothing
-    assert played_paths(rig) == ["0.opus", "2.opus"]
+
+def test_a_late_report_from_a_replaced_mix_changes_nothing(rig):
+    start(rig)
+    rig.player.stop()
+    start(rig)
+    assert len(rig.vc.sources) == 2
+    rig.vc.afters[0](None)  # the first mix reports its end late: it is no longer the current one
+    assert len(CREATED) == 2 and rig.player.state == "playing"
 
 
 def test_next_after_a_jump_continues_from_there(rig):
@@ -113,9 +175,12 @@ def test_jump_rejects_bad_requests(rig):
 def test_jump_while_paused_starts_playing_again(rig):
     start(rig)
     rig.player.pause()
+    assert rig.vc._paused
     rig.player.jump(3)
-    assert rig.player.state == "playing"
+    assert rig.player.state == "playing" and not rig.vc._paused
     assert played_paths(rig)[-1] == "3.opus"
+    settle(rig)
+    assert pull(rig) == 4000
 
 
 def test_snapshot_lists_the_queue_only_while_something_plays(rig):
@@ -127,24 +192,41 @@ def test_snapshot_lists_the_queue_only_while_something_plays(rig):
     assert rig.player.snapshot()["queue"] == []
 
 
+def test_stop_silences_the_voice_client_and_frees_the_streams(rig):
+    start(rig)
+    settle(rig)
+    mixer = rig.player._mixer
+    rig.player.stop()
+    assert rig.vc.stops == 1 and rig.player._mixer is None and rig.player.state == "idle"
+    wait_for(lambda: CREATED[0].cleaned)
+    assert mixer.closed
+
+
 def test_seek_restarts_the_track_from_that_position(rig):
     start(rig, fade=2.0)
     rig.player.seek(45)
-    last = rig.vc.sources[-1].source
+    last = CREATED[-1]
     assert last.path.endswith("0.opus") and last.before_options == "-ss 45.00"
     assert "afade=t=out:st=73.00" in last.options  # 120 s track, 45 s in: the fade-out starts 73 s into the rest
     snap = rig.player.snapshot()
     assert snap["state"] == "playing" and 45 <= snap["now"]["elapsed"] < 50 and snap["now"]["index"] == 0
 
 
-def test_seek_keeps_a_paused_player_paused_and_ignores_the_old_source(rig):
+def test_seek_keeps_a_paused_player_paused_and_waits_for_the_resume(rig):
     start(rig)
+    settle(rig)
+    assert pull(rig) == 1000
     rig.player.pause()
     rig.player.seek(30)
     assert rig.player.state == "paused" and rig.vc._paused
     assert rig.player.snapshot()["now"]["elapsed"] == 30
-    rig.vc.afters[0](None)  # the replaced source reports its end late
-    assert len(rig.vc.sources) == 2
+    assert CREATED[-1].before_options == "-ss 30.00" and len(rig.vc.sources) == 1
+    assert len(rig.player._mixer.layers()) == 2        # the old position and the new one, waiting for the resume
+    rig.player.resume()
+    assert rig.player.state == "playing"
+    settle(rig)
+    assert pull(rig) is not None
+    assert len(rig.player._mixer.layers()) == 1        # the switch happened once playback went on
 
 
 def test_seek_is_clamped_and_validated(rig):
@@ -153,7 +235,7 @@ def test_seek_is_clamped_and_validated(rig):
     assert idle.value.code == "not_playing"
     start(rig)
     rig.player.seek(9999)  # past the end: the last two seconds are left
-    assert rig.vc.sources[-1].source.before_options == "-ss 118.00"
+    assert CREATED[-1].before_options == "-ss 118.00"
     rig.items[0].duration = None
     rig.player.items[0].duration = None
     with pytest.raises(PlayerError) as unknown:
@@ -161,12 +243,137 @@ def test_seek_is_clamped_and_validated(rig):
     assert unknown.value.code == "bad_seek"
 
 
-def test_loudness_gain_scales_the_volume_of_each_track_and_follows_changes(rig):
-    rig.player.manager.gain_for = lambda item: 0.5
+def test_seek_uses_the_short_scrub_fade(rig):
+    rig.fades["scrub"] = 0.2
     start(rig)
-    assert rig.vc.source.volume == pytest.approx(0.4 * 0.5)
+    settle(rig)
+    assert pull(rig) == 1000
+    rig.player.seek(60)
+    settle(rig)
+    levels = [pull(rig) for _ in range(14)]
+    assert all(1000 <= level <= 1415 for level in levels)  # no gap, no dip; two uncorrelated halves would never exceed this
+    assert levels[-1] == 1000 and len(rig.player._mixer.layers()) == 1  # the old position faded out and was dropped
+
+
+def test_loudness_gain_and_volume_multiply_and_follow_changes(rig):
+    rig.manager.gain_for = lambda item: 0.5
+    start(rig)
+    rig.player.set_volume(0.4)
+    settle(rig)
+    assert pull(rig) == 200                                     # 1000 * volume 0.4 * gain 0.5
     rig.player.set_volume(0.8)
-    assert rig.vc.source.volume == pytest.approx(0.8 * 0.5)  # the slider and the gain multiply
-    rig.player.manager.gain_for = lambda item: 1.0  # the administrator switched evening-out off
-    rig.player.refresh_gain()
-    assert rig.vc.source.volume == pytest.approx(0.8)
+    assert pull(rig) == 400
+    rig.manager.gain_for = lambda item: 1.0                     # the administrator switched evening-out off
+    rig.player.refresh_settings()
+    assert pull(rig) == 800
+
+
+def test_a_new_playlist_is_crossfaded_into_the_running_one(rig):
+    start(rig)
+    settle(rig)
+    assert pull(rig) == 1000
+    rig.fades["crossfade"] = 0.2
+    start(rig, loop=False)  # another playlist
+    assert len(rig.vc.sources) == 1 and len(rig.player._mixer.layers()) == 2
+    settle(rig)
+    for _ in range(12):
+        assert pull(rig) is not None
+    assert len(rig.player._mixer.layers()) == 1
+
+
+def short_tracks(rig, frames=100, count=4):
+    for n in range(count):
+        FRAMES[str(n)] = frames
+        rig.items[n].duration = frames / 50
+
+
+def test_the_next_track_fades_in_by_itself_before_the_current_one_ends(rig):
+    rig.fades["crossfade"] = 0.5
+    short_tracks(rig)
+    start(rig)
+    settle(rig)
+    levels, index_seen = [], []
+    while len(levels) < 3 * 100 - 50:
+        settle(rig)  # the test reads far faster than 20 ms apart: give the queued track time to decode
+        level = pull(rig)
+        assert level is not None, "the stream ended: the crossfade failed to take over"
+        levels.append(level)
+        index_seen.append(rig.player.snapshot()["now"]["index"])
+    assert len(rig.vc.sources) == 1 and rig.player.state == "playing"      # one continuous source, never restarted
+    assert levels[0] < 1000 and 1000 in levels                              # the first track fades in from silence
+    assert 2000 in levels and 3000 in levels                                # then track 1, then track 2
+    assert index_seen[0] == 0 and index_seen[-1] >= 2
+    assert index_seen == sorted(index_seen)                                 # the position only moves forward
+    assert 98 <= levels.index(2000) <= 103                                  # track 1 began 0.5 s before track 0's end
+    assert played_paths(rig)[:3] == ["0.opus", "1.opus", "2.opus"]
+
+
+def test_the_playlist_wraps_around_with_a_crossfade_when_it_loops(rig):
+    rig.fades["crossfade"] = 0.5
+    short_tracks(rig, count=2)
+    rig.items = rig.items[:2]
+    start(rig)
+    settle(rig)
+    seen = set()
+    for _ in range(280):
+        settle(rig)
+        level = pull(rig)
+        assert level is not None
+        seen.add(level)
+    assert seen >= {1000, 2000} and rig.player.state == "playing"
+    assert played_paths(rig)[:3] == ["0.opus", "1.opus", "0.opus"]
+
+
+def test_without_a_crossfade_the_mix_runs_dry_and_the_player_goes_on_with_the_next_track(rig):
+    short_tracks(rig, frames=30)
+    start(rig)
+    settle(rig)
+    assert [pull(rig) for _ in range(30)] == [1000] * 30
+    assert pull(rig) is None                     # the stream ended: discord now calls `after`
+    rig.vc.afters[-1](None)
+    assert len(rig.vc.sources) == 2 and played_paths(rig)[-1] == "1.opus"
+    assert rig.player.snapshot()["now"]["index"] == 1
+
+
+def test_the_last_track_of_a_playlist_that_does_not_loop_ends_the_player(rig):
+    rig.fades["crossfade"] = 0.2
+    short_tracks(rig, frames=60, count=2)
+    rig.items = rig.items[:2]
+    start(rig, loop=False)
+    settle(rig)
+    while True:
+        level = pull(rig)
+        if level is None:
+            break
+    rig.vc.afters[-1](None)
+    assert rig.player.state == "idle" and rig.player._mixer is None
+    assert played_paths(rig) == ["0.opus", "1.opus"]
+
+
+def test_a_broken_track_is_skipped_and_a_playlist_of_broken_tracks_stops(rig):
+    short_tracks(rig, frames=0)
+    start(rig)
+    for _ in range(12):
+        if rig.player.state == "idle":
+            break
+        for _ in range(50):
+            frame = rig.vc.source.read()
+            if frame == b"":
+                break
+            time.sleep(0.002)
+        rig.vc.afters[-1](None)
+    assert rig.player.state == "idle"
+    assert len(CREATED) == len(rig.items) + 1        # every track tried once, plus one retry before giving up
+
+
+def test_shuffling_or_looping_while_playing_makes_the_mix_plan_the_next_track_again(rig):
+    rig.fades["crossfade"] = 0.5
+    short_tracks(rig)
+    start(rig)
+    settle(rig)
+    for _ in range(3):
+        pull(rig)
+    mixer = rig.player._mixer
+    assert mixer.layers()                                       # the next track is already queued ...
+    rig.player.set_options(loop=False, shuffle=None)
+    assert len(mixer.layers()) == 1 or not mixer._pending      # ... and the old plan is forgotten
