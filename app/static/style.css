@@ -220,3 +220,9 @@ div.previewslot { background: var(--panel-2); border-bottom: 1px solid var(--lin
 .picker-list label .btn.icon { flex: none; }
 .trimlabel { min-width: 4.5rem; }
 input.timefield { width: 8rem; }
+
+/* volume slider with ticks: 0, 25 ... 150 % (long at 0, 50, 100, 150), aligned with the middle of the 14 px handle */
+.voltrack { position: relative; flex: 1 1 8rem; min-width: 8rem; }
+.voltick { position: relative; height: 9px; margin-top: -3px; pointer-events: none; }
+.voltick .tick { position: absolute; top: 0; left: calc(7px + (100% - 14px) * var(--at, 0)); width: 1px; height: 5px; margin-left: -.5px; background: var(--muted); opacity: .6; }
+.voltick .tick.major { height: 9px; opacity: .95; }

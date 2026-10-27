@@ -190,6 +190,22 @@ function previewSlot(box) {
   return place;
 }
 
+/* A volume slider (0 to 150 %) with ticks under it, so that it is clear where the volume is aimed: a long tick at 0,
+   50, 100 and 150, a short one at 25, 75 and 125. The slider is drawn like the seek bars, so that the ticks line up with
+   the middle of its handle in every browser. Returns {el, paint}; call paint() after setting the value from code. */
+function volumeSlider(input) {
+  input.classList.add("seek", "vol");
+  const paint = () => input.style.setProperty("--pos", (Number(input.value) / Number(input.max)) * 100 + "%");
+  input.addEventListener("input", paint);
+  const ticks = h("div", { class: "voltick", "aria-hidden": "true" }, [0, 25, 50, 75, 100, 125, 150].map((pct) => {
+    const tick = h("span", { class: "tick" + (pct % 50 === 0 ? " major" : "") });
+    tick.style.setProperty("--at", pct / 150);
+    return tick;
+  }));
+  paint();
+  return { el: h("div", { class: "voltrack" }, input, ticks), paint };
+}
+
 /* "m:ss.d" for a point in a track, and the reverse: seconds, "m:ss" or "m:ss.d" (a comma works as well). */
 function fmtPoint(sec) {
   if (sec === null || sec === undefined) return "";
@@ -594,6 +610,7 @@ async function viewPlayer(main) {
     onpointerdown: () => { dragging = true; }, onpointerup: () => { dragging = false; },
     onchange: async (e) => { dragging = false; try { applyState(await postVolume(Number(e.target.value))); } catch (err) { fail(err); } },
     oninput: (e) => { volLabel.textContent = e.target.value + "%"; sendVolume(Number(e.target.value)); } });
+  const volUi = volumeSlider(vol);
   const padsBox = h("div", {});
   const quickChips = h("div", { class: "quickchips" });
   const quickInfo = h("span", { class: "muted small" });
@@ -618,7 +635,7 @@ async function viewPlayer(main) {
       guilds.length === 0 && system.bot_status === "ready" ? h("span", { class: "muted small" }, tr("no_servers")) : null)),
     h("div", { class: "card now" }, titleEl, subEl, seekBar, timeEl,
       h("div", { class: "controls" }, prevB, toggleB, nextB, stopB, loopB, shuffleB,
-        h("div", { class: "volume" }, "🔈", vol, volLabel)),
+        h("div", { class: "volume" }, "🔈", volUi.el, volLabel)),
       queueWrap),
     h("div", { class: "card" }, h("div", { class: "row" }, h("h2", { class: "grow" }, tr("playlists")), setSel, allBox), padsBox),
     h("div", { class: "card" }, h("h2", {}, "🏷 " + tr("quick_title")), h("p", { class: "muted small" }, tr("quick_hint")),
@@ -663,7 +680,7 @@ async function viewPlayer(main) {
     toggleB.textContent = s && s.state === "paused" ? "▶" : "⏸";
     loopB.classList.toggle("on", !!(s && s.loop));
     shuffleB.classList.toggle("on", !!(s && s.shuffle));
-    if (s && !dragging) { vol.value = Math.round(s.volume * 100); volLabel.textContent = vol.value + "%"; }
+    if (s && !dragging) { vol.value = Math.round(s.volume * 100); volUi.paint(); volLabel.textContent = vol.value + "%"; }
     paintQueue(s, playing);
     for (const pad of padsBox.querySelectorAll(".pad")) {
       pad.classList.toggle("active", !!(playing && s.playlist && String(s.playlist.id) === pad.dataset.id));
@@ -1160,7 +1177,7 @@ async function viewPlaylists(main) {
         h("label", { class: "row" }, h("input", { type: "checkbox", checked: p.shuffle, onchange: (e) => patch({ shuffle: e.target.checked }) }), tr("shuffle")),
         h("label", { class: "row" }, tr("fade_s"), h("input", { type: "number", min: 0, max: 10, step: 0.5, value: p.fade, "aria-label": tr("fade_s"),
           onchange: (e) => patch({ fade: Math.min(10, Math.max(0, Number(e.target.value) || 0)) }) })),
-        h("label", { class: "row" }, volCheck, tr("own_volume"), volRange)),
+        h("label", { class: "row" }, volCheck, tr("own_volume"), volumeSlider(volRange).el)),
       p.kind === "tags" ? tagRule(p, patch) : manualBody(p)); 
   }
 
