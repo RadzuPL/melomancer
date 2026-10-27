@@ -226,3 +226,5 @@ input.timefield { width: 8rem; }
 .voltick { position: relative; height: 9px; margin-top: -3px; pointer-events: none; }
 .voltick .tick { position: absolute; top: 0; left: calc(7px + (100% - 14px) * var(--at, 0)); width: 1px; height: 5px; margin-left: -.5px; background: var(--muted); opacity: .6; }
 .voltick .tick.major { height: 9px; opacity: .95; }
+.volume .vollabel { flex: none; width: 3.4rem; text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.volume .voltrack { min-width: 0; }

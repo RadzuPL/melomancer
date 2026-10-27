@@ -599,7 +599,7 @@ async function viewPlayer(main) {
   const stopB = btn("⏹", tr("stop"), () => control("stop"));
   const loopB = h("button", { class: "btn", onclick: () => options({ loop: !(ps.st && ps.st.loop) }) }, "🔁 " + tr("loop"));
   const shuffleB = h("button", { class: "btn", onclick: () => options({ shuffle: !(ps.st && ps.st.shuffle) }) }, "🔀 " + tr("shuffle"));
-  const volLabel = h("span", { class: "small", }, "");
+  const volLabel = h("span", { class: "small vollabel" }, "");
   let dragging = false;
   // The bot follows the slider while it is dragged (the server glides between the values, so it sounds smooth).
   // Requests go out one after another, so that an older value can never arrive after a newer one.
