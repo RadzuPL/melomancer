@@ -13,7 +13,7 @@ def _scenario(env, wavs):
     assert env.client.post(f"/api/playlists/{playlist}/items", json={"track_ids": ids}).status_code == 201
     env.client.patch(f"/api/playlists/{playlist}", json={"loop": False, "shuffle": True, "fade": 4, "volume": 0.7})
     env.client.put(f"/api/tracks/{ids[2]}/my-tags", json={"tags": ["sesja 3"]})
-    env.client.delete(f"/api/tracks/{ids[1]}")
+    assert env.client.delete(f"/api/tracks/{ids[1]}?force=true").status_code == 200
     return ids, playlist
 
 

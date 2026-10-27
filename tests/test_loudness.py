@@ -63,11 +63,11 @@ def test_the_bot_applies_the_gain_only_while_evening_out_is_on(tmp_path):
 def test_worker_measures_what_is_waiting_and_marks_unusable_files(env):
     login(env, "admin")
     for n, db in enumerate((-6, -20)):
-        assert upload(env, quiet_wav(env.tmp / f"t{n}.wav", db, 300 + n * 100)).status_code == 200
+        assert upload(env, quiet_wav(env.tmp / f"t{n}.wav", db, 300 + n * 100)).status_code == 201
     silent = env.tmp / "silent.wav"
     subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-f", "lavfi", "-i", "anullsrc=r=44100:cl=mono", "-t", "2",
                     str(silent)], check=True)
-    assert upload(env, silent).status_code == 200
+    assert upload(env, silent).status_code == 201
 
     assert counts(env.settings) == {"total": 3, "measured": 0, "waiting": 3}
     worker = LoudnessWorker(env.settings)
