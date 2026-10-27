@@ -59,9 +59,9 @@ Workflow `.github/workflows/build.yml` robi to:
 | Poniedziałek 03:23 UTC (harmonogram) | tak | przebudowany ze świeżym obrazem bazowym i najnowszym yt-dlp, wypchnięty jako `latest` i bieżąca wersja | brak |
 | Uruchomienie ręczne | tak | jak push | jak push |
 
-Wersję liczy `scripts/next_version.sh` z najnowszego tagu `vX.Y.Z` i komunikatów commitów od niego. Każdy push na `main` to wydanie poprawkowe (`0.6.1`, `0.6.2` ...). Pierwsza lub środkowa liczba zmienia się tylko wtedy, gdy komunikat commita o to prosi:
+Wersję liczy `scripts/next_version.sh` z najnowszego tagu `vX.Y.Z` i komunikatów commitów od niego. Każdy push na `main` to wydanie poprawkowe (`0.6.1`, `0.6.2` ...). Pierwsza lub środkowa liczba zmienia się tylko wtedy, gdy **temat commita** (jego pierwsza linia) kończy się znacznikiem; tekst w innym miejscu komunikatu jest ignorowany:
 
-| Komunikat commita zawiera | Podbicie |
+| Temat commita kończy się na | Podbicie |
 |---|---|
 | `[major]` | major (`1.0.0`) |
 | `[minor]` | minor (`0.7.0`) |

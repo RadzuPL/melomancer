@@ -4,11 +4,11 @@
 #   HEAD already carries a vX.Y.Z tag  -> that version (re-runs do not burn numbers)
 #   no vX.Y.Z tag exists yet           -> 0.1.0
 #   otherwise the newest tag, bumped according to the commit messages since it:
-#       "[major]" anywhere             -> major (X+1.0.0)
-#       "[minor]" anywhere             -> minor (X.Y+1.0)
-#       anything else                  -> patch (X.Y.Z+1)
-#   The type of a commit ("feat:", "fix:" ...) does not matter: only the markers do, so the middle and
-#   the first number change only when you ask for it.
+#       a commit SUBJECT ending in "[major]" -> major (X+1.0.0)
+#       a commit SUBJECT ending in "[minor]" -> minor (X.Y+1.0)
+#       anything else                        -> patch (X.Y.Z+1)
+#   Only the subject line (the first line) counts, and only at its very end, so text in a commit body that
+#   merely talks about the markers changes nothing. The type of a commit ("feat:", "fix:" ...) does not matter.
 #
 # NO_BUMP=1 prints the newest existing version without bumping (used by the weekly rebuild,
 # which only refreshes the image and must not create a release).
@@ -36,11 +36,11 @@ if [ "${NO_BUMP:-0}" = "1" ]; then
 fi
 
 IFS=. read -r major minor patch <<<"${last#v}"
-log=$(git log --format=%B "${last}..HEAD")
+subjects=$(git log --format=%s "${last}..HEAD")
 
-if grep -Fq '[major]' <<<"$log"; then
+if grep -Eq '\[major\]\s*$' <<<"$subjects"; then
   major=$((major + 1)); minor=0; patch=0
-elif grep -Fq '[minor]' <<<"$log"; then
+elif grep -Eq '\[minor\]\s*$' <<<"$subjects"; then
   minor=$((minor + 1)); patch=0
 else
   patch=$((patch + 1))
