@@ -1125,23 +1125,45 @@ async function viewAdmin(main) {
   const normNumber = (key, min, max, label) => h("label", { class: "row" }, label,
     h("input", { type: "number", min, max, step: 1, value: system[key], disabled: !system.normalize, "aria-label": label,
       onchange: (e) => saveNormalize({ [key]: Math.min(max, Math.max(min, Number(e.target.value))) }) }));
+  const trimBox = h("input", { type: "checkbox", checked: system.trim_silence, onchange: (e) => saveNormalize({ trim_silence: e.target.checked }) });
   const fadeNumber = (key, max, step, label) => h("label", { class: "row" }, label,
     h("input", { type: "number", min: 0, max, step, value: system[key], "aria-label": label,
       onchange: (e) => saveNormalize({ [key]: Math.min(max, Math.max(0, Number(e.target.value))) }) }));
   const loud = system.loudness;
+  const loadEl = h("div", { class: "muted small" }, tr("load_waiting"));
+  const tickLoad = async () => {
+    try {
+      const l = await api("GET", "/api/system/load");
+      const pct = (v) => (v === null || v === undefined ? "–" : v.toFixed(1));
+      loadEl.textContent = tr("load_label") + ": " + tr("load_line", { cpu: pct(l.cpu), avg: pct(l.cpu_average), peak: pct(l.cpu_peak), mem: l.memory_mb });
+      loadEl.title = tr("load_hint", { source: l.source, cores: l.cores });
+    } catch (err) { /* keep the last value: the next tick tries again */ }
+  };
+  tickLoad();
+  const loadTimer = setInterval(() => { if (!document.body.contains(loadEl)) clearInterval(loadTimer); else tickLoad(); }, 3000);
 
   put(main, 
     h("div", { class: "card" }, h("h2", {}, tr("system")),
       h("div", {}, "Melomancer " + system.version), h("div", {}, tr("bot_status") + ": " + tr("bot." + system.bot_status)),
+      loadEl,
+      h("h3", {}, tr("section_loudness")),
       h("label", { class: "row" }, normBox, tr("normalize_label")),
       h("div", { class: "row" },
         normNumber("normalize_target", -30, -8, tr("normalize_target")),
         normNumber("normalize_max_boost", 0, 12, tr("normalize_boost"))),
       h("div", { class: "muted small" }, tr("normalize_hint")),
+      h("h3", {}, tr("section_fades")),
       h("div", { class: "row" },
         fadeNumber("crossfade_seconds", 12, 0.5, tr("crossfade_label")),
         fadeNumber("scrub_seconds", 2, 0.1, tr("scrub_label"))),
       h("div", { class: "muted small" }, tr("fade_hint")),
+      h("h3", {}, tr("section_silence")),
+      h("div", { class: "row" },
+        h("label", { class: "row" }, trimBox, tr("trim_label")),
+        h("label", { class: "row" }, tr("silence_label"),
+          h("input", { type: "number", min: -70, max: -30, step: 1, value: system.silence_threshold, disabled: !system.trim_silence,
+            "aria-label": tr("silence_label"), onchange: (e) => saveNormalize({ silence_threshold: Math.min(-30, Math.max(-70, Number(e.target.value))) }) }))),
+      h("div", { class: "muted small" }, tr("trim_hint")),
       h("div", { class: "muted small" }, tr("normalize_status", { measured: loud.measured, total: loud.total })
         + (loud.waiting ? " · " + tr("normalize_waiting", { n: loud.waiting }) : ""))),
     h("div", { class: "card" }, h("h2", {}, tr("tab.admin")),

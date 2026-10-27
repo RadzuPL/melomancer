@@ -10,7 +10,8 @@ from pydantic import BaseModel, Field
 from .config import Settings
 from .db import tx
 from .deps import SESSION_COOKIE, current_user, get_settings, require_admin
-from .loudness import BOOST_RANGE, CROSSFADE_RANGE, SCRUB_RANGE, TARGET_RANGE, counts as loudness_counts
+from .loudness import (BOOST_RANGE, CROSSFADE_RANGE, SCRUB_RANGE, SILENCE_RANGE, TARGET_RANGE,
+                       counts as loudness_counts)
 from .security import (MIN_PASSWORD_LENGTH, hash_password, new_session_token, sha256_hex, utc_string,
                        verify_password)
 
@@ -212,7 +213,9 @@ def _system_info(request: Request) -> dict:
         "normalize_max_boost": request.app.state.runtime.max_boost,
         "crossfade_seconds": request.app.state.runtime.crossfade,
         "scrub_seconds": request.app.state.runtime.scrub,
-        "loudness": loudness_counts(settings),
+        "trim_silence": request.app.state.runtime.trim_silence,
+        "silence_threshold": request.app.state.runtime.silence_db,
+        "loudness": loudness_counts(settings, request.app.state.runtime.silence_db),
     }
 
 
@@ -221,12 +224,20 @@ def system(request: Request, _: dict = Depends(current_user)):
     return _system_info(request)
 
 
+@router.get("/system/load")
+def system_load(request: Request, _: dict = Depends(require_admin)):
+    """CPU and memory of the container, for the Administration tab."""
+    return request.app.state.load.snapshot()
+
+
 class SystemPatch(BaseModel):
     normalize: bool | None = None
     normalize_target: float | None = Field(default=None, ge=TARGET_RANGE[0], le=TARGET_RANGE[1])
     normalize_max_boost: float | None = Field(default=None, ge=BOOST_RANGE[0], le=BOOST_RANGE[1])
     crossfade_seconds: float | None = Field(default=None, ge=CROSSFADE_RANGE[0], le=CROSSFADE_RANGE[1])
     scrub_seconds: float | None = Field(default=None, ge=SCRUB_RANGE[0], le=SCRUB_RANGE[1])
+    trim_silence: bool | None = None
+    silence_threshold: float | None = Field(default=None, ge=SILENCE_RANGE[0], le=SILENCE_RANGE[1])
 
 
 @router.patch("/system")
@@ -234,6 +245,8 @@ def patch_system(body: SystemPatch, request: Request, _: dict = Depends(require_
     """Change the loudness and fade settings while the bot runs; what is playing now follows at once."""
     request.app.state.runtime.update(normalize=body.normalize, target=body.normalize_target,
                                      max_boost=body.normalize_max_boost, crossfade=body.crossfade_seconds,
-                                     scrub=body.scrub_seconds)
+                                     scrub=body.scrub_seconds, trim_silence=body.trim_silence,
+                                     silence_db=body.silence_threshold)
+    request.app.state.loudness.wake()  # a changed threshold means the library is measured again
     request.app.state.bot.refresh_settings()
     return _system_info(request)

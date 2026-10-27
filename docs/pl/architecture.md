@@ -36,6 +36,8 @@ Strona przeglądarkowa to statyczna strona (`app/static`): zwykły JavaScript, b
 | `app/library.py` | Sprawdzanie ffprobe, deduplikacja po SHA-256, tagi, nadgrobki, lista utworów |
 | `app/downloader.py` | Walidacja adresów, dzienny limit, wątek roboczy z kolejką wokół yt-dlp |
 | `app/player.py` | `GuildPlayer` (kolejka, głośność, odstęp po zerwaniu) i `BotManager` |
+| `app/loudness.py` | Analiza w tle (głośność i cisza jednym przebiegiem ffmpeg), wzmocnienie przy odtwarzaniu, `RuntimeSettings` (wszystko, co administrator zmienia w panelu) |
+| `app/sysload.py` | CPU i pamięć kontenera z cgroup (v2 lub v1), próbkowane co 2 s, dla zakładki Administracja |
 | `app/mixer.py` | Mikser PCM: warstwy dekodowane z wyprzedzeniem przez wątki, przejścia equal-power, następny utwór kolejkowany przed końcem bieżącego |
 | `app/routes_*.py` | API HTTP |
 | `app/cli.py` | Polecenie ratunkowe `reset-password` |
@@ -57,6 +59,7 @@ downloads (użytkownik, url, stan, utwór)
 - **tracks** nigdy nie są fizycznie usuwane. Usunięcie ustawia `deleted_at` i kasuje plik, więc `playlist_items` nadal wskazują wiersz ze starym tytułem (wyszarzony wpis). Częściowy indeks unikalny pilnuje unikalności `sha256` tylko wśród żywych utworów, więc ponowne wgranie identycznej zawartości przywraca stary wiersz (to samo id).
 - Zestawy, foldery i playlisty usuwają się kaskadowo. Utworów to nie dotyka.
 - Pozycje to liczby całkowite, przepisywane przy zapisie kolejności.
+- `tracks.silence_lead`, `tracks.silence_trail` i `tracks.silence_db` trzymają ciszę na początku i końcu utworu w sekundach oraz próg, z którym ją zmierzono (ten sam przebieg ffmpeg używa `silencedetect` przed `loudnorm`). Utwór, którego `silence_db` różni się od bieżącego progu, jest mierzony od nowa. Przy włączonym przycinaniu `GuildPlayer._span` zaczyna warstwę od `lead` (`-ss`) i kończy ją na `duration - trail`: ten punkt staje się `duration` warstwy, więc od niego liczy się przejście i preroll, a `Layer.stop_at` kończy warstwę tam, gdy przejścia nie ma. Zegar playera zostaje w czasie pliku.
 - `tracks.loudness` (głośność całkowita w LUFS) i `tracks.peak` (true peak, dBTP) uzupełnia wątek w tle (`app/loudness.py`): bierze najnowszy niezmierzony utwór, mierzy go przez ffmpeg `loudnorm` (tylko analiza, uruchamiana przez `nice`) i ustawia `loudness_tried`. NULL oznacza „nieznane”: utwór gra bez zmian. Przy odtwarzaniu `BotManager.gain_for` zamienia pomiar na wzmocnienie (cel minus głośność, ograniczone maksymalnym podbiciem i utrzymaniem szczytu poniżej -1 dBTP), które mnoży głośność `PCMVolumeTransformer`; nic nie jest przekodowywane. Przełącznik, poziom docelowy i maksymalne podbicie ustawia administrator w panelu i leżą w tabeli `app_settings` (`RuntimeSettings` w `app/loudness.py`); nie ma dla nich zmiennych środowiskowych.
 - `playlists.kind` to `manual` (wiersze w `playlist_items`) albo `tags` (reguła JSON w `playlists.rule`: `{"tags": [...], "mode": "all"|"any"}`). Playlista z tagów nie przechowuje utworów, są liczone przez `library.tracks_for_tags` przy wyświetlaniu lub odtwarzaniu, ze wspólnych tagów i tagów osobistych właściciela. `POST /player/{guild}/play` przyjmuje też wprost `tags` i `mode`, żeby zagrać niezapisany wybór.
 
@@ -103,7 +106,7 @@ Wszystkie ścieżki są pod `/api`; żądania zmieniające stan wymagają nagł�
 | Playlisty | `GET/POST /sets`, `PATCH/DELETE /sets/{id}`, `POST /sets/{id}/playlists`, `PUT /sets/{id}/playlists/order`, `POST /sets/{id}/groups`, `PUT /sets/{id}/groups/order`, `PATCH/DELETE /groups/{id}`, `POST /groups/{id}/playlists`, `PUT /groups/{id}/playlists/order`, `GET/PATCH/DELETE /playlists/{id}`, `POST /playlists/{id}/copy`, `POST /playlists/{id}/items`, `PUT /playlists/{id}/order`, `PUT/DELETE /playlists/{id}/items/{item}` |
 | Odtwarzacz | `GET /player/guilds`, `GET /player/{guild}/state`, `POST /player/{guild}/connect`, `disconnect`, `play`, `pause`, `resume`, `next`, `prev`, `jump`, `seek`, `stop`, `volume`, `PATCH /player/{guild}/options` |
 | Osoby | `GET /people` (aktywne konta poza twoim, tylko nazwy, do wyboru odbiorcy kopii) |
-| System | `GET /system`, `PATCH /system` (administrator: przełącznik głośności), `GET /health` |
+| System | `GET /system`, `PATCH /system` (administrator: ustawienia głośności, przejść i ciszy), `GET /system/load` (administrator: CPU i pamięć), `GET /health` |
 
 ## Jeszcze nie zrobione
 

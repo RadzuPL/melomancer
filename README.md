@@ -16,7 +16,7 @@ A self-hosted Discord music bot with a web panel, made for tabletop RPG sessions
 - Shared library: upload many files or whole folders at once, shared tags and personal tags, edit titles and tags, preview in the browser.
 - Add a single YouTube, SoundCloud or Bandcamp track by URL: audio is downloaded once with yt-dlp, with rate limits to protect your IP address. Playback always comes from disk.
 - Private sets, playlists and optional folders. Automatic playlists built from tags, and a quick pick by tags in the player. Deleting a track leaves a greyed-out entry in playlists that use it, so the author can replace it.
-- Player: choose a Discord server and voice channel, press a playlist, pause, skip, seek, loop, shuffle, cross-fade between tracks and playlists, volume 0 to 150 %. Loudness of tracks is evened out while playing (switchable).
+- Player: choose a Discord server and voice channel, press a playlist, pause, skip, seek, loop, shuffle, cross-fade between tracks and playlists with silence trimmed at the ends, volume 0 to 150 %. Loudness of tracks is evened out while playing (switchable).
 - Copy a playlist to another user, optionally with your private tags.
 - Several Discord servers with one bot; per-user access to servers; one controller per server at a time.
 - Voice with Discord's end-to-end encryption (DAVE), reconnect protection, leaves empty channels.
@@ -73,7 +73,7 @@ Własny bot muzyczny Discord z panelem webowym, stworzony na sesje RPG. Jedna ws
 - Wspólna biblioteka: wgrywanie wielu plików lub całych folderów naraz, tagi wspólne i osobiste, edycja tytułów i tagów, podgląd w przeglądarce.
 - Dodawanie pojedynczego utworu z YouTube, SoundCloud lub Bandcamp po adresie URL: dźwięk jest pobierany raz przez yt-dlp, z limitami chroniącymi twój adres IP. Odtwarzanie zawsze idzie z dysku.
 - Prywatne zestawy, playlisty i opcjonalne foldery. Playlisty automatyczne z tagów oraz szybki wybór z tagów w odtwarzaczu. Usunięcie utworu zostawia wyszarzony wpis w playlistach, które go używają, żeby autor mógł go zastąpić.
-- Odtwarzacz: wybierasz serwer Discord i kanał głosowy, naciskasz playlistę, pauza, pomijanie, przewijanie, pętla, losowo, płynne przejścia między utworami i playlistami, głośność 0 do 150 %. Głośność utworów jest wyrównywana podczas odtwarzania (można wyłączyć).
+- Odtwarzacz: wybierasz serwer Discord i kanał głosowy, naciskasz playlistę, pauza, pomijanie, przewijanie, pętla, losowo, płynne przejścia między utworami i playlistami z przycinaniem ciszy na końcach, głośność 0 do 150 %. Głośność utworów jest wyrównywana podczas odtwarzania (można wyłączyć).
 - Kopiowanie playlisty innemu użytkownikowi, opcjonalnie z twoimi prywatnymi tagami.
 - Kilka serwerów Discord z jednym botem; dostęp użytkowników do serwerów; jeden sterujący na serwer naraz.
 - Głos z szyfrowaniem end-to-end Discorda (DAVE), ochrona przed pętlą ponownych połączeń, opuszczanie pustych kanałów.

@@ -49,6 +49,7 @@ body { min-height: 100vh; }
 h1, h2, h3 { margin: 0 0 .6em; font-weight: 600; }
 h2 { font-size: 1.15rem; }
 h3 { font-size: 1rem; }
+.card h3 { margin-top: 1.2em; }
 a { color: var(--accent); }
 .muted { color: var(--muted); }
 .small { font-size: .85rem; }

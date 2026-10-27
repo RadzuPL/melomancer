@@ -230,3 +230,17 @@ def test_close_frees_everything_and_a_finished_mixer_refuses_new_layers():
     wait_for(lambda: tone.cleaned and other.cleaned)
     assert m.read() == b""
     assert not m.switch_to(Layer(Tone(3, 1)), 0, 0)
+
+
+def test_a_layer_with_stop_at_ends_there_even_though_the_file_goes_on():
+    m = Mixer()
+    tone = Tone(7000, 500)
+    start(m, tone, stop_at=1.0)         # 1.0 s = 50 frames
+    assert len(drain(m)) == 50
+    wait_for(lambda: tone.cleaned)
+
+
+def test_stop_at_counts_from_the_position_in_the_file_not_from_the_start_of_the_layer():
+    m = Mixer()
+    start(m, Tone(7000, 500), offset=0.6, stop_at=1.0)   # starts 0.6 s into the file: 0.4 s = 20 frames left
+    assert len(drain(m)) == 20

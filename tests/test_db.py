@@ -72,3 +72,23 @@ def test_migration_5_adds_loudness_columns_without_touching_existing_tracks(tmp_
     conn.execute("INSERT INTO app_settings(key, value) VALUES ('normalize', '0')")
     assert (path.parent / "v4.db.before-v5").exists()
     conn.close()
+
+
+def test_migration_6_adds_silence_columns_and_leaves_tracks_unmeasured(tmp_path):
+    path = tmp_path / "v5.db"
+    conn = sqlite3.connect(path)
+    for script in MIGRATIONS[:5]:
+        conn.executescript(script)
+    conn.execute("PRAGMA user_version=5")
+    conn.execute("INSERT INTO users(id, username, pw_hash) VALUES (1, 'u', 'x')")
+    conn.execute("INSERT INTO tracks(id, owner_id, title, original_title, ext, sha256, loudness, loudness_tried) "
+                 "VALUES ('t', 1, 'T', 'T', '.wav', 'h', -20, 1)")
+    conn.commit()
+    conn.close()
+
+    init_db(path)
+
+    conn = sqlite3.connect(path)
+    row = conn.execute("SELECT loudness, silence_lead, silence_trail, silence_db FROM tracks WHERE id='t'").fetchone()
+    assert row == (-20.0, None, None, None)  # kept its loudness; silence_db NULL makes the worker look at it once
+    conn.close()

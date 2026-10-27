@@ -147,6 +147,13 @@ MIGRATIONS: list[str] = [
         value TEXT NOT NULL
     );
     """,
+    # 6: silence at the start and end of a track (seconds to skip / to cut), measured with the threshold in silence_db;
+    # a changed threshold makes the worker measure again.
+    """
+    ALTER TABLE tracks ADD COLUMN silence_lead REAL;
+    ALTER TABLE tracks ADD COLUMN silence_trail REAL;
+    ALTER TABLE tracks ADD COLUMN silence_db REAL;
+    """,
 ]
 
 

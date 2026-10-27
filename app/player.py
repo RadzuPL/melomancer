@@ -38,6 +38,8 @@ class QueueItem:
     duration: float | None
     loudness: float | None = None  # measured LUFS, None while unknown
     peak: float | None = None      # measured true peak in dBTP
+    lead: float = 0.0              # seconds of silence at the start that can be skipped
+    trail: float = 0.0             # seconds of silence at the end that can be cut
 
 
 class MixerSource(discord.AudioSource):
@@ -112,22 +114,35 @@ class GuildPlayer:
             return self._elapsed_base + (time.monotonic() - self._t_start)
         return self._elapsed_base
 
-    def _ffmpeg_options(self, item: QueueItem, offset: float = 0.0) -> str:
+    def _ffmpeg_options(self, item: QueueItem, offset: float = 0.0, end: float | None = None) -> str:
         options = "-vn"
         # With a cross-fade the mixer does the fading between tracks; the per-playlist fade is the old way.
         fade = self.fade if self.manager.crossfade_seconds() <= 0 else 0.0
         if fade > 0:
             filters = [f"afade=t=in:st=0:d={fade:g}"]
-            remaining = (item.duration or 0) - offset  # the filter clock starts at the seek position
-            if item.duration and remaining > fade * 3:
+            remaining = (end or item.duration or 0) - offset  # the filter clock starts at the seek position
+            if (end or item.duration) and remaining > fade * 3:
                 filters.append(f"afade=t=out:st={remaining - fade:.2f}:d={fade:g}")
             options += " -af " + ",".join(filters)
         return options
 
+    def _span(self, item: QueueItem, offset: float = 0.0) -> tuple[float, float | None, bool]:
+        """Where in the file the audio starts and ends, and whether the end is a cut (silence trimmed)."""
+        start, end, cut = offset, item.duration, False
+        if self.manager.trim_silence() and item.duration:
+            usable_end = item.duration - item.trail
+            first = offset if offset > 0 else item.lead
+            if usable_end - first >= 2.0:  # a trim that would leave next to nothing is ignored
+                start, end, cut = first, usable_end, item.trail > 0
+        return start, end, cut
+
     def _new_layer(self, item: QueueItem, offset: float = 0.0) -> Layer:
-        before = f"-ss {offset:.2f}" if offset > 0 else None
-        source = discord.FFmpegPCMAudio(item.path, before_options=before, options=self._ffmpeg_options(item, offset))
-        return Layer(source, item=item, offset=offset, duration=item.duration, gain=self.manager.gain_for(item))
+        start, end, cut = self._span(item, offset)
+        before = f"-ss {start:.2f}" if start > 0 else None
+        source = discord.FFmpegPCMAudio(item.path, before_options=before,
+                                        options=self._ffmpeg_options(item, start, end))
+        return Layer(source, item=item, offset=start, duration=end, gain=self.manager.gain_for(item),
+                     stop_at=end if cut else None)
 
     # ---- connection ------------------------------------------------------
 
@@ -269,7 +284,7 @@ class GuildPlayer:
         self._layer = layer
         self.state = "paused" if paused else "playing"
         self._t_start = time.monotonic()
-        self._elapsed_base = offset
+        self._elapsed_base = layer.offset
 
     def _plan_next(self) -> tuple[list[int], int] | None:
         """Where the queue goes after the current track, without touching the queue itself."""
@@ -313,7 +328,7 @@ class GuildPlayer:
         self.order, self.pos, self._layer = order, pos, layer
         self._fail_streak = 0
         self._t_start = time.monotonic()
-        self._elapsed_base = 0.0
+        self._elapsed_base = layer.offset
 
     def _on_mixer_end(self, mixer: Mixer, err: Exception | None) -> None:
         """The whole mix ran dry: no cross-fade was possible (last track, unknown length, a failure)."""
@@ -405,7 +420,8 @@ class GuildPlayer:
         if not item.duration:
             raise PlayerError("bad_seek", 400)
         # Never seek into the last two seconds: a track that ends at once would look like a failed one.
-        target = max(0.0, min(float(seconds), item.duration - 2.0))
+        end = self._span(item)[1] or item.duration
+        target = max(0.0, min(float(seconds), end - 2.0))
         was_paused = self.state == "paused"
         self._gen += 1
         self._fail_streak = 0
@@ -561,6 +577,9 @@ class BotManager:
         if not self.runtime.normalize:
             return 1.0
         return linear_gain(item.loudness, item.peak, self.runtime.target, self.runtime.max_boost)
+
+    def trim_silence(self) -> bool:
+        return self.runtime.trim_silence
 
     def crossfade_seconds(self) -> float:
         return self.runtime.crossfade

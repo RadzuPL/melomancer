@@ -1,11 +1,12 @@
-"""Loudness evening-out: measure every track once, in the background, and turn the result into a playback gain.
+"""Track analysis done once, in the background: loudness (for evening-out) and silence at the start and end.
 
-Nothing here changes an audio file. The measurement (integrated loudness in LUFS and true peak in dBTP) is stored in
-the database and the gain is applied to the voice stream while playing, so switching the feature off takes effect
-immediately and needs no re-processing.
+Nothing here changes an audio file. The measurements (integrated loudness in LUFS, true peak in dBTP, seconds of
+silence to skip at the start and to cut at the end) are stored in the database and applied to the voice stream while
+playing, so switching a feature off takes effect immediately and needs no re-processing.
 """
 from __future__ import annotations
 
+from dataclasses import dataclass
 import json
 import logging
 import math
@@ -38,29 +39,71 @@ DEFAULT_CROSSFADE = 3.0              # seconds of overlap between two tracks (0 
 DEFAULT_SCRUB = 0.3                  # seconds of overlap when jumping inside a track (0 = hard cut)
 CROSSFADE_RANGE = (0.0, 12.0)
 SCRUB_RANGE = (0.0, 2.0)
+SETTING_TRIM = "trim_silence"
+SETTING_SILENCE_DB = "silence_threshold"
+DEFAULT_SILENCE_DB = -50.0           # dB: quieter than this counts as silence
+SILENCE_RANGE = (-70.0, -30.0)
+SILENCE_MIN_LENGTH = 0.2             # seconds a quiet stretch must last to be noticed at all
+MIN_TRIM = 0.25                      # a silence shorter than this at the start or end is left alone
+LEAD_MARGIN = 0.05                   # the cut at the start lands this much before the first sound
+TRAIL_KEEP = 0.15                    # this much of the silent tail is kept, so a decay is not clipped
 
 
-def measure(path: Path) -> tuple[float, float] | None:
-    """Return (integrated LUFS, true peak dBTP), or None when the file is silent, unreadable or too slow."""
-    cmd = ["ffmpeg", "-nostdin", "-hide_banner", "-nostats", "-i", str(path), "-vn",
-           "-af", "loudnorm=I=-16:TP=-1.5:LRA=11:print_format=json", "-f", "null", "-"]
+@dataclass(frozen=True)
+class Measurement:
+    loudness: float | None   # integrated LUFS, None for a silent track
+    peak: float | None       # true peak in dBTP
+    lead: float | None       # seconds of silence at the start to skip, None when there is nothing to skip
+    trail: float | None      # seconds of silence at the end to cut off, None when there is nothing to cut
+
+
+def _trim_from(stderr: str, duration: float | None) -> tuple[float | None, float | None]:
+    """Silence to skip at the start and to cut at the end, from ffmpeg's silencedetect lines."""
+    starts = [float(x) for x in re.findall(r"silence_start: (-?[\d.]+)", stderr)]
+    ends = [float(x) for x in re.findall(r"silence_end: (-?[\d.]+)", stderr)]
+    spans = list(zip(starts, ends))  # a silence that runs into the end of the file is closed there
+    if not spans:
+        return None, None
+    total = duration or spans[-1][1]
+    first_start, first_end = spans[0]
+    last_start, last_end = spans[-1]
+    if len(spans) == 1 and first_start <= 0.05 and last_end >= total - 0.3:
+        return None, None  # the whole track is silent: nothing sensible to trim
+    lead = trail = None
+    if first_start <= 0.05 and first_end - first_start >= MIN_TRIM and first_end < total * 0.5:
+        lead = max(0.0, first_end - LEAD_MARGIN)
+    if last_end >= total - 0.3 and last_start > total * 0.5:
+        cut = total - (last_start + TRAIL_KEEP)
+        if cut >= MIN_TRIM:
+            trail = cut
+    return lead, trail
+
+
+def measure(path: Path, threshold: float = DEFAULT_SILENCE_DB, duration: float | None = None) -> Measurement | None:
+    """Analyse a file in one pass. None when ffmpeg could not read it (or took too long)."""
+    graph = (f"silencedetect=noise={threshold:g}dB:d={SILENCE_MIN_LENGTH:g},"
+             "loudnorm=I=-16:TP=-1.5:LRA=11:print_format=json")
+    cmd = ["ffmpeg", "-nostdin", "-hide_banner", "-nostats", "-i", str(path), "-vn", "-af", graph, "-f", "null", "-"]
     if shutil.which("nice"):  # keep the measurement from competing with the voice stream for CPU
         cmd = ["nice", "-n", "10", *cmd]
     try:
         result = subprocess.run(cmd, capture_output=True, text=True, timeout=MEASURE_TIMEOUT, check=False)
     except (OSError, subprocess.TimeoutExpired):
         return None
-    blocks = re.findall(r"\{[^{}]*\}", result.stderr or "")
+    stderr = result.stderr or ""
+    blocks = re.findall(r"\{[^{}]*\}", stderr)
     if not blocks:
         return None
+    loudness = peak = None
     try:
         data = json.loads(blocks[-1])
         loudness, peak = float(data["input_i"]), float(data["input_tp"])
     except (ValueError, KeyError, TypeError):
-        return None
-    if not (math.isfinite(loudness) and math.isfinite(peak)):  # digital silence reports -inf
-        return None
-    return loudness, peak
+        pass
+    if loudness is None or peak is None or not (math.isfinite(loudness) and math.isfinite(peak)):
+        loudness = peak = None  # digital silence reports -inf
+    lead, trail = _trim_from(stderr, duration)
+    return Measurement(loudness, peak, lead, trail)
 
 
 def gain_db(loudness: float | None, peak: float | None, target: float, max_boost: float) -> float:
@@ -87,22 +130,28 @@ class RuntimeSettings:
         self.max_boost = DEFAULT_MAX_BOOST
         self.crossfade = DEFAULT_CROSSFADE
         self.scrub = DEFAULT_SCRUB
+        self.trim_silence = True
+        self.silence_db = DEFAULT_SILENCE_DB
 
     def load(self) -> None:
         with tx(self._settings.db_path) as conn:
             stored = {r["key"]: r["value"] for r in conn.execute("SELECT key, value FROM app_settings")}
         if SETTING_NORMALIZE in stored:
             self.normalize = stored[SETTING_NORMALIZE] == "1"
+        if SETTING_TRIM in stored:
+            self.trim_silence = stored[SETTING_TRIM] == "1"
         for key, attr, (low, high) in ((SETTING_TARGET, "target", TARGET_RANGE), (SETTING_BOOST, "max_boost", BOOST_RANGE),
                                        (SETTING_CROSSFADE, "crossfade", CROSSFADE_RANGE),
-                                       (SETTING_SCRUB, "scrub", SCRUB_RANGE)):
+                                       (SETTING_SCRUB, "scrub", SCRUB_RANGE),
+                                       (SETTING_SILENCE_DB, "silence_db", SILENCE_RANGE)):
             try:
                 setattr(self, attr, min(max(float(stored[key]), low), high))
             except (KeyError, ValueError):
                 pass  # not set (or damaged): the default stays
 
     def update(self, *, normalize: bool | None = None, target: float | None = None,
-               max_boost: float | None = None, crossfade: float | None = None, scrub: float | None = None) -> None:
+               max_boost: float | None = None, crossfade: float | None = None, scrub: float | None = None,
+               trim_silence: bool | None = None, silence_db: float | None = None) -> None:
         changes: dict[str, str] = {}
         if normalize is not None:
             self.normalize = normalize
@@ -119,25 +168,36 @@ class RuntimeSettings:
         if scrub is not None:
             self.scrub = min(max(float(scrub), SCRUB_RANGE[0]), SCRUB_RANGE[1])
             changes[SETTING_SCRUB] = f"{self.scrub:g}"
+        if trim_silence is not None:
+            self.trim_silence = trim_silence
+            changes[SETTING_TRIM] = "1" if trim_silence else "0"
+        if silence_db is not None:
+            self.silence_db = min(max(float(silence_db), SILENCE_RANGE[0]), SILENCE_RANGE[1])
+            changes[SETTING_SILENCE_DB] = f"{self.silence_db:g}"
         with tx(self._settings.db_path) as conn:
             for key, value in changes.items():
                 conn.execute("INSERT INTO app_settings(key, value) VALUES (?, ?) "
                              "ON CONFLICT(key) DO UPDATE SET value=excluded.value", (key, value))
 
 
-def counts(settings: Settings) -> dict:
+_NEEDS_ANALYSIS = "(loudness_tried = 0 OR silence_db IS NULL OR silence_db != ?)"
+
+
+def counts(settings: Settings, threshold: float = DEFAULT_SILENCE_DB) -> dict:
+    """How many live tracks there are, how many have a loudness, and how many still wait for an analysis."""
     with tx(settings.db_path) as conn:
         row = conn.execute("SELECT COUNT(*) AS total, COALESCE(SUM(loudness IS NOT NULL), 0) AS measured, "
-                           "COALESCE(SUM(loudness IS NULL AND loudness_tried = 0), 0) AS waiting "
-                           "FROM tracks WHERE deleted_at IS NULL").fetchone()
+                           f"COALESCE(SUM({_NEEDS_ANALYSIS}), 0) AS waiting "
+                           "FROM tracks WHERE deleted_at IS NULL", (threshold,)).fetchone()
     return {"total": row["total"], "measured": row["measured"], "waiting": row["waiting"]}
 
 
 class LoudnessWorker:
-    """Measures tracks that have no measurement yet, newest first, one at a time."""
+    """Analyses tracks that have not been analysed yet (or with another silence threshold), newest first."""
 
-    def __init__(self, settings: Settings) -> None:
+    def __init__(self, settings: Settings, runtime: RuntimeSettings | None = None) -> None:
         self.settings = settings
+        self.runtime = runtime or RuntimeSettings(settings)
         self._stop = threading.Event()
         self._wake = threading.Event()
         self._thread: threading.Thread | None = None
@@ -158,19 +218,23 @@ class LoudnessWorker:
         self._wake.set()
 
     def process_one(self) -> bool:
-        """Measure one track. Returns False when nothing is waiting."""
+        """Analyse one track. Returns False when nothing is waiting."""
+        threshold = self.runtime.silence_db
         with tx(self.settings.db_path) as conn:
-            row = conn.execute("SELECT id, ext FROM tracks WHERE deleted_at IS NULL AND loudness_tried=0 "
-                               "ORDER BY created_at DESC, rowid DESC LIMIT 1").fetchone()
+            row = conn.execute(f"SELECT id, ext, duration FROM tracks WHERE deleted_at IS NULL AND {_NEEDS_ANALYSIS} "
+                               "ORDER BY created_at DESC, rowid DESC LIMIT 1", (threshold,)).fetchone()
         if row is None:
             return False
         path = track_path(self.settings, row["id"], row["ext"])
-        result = measure(path) if path.is_file() else None
+        result = measure(path, threshold, row["duration"]) if path.is_file() else None
+        result = result or Measurement(None, None, None, None)
         with tx(self.settings.db_path) as conn:
-            conn.execute("UPDATE tracks SET loudness=?, peak=?, loudness_tried=1 WHERE id=?",
-                         (result[0] if result else None, result[1] if result else None, row["id"]))
-        if result:
-            log.info("Measured %s: %.1f LUFS, peak %.1f dBTP", row["id"][:8], result[0], result[1])
+            conn.execute("UPDATE tracks SET loudness=?, peak=?, loudness_tried=1, silence_lead=?, silence_trail=?, "
+                         "silence_db=? WHERE id=?",
+                         (result.loudness, result.peak, result.lead, result.trail, threshold, row["id"]))
+        if result.loudness is not None:
+            log.info("Analysed %s: %.1f LUFS, peak %.1f dBTP, trim %s s at the start and %s s at the end",
+                     row["id"][:8], result.loudness, result.peak, result.lead, result.trail)
         else:
             log.info("No loudness for %s (silent or unreadable)", row["id"][:8])
         return True

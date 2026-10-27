@@ -38,11 +38,12 @@ class Layer:
     """One decoded stream, read ahead by a thread."""
 
     def __init__(self, source: Any, *, item: Any = None, offset: float = 0.0, duration: float | None = None,
-                 gain: float = 1.0) -> None:
+                 gain: float = 1.0, stop_at: float | None = None) -> None:
         self.source = source
         self.item = item
         self.offset = offset          # where in the track the layer starts (seconds)
-        self.duration = duration      # length of the whole track, None if unknown
+        self.duration = duration      # where the audible part of the track ends (seconds), None if unknown
+        self.stop_at = stop_at        # end the layer here even if the file goes on (a silent tail is cut off)
         self.gain = gain              # per-track loudness correction, changeable while playing
         self.frames = 0               # frames handed to the mixer so far
         self._queue: queue.Queue[bytes | None] = queue.Queue(maxsize=READ_AHEAD_FRAMES)
@@ -88,6 +89,9 @@ class Layer:
     def pull(self) -> bytes | None:
         """A frame, None when nothing is buffered yet, or EOF at the end of the stream."""
         if self._eof:
+            return EOF
+        if self.stop_at is not None and self.offset + self.frames * FRAME_SECONDS >= self.stop_at:
+            self._eof = True
             return EOF
         try:
             data = self._queue.get_nowait()

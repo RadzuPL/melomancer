@@ -199,7 +199,8 @@ def tracks_for_tags(conn: sqlite3.Connection, user_id: int, tags: Iterable[str],
                        "OR EXISTS (SELECT 1 FROM user_tags ut WHERE ut.track_id = t.id AND ut.user_id = ? AND ut.tag = ?))")
         params += [tag, user_id, tag]
     joiner = " AND " if mode == "all" else " OR "
-    rows = conn.execute("SELECT t.id, t.title, t.ext, t.duration, t.loudness, t.peak FROM tracks t WHERE t.deleted_at IS NULL AND ("
+    rows = conn.execute("SELECT t.id, t.title, t.ext, t.duration, t.loudness, t.peak, t.silence_lead, t.silence_trail FROM tracks t "
+                        "WHERE t.deleted_at IS NULL AND ("
                         + joiner.join(clauses) + ")", params).fetchall()
     return sorted(rows, key=lambda r: r["title"].casefold())
 

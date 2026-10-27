@@ -8,7 +8,7 @@ import pytest
 
 from app.config import Settings
 from app.db import tx
-from app.loudness import LoudnessWorker, RuntimeSettings, counts, gain_db, linear_gain, measure
+from app.loudness import LoudnessWorker, Measurement, RuntimeSettings, _trim_from, counts, gain_db, linear_gain, measure
 from app.player import BotManager, QueueItem
 from .conftest import login, make_user, upload
 
@@ -23,19 +23,60 @@ def test_measure_follows_the_real_level_of_the_audio(tmp_path):
     loud = measure(quiet_wav(tmp_path / "loud.wav", -6))
     soft = measure(quiet_wav(tmp_path / "soft.wav", -26))
     assert loud and soft
-    assert 19 < loud[0] - soft[0] < 21, (loud, soft)  # 20 dB apart, give or take the measurement's tolerance
-    assert loud[1] < 0 and soft[1] < loud[1]  # true peaks, below digital full scale
+    assert 19 < loud.loudness - soft.loudness < 21, (loud, soft)  # 20 dB apart, give or take the tolerance
+    assert loud.peak < 0 and soft.peak < loud.peak                 # true peaks, below digital full scale
+    assert (loud.lead, loud.trail) == (None, None)                 # a plain tone has no silence to trim
 
 
-def test_measure_gives_nothing_for_silence_and_for_junk(tmp_path):
+def test_measure_gives_no_loudness_for_silence_and_nothing_for_junk(tmp_path):
     silent = tmp_path / "silent.wav"
     subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-f", "lavfi", "-i", "anullsrc=r=44100:cl=mono",
                     "-t", "2", str(silent)], check=True)
-    assert measure(silent) is None
+    assert measure(silent) == Measurement(None, None, None, None)  # all silent: nothing sensible to trim either
     junk = tmp_path / "junk.wav"
     junk.write_bytes(b"not audio at all")
     assert measure(junk) is None
     assert measure(tmp_path / "missing.wav") is None
+
+
+def silent_ends_wav(path: Path, lead: float = 1.5, tone: float = 3.0, tail: float = 2.0) -> Path:
+    graph = (f"[0:a]atrim=0:{lead}[a0];[1:a]atrim=0:{tone}[a1];[2:a]atrim=0:{tail}[a2];"
+             "[a0][a1][a2]concat=n=3:v=0:a=1")
+    subprocess.run(["ffmpeg", "-y", "-loglevel", "error",
+                    "-f", "lavfi", "-i", "anullsrc=r=44100:cl=stereo", "-f", "lavfi", "-i", "sine=frequency=440:sample_rate=44100,aformat=channel_layouts=stereo",
+                    "-f", "lavfi", "-i", "anullsrc=r=44100:cl=stereo", "-filter_complex", graph, str(path)], check=True)
+    return path
+
+
+def test_silence_at_the_start_and_the_end_is_measured(tmp_path):
+    result = measure(silent_ends_wav(tmp_path / "gap.wav"), duration=6.5)
+    assert result.lead == pytest.approx(1.45, abs=0.1)     # the sound starts at 1.5 s, a little margin is kept
+    assert result.trail == pytest.approx(1.85, abs=0.15)   # it stops at 4.5 s of 6.5 s, 0.15 s of tail is kept
+    assert result.loudness is not None
+
+
+def test_a_stricter_threshold_hears_less_silence(tmp_path):
+    quiet_edges = tmp_path / "quiet.wav"
+    graph = ("[0:a]atrim=0:1.5,volume=-45dB[a0];[1:a]atrim=0:3[a1];[a0][a1]concat=n=2:v=0:a=1")
+    subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-f", "lavfi", "-i", "sine=frequency=300:sample_rate=44100,aformat=channel_layouts=stereo",
+                    "-f", "lavfi", "-i", "sine=frequency=440:sample_rate=44100,aformat=channel_layouts=stereo",
+                    "-filter_complex", graph, str(quiet_edges)], check=True)
+    assert measure(quiet_edges, -50.0, 4.5).lead == pytest.approx(1.45, abs=0.1)   # -63 dBFS is silence at -50 dB
+    assert measure(quiet_edges, -70.0, 4.5).lead is None                             # ... but not at -70 dB
+
+
+def test_trimming_rules_on_ffmpeg_output():
+    def lines(*spans):
+        return "\n".join(f"[silencedetect @ 0x1] silence_start: {a}\n[silencedetect @ 0x1] silence_end: {b} | silence_duration: {b - a}"
+                         for a, b in spans)
+    assert _trim_from("", 60.0) == (None, None)
+    assert _trim_from(lines((0, 2.0)), 2.0) == (None, None)                          # the whole track is silent
+    assert _trim_from(lines((0, 3.0), (57.0, 60.0)), 60.0) == pytest.approx((2.95, 2.85))
+    assert _trim_from(lines((0, 0.1)), 60.0) == (None, None)                         # too short to bother
+    assert _trim_from(lines((0, 0.3), (59.9, 60.0)), 60.0) == (pytest.approx(0.25), None)
+    assert _trim_from(lines((20.0, 25.0)), 60.0) == (None, None)                     # silence in the middle stays
+    assert _trim_from(lines((57.0, 60.0)), 60.0) == (None, pytest.approx(2.85))
+    assert _trim_from(lines((57.0, 59.0)), 60.0) == (None, None)                     # it does not reach the end
 
 
 def test_gain_brings_tracks_to_the_target_but_never_into_clipping():
@@ -131,3 +172,38 @@ def test_fade_times_default_to_three_seconds_and_a_third_are_stored_and_validate
     fresh.load()
     assert (fresh.crossfade, fresh.scrub) == (5.0, 0.0)  # 0 is a valid value: it means a hard cut
     assert env.bot.settings_refreshed == 1
+
+
+def test_a_changed_silence_threshold_makes_the_worker_measure_everything_again(env):
+    login(env, "admin")
+    for n in range(2):
+        assert upload(env, quiet_wav(env.tmp / f"t{n}.wav", -10, 300 + n * 100)).status_code == 201
+    runtime = RuntimeSettings(env.settings)
+    worker = LoudnessWorker(env.settings, runtime)
+    assert [worker.process_one() for _ in range(3)] == [True, True, False]
+    assert counts(env.settings, runtime.silence_db)["waiting"] == 0
+    runtime.update(silence_db=-60)
+    assert counts(env.settings, runtime.silence_db)["waiting"] == 2
+    assert [worker.process_one() for _ in range(3)] == [True, True, False]
+    with tx(env.settings.db_path) as conn:
+        assert {r["silence_db"] for r in conn.execute("SELECT silence_db FROM tracks")} == {-60.0}
+
+
+def test_the_worker_stores_silence_and_the_trim_settings_are_validated(env):
+    login(env, "admin")
+    assert upload(env, silent_ends_wav(env.tmp / "gap.wav")).status_code == 201
+    LoudnessWorker(env.settings, RuntimeSettings(env.settings)).process_one()
+    with tx(env.settings.db_path) as conn:
+        row = conn.execute("SELECT silence_lead, silence_trail, silence_db FROM tracks").fetchone()
+    assert row["silence_lead"] == pytest.approx(1.45, abs=0.1) and row["silence_trail"] == pytest.approx(1.85, abs=0.2)
+    assert row["silence_db"] == -50.0
+
+    info = env.client.get("/api/system").json()
+    assert (info["trim_silence"], info["silence_threshold"]) == (True, -50.0)
+    res = env.client.patch("/api/system", json={"trim_silence": False, "silence_threshold": -60})
+    assert res.status_code == 200 and (res.json()["trim_silence"], res.json()["silence_threshold"]) == (False, -60.0)
+    fresh = RuntimeSettings(env.settings)
+    fresh.load()
+    assert (fresh.trim_silence, fresh.silence_db) == (False, -60.0)
+    for bad in ({"silence_threshold": -80}, {"silence_threshold": -20}):
+        assert env.client.patch("/api/system", json=bad).status_code == 422, bad

@@ -80,11 +80,12 @@ def rig(tmp_path, monkeypatch):
     monkeypatch.setattr(player_mod.discord, "FFmpegPCMAudio", FakeSource)
     vc = FakeVoiceClient()
     guild = SimpleNamespace(voice_client=vc)
-    fades = {"crossfade": 0.0, "scrub": 0.0}
+    fades = {"crossfade": 0.0, "scrub": 0.0, "trim": False}
     manager = SimpleNamespace(client=SimpleNamespace(get_guild=lambda gid: guild),
                               loop=SimpleNamespace(call_soon_threadsafe=lambda fn, *a: fn(*a)),
                               gain_for=lambda item: 1.0,
-                              crossfade_seconds=lambda: fades["crossfade"], scrub_seconds=lambda: fades["scrub"])
+                              crossfade_seconds=lambda: fades["crossfade"], scrub_seconds=lambda: fades["scrub"],
+                              trim_silence=lambda: fades["trim"])
     items = []
     for n in range(4):
         path = tmp_path / f"{n}.opus"
@@ -377,3 +378,64 @@ def test_shuffling_or_looping_while_playing_makes_the_mix_plan_the_next_track_ag
     assert mixer.layers()                                       # the next track is already queued ...
     rig.player.set_options(loop=False, shuffle=None)
     assert len(mixer.layers()) == 1 or not mixer._pending      # ... and the old plan is forgotten
+
+
+def with_silence(rig, lead=1.0, trail=1.0, frames=200):
+    """Four 4 s tracks with `lead` s of silence at the start and `trail` s at the end."""
+    for n in range(4):
+        FRAMES[str(n)] = frames
+        rig.items[n].duration = frames / 50
+        rig.items[n].lead, rig.items[n].trail = lead, trail
+    rig.fades["trim"] = True
+
+
+def test_silence_is_skipped_at_the_start_and_cut_at_the_end(rig):
+    with_silence(rig)
+    start(rig)
+    settle(rig)
+    assert CREATED[0].before_options == "-ss 1.00"
+    assert 1.0 <= rig.player.snapshot()["now"]["elapsed"] < 1.5          # the clock starts at the first sound
+    frames = 0
+    while pull(rig) is not None:
+        frames += 1
+    assert frames == 100                                                  # 1.0 s to 3.0 s of a 4 s file
+
+
+def test_without_the_trim_setting_the_whole_file_plays(rig):
+    with_silence(rig)
+    rig.fades["trim"] = False
+    start(rig)
+    settle(rig)
+    assert CREATED[0].before_options is None
+    frames = 0
+    while pull(rig) is not None:
+        frames += 1
+    assert frames == 200
+
+
+def test_the_crossfade_is_timed_from_the_last_sound_not_from_the_end_of_the_file(rig):
+    rig.fades["crossfade"] = 0.5
+    with_silence(rig)
+    start(rig)
+    settle(rig)
+    levels = []
+    while len(levels) < 130:
+        settle(rig)
+        level = pull(rig)
+        assert level is not None
+        levels.append(level)
+    assert 98 <= levels.index(2000) <= 103   # the next track is fully in 2 s (the audible part) after the first began
+    assert CREATED[1].before_options == "-ss 1.00"  # and it also skips its own silent start
+
+
+def test_trimming_that_would_leave_next_to_nothing_is_ignored(rig):
+    with_silence(rig, lead=2.0, trail=1.5)    # 4 s file: only 0.5 s would remain
+    start(rig)
+    assert CREATED[0].before_options is None
+
+
+def test_seeking_is_measured_in_file_time_and_clamped_to_the_audible_end(rig):
+    with_silence(rig)
+    start(rig)
+    rig.player.seek(9999)
+    assert CREATED[-1].before_options == "-ss 1.00"   # 3 s is the audible end of a 4 s file, minus 2 s

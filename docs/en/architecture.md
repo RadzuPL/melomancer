@@ -36,6 +36,8 @@ The browser side is a static page (`app/static`): plain JavaScript, no build ste
 | `app/library.py` | Probing with ffprobe, de-duplication by SHA-256, tags, tombstones, track listing |
 | `app/downloader.py` | URL validation, daily limit, queue worker around yt-dlp |
 | `app/player.py` | `GuildPlayer` (queue, volume, reconnect cool-down) and `BotManager` |
+| `app/loudness.py` | Background analysis (loudness and silence in one ffmpeg pass), the playback gain, `RuntimeSettings` (everything the administrator changes in the panel) |
+| `app/sysload.py` | Container CPU and memory from the cgroup (v2 or v1), sampled every 2 s, for the Administration tab |
 | `app/mixer.py` | PCM mixer: layers decoded ahead by threads, equal-power cross-fades, the next track queued before the current one ends |
 | `app/routes_*.py` | HTTP API |
 | `app/cli.py` | `reset-password` recovery command |
@@ -57,6 +59,7 @@ downloads (user, url, status, track)
 - **tracks** are never physically deleted. Deleting sets `deleted_at` and removes the file, so `playlist_items` keep pointing at a row with the old title (the greyed-out entry). A partial unique index keeps `sha256` unique among live tracks only, so re-uploading identical content revives the old row (same id).
 - Sets, folders and playlists cascade on delete. Tracks are never touched by that.
 - Positions are integers, rewritten when an order is saved.
+- `tracks.silence_lead`, `tracks.silence_trail` and `tracks.silence_db` hold the silence at the start and end of a track in seconds and the threshold it was measured with (the same ffmpeg pass uses `silencedetect` before `loudnorm`). A track whose `silence_db` differs from the current threshold is measured again. When trimming is on, `GuildPlayer._span` starts the layer at `lead` (`-ss`) and ends it at `duration - trail`: that point becomes the layer's `duration`, so the cross-fade and the preroll are timed from it, and `Layer.stop_at` ends the layer there when there is no cross-fade. The player clock stays in file time.
 - `tracks.loudness` (integrated LUFS) and `tracks.peak` (true peak, dBTP) are filled in by a background thread (`app/loudness.py`) that picks the newest unmeasured track, measures it with ffmpeg `loudnorm` (analysis only, run under `nice`) and sets `loudness_tried`. NULL means unknown: the track plays unchanged. At playback `BotManager.gain_for` turns the measurement into a gain (target minus loudness, limited by the maximum boost and by keeping the peak under -1 dBTP) that multiplies the volume of the `PCMVolumeTransformer`; nothing is re-encoded. The switch, the target level and the maximum boost are set by an administrator in the panel and live in the `app_settings` table (`RuntimeSettings` in `app/loudness.py`); there are no environment variables for them.
 - `playlists.kind` is `manual` (rows in `playlist_items`) or `tags` (a JSON rule in `playlists.rule`: `{"tags": [...], "mode": "all"|"any"}`). A tag playlist stores no items, its tracks are computed with `library.tracks_for_tags` when it is shown or played, from shared tags and the owner's personal tags. `POST /player/{guild}/play` can also take `tags` and `mode` directly to play an unsaved selection.
 
@@ -103,7 +106,7 @@ All paths are under `/api`; state-changing requests need the header `X-Melomance
 | Playlists | `GET/POST /sets`, `PATCH/DELETE /sets/{id}`, `POST /sets/{id}/playlists`, `PUT /sets/{id}/playlists/order`, `POST /sets/{id}/groups`, `PUT /sets/{id}/groups/order`, `PATCH/DELETE /groups/{id}`, `POST /groups/{id}/playlists`, `PUT /groups/{id}/playlists/order`, `GET/PATCH/DELETE /playlists/{id}`, `POST /playlists/{id}/copy`, `POST /playlists/{id}/items`, `PUT /playlists/{id}/order`, `PUT/DELETE /playlists/{id}/items/{item}` |
 | Player | `GET /player/guilds`, `GET /player/{guild}/state`, `POST /player/{guild}/connect`, `disconnect`, `play`, `pause`, `resume`, `next`, `prev`, `jump`, `seek`, `stop`, `volume`, `PATCH /player/{guild}/options` |
 | People | `GET /people` (active accounts other than yours, names only, for choosing who to copy to) |
-| System | `GET /system`, `PATCH /system` (administrator: loudness switch), `GET /health` |
+| System | `GET /system`, `PATCH /system` (administrator: loudness, cross-fade and silence settings), `GET /system/load` (administrator: CPU and memory), `GET /health` |
 
 ## Not built yet
 

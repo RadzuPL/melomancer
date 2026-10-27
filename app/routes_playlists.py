@@ -117,7 +117,8 @@ def playlist_tracks(conn: sqlite3.Connection, row) -> list:
         rule = _rule(row)
         return library.tracks_for_tags(conn, row["owner_id"], rule["tags"], rule["mode"])
     return conn.execute(
-        "SELECT t.id, t.title, t.ext, t.duration, t.loudness, t.peak FROM playlist_items i JOIN tracks t ON t.id = i.track_id "
+        "SELECT t.id, t.title, t.ext, t.duration, t.loudness, t.peak, t.silence_lead, t.silence_trail "
+        "FROM playlist_items i JOIN tracks t ON t.id = i.track_id "
         "WHERE i.playlist_id=? AND t.deleted_at IS NULL ORDER BY i.position, i.id", (row["id"],)).fetchall()
 
 
