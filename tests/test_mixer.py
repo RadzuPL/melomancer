@@ -247,7 +247,7 @@ def test_stop_at_counts_from_the_position_in_the_file_not_from_the_start_of_the_
 
 
 def test_a_volume_change_glides_instead_of_jumping():
-    m = Mixer(volume=1.0)
+    m = Mixer(volume=1.0, glide=0.07)
     start(m, Tone(10000, 2000))
     assert [level(read_audio(m)) for _ in range(3)] == [10000] * 3
     m.volume = 0.1                                   # the slider was clicked at 10 % while it stood at 100 %
@@ -260,7 +260,7 @@ def test_a_volume_change_glides_instead_of_jumping():
 
 
 def test_raising_the_volume_glides_too_and_never_overshoots():
-    m = Mixer(volume=0.1)
+    m = Mixer(volume=0.1, glide=0.07)
     start(m, Tone(10000, 2000))
     read_audio(m)
     m.volume = 1.0
@@ -270,7 +270,7 @@ def test_raising_the_volume_glides_too_and_never_overshoots():
 
 
 def test_a_change_of_the_loudness_gain_glides_as_well():
-    m = Mixer()
+    m = Mixer(glide=0.07)
     layer = start(m, Tone(10000, 2000))
     read_audio(m)
     layer.gain = 0.5                                 # the administrator switched evening-out on
@@ -284,3 +284,22 @@ def test_a_new_layer_starts_at_its_gain_without_gliding_up_from_nothing():
     assert m.switch_to(layer, 0, 0)
     ready(layer)
     assert level(read_audio(m)) == 2500
+
+
+def test_the_default_glide_is_gentle_and_a_longer_one_is_gentler_still():
+    def descent(glide):
+        m = Mixer(volume=1.0, glide=glide)
+        start(m, Tone(10000, 3000))
+        read_audio(m)
+        m.volume = 0.1
+        return [level(read_audio(m)) for _ in range(200)]
+
+    default = descent(mixer_mod.GLIDE_SECONDS)
+    assert mixer_mod.GLIDE_SECONDS == 0.25
+    assert default[0] > 9300                              # the first frame has hardly moved: no jolt
+    assert default[25] > 2000 and default[50] > 1100      # half a second in it is still on its way down
+    assert default == sorted(default, reverse=True) and default[-1] == 1000
+    slower = descent(1.0)
+    assert slower[25] > default[25] and slower[0] > default[0]
+    instant = descent(0.0)
+    assert instant[0] < default[0] and instant[1] == 1000  # 0 means one 20 ms frame, for anyone who wants it quick

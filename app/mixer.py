@@ -32,8 +32,12 @@ READ_AHEAD_FRAMES = 100       # 2 s of audio buffered per layer
 START_TIMEOUT = 5.0           # a layer that delivers nothing for this long is given up
 MAX_SLOTS = 3                 # most streams mixed at once (quick skipping would otherwise pile up ffmpeg processes)
 SUBBLOCKS = 4                 # a fade changes the gain four times per frame, so slow fades stay smooth
-GLIDE_SECONDS = 0.07          # time constant of the volume and loudness-gain changes: they glide, they never jump
-GLIDE_ALPHA = 1 - math.exp(-FRAME_SECONDS / GLIDE_SECONDS)
+GLIDE_SECONDS = 0.25          # time constant of the volume and loudness-gain changes: they glide, they never jump
+
+
+def glide_alpha(seconds: float) -> float:
+    """How far a value moves towards its target in one frame, for a time constant of `seconds` (0 = at once)."""
+    return 1.0 if seconds <= 0.005 else 1 - math.exp(-FRAME_SECONDS / seconds)
 
 
 class Layer:
@@ -158,10 +162,10 @@ class _Slot:
         shape = math.sin(p * math.pi / 2) if self.f_to >= self.f_from else 1 - math.cos(p * math.pi / 2)
         return self.f_from + (self.f_to - self.f_from) * shape
 
-    def glide(self) -> tuple[float, float]:
+    def glide(self, alpha: float) -> tuple[float, float]:
         """The loudness gain at the start and at the end of the frame, moving smoothly towards the wanted one."""
         start, goal = self.gain_now, self.layer.gain
-        end = start + (goal - start) * GLIDE_ALPHA
+        end = start + (goal - start) * alpha
         self.gain_now = goal if abs(goal - end) < 0.002 else end
         return start, self.gain_now
 
@@ -202,12 +206,13 @@ def _scale(frame: bytes, g0: float, g1: float) -> bytes:
 
 
 class Mixer:
-    def __init__(self, *, volume: float = 1.0, crossfade: float = 0.0,
+    def __init__(self, *, volume: float = 1.0, crossfade: float = 0.0, glide: float = GLIDE_SECONDS,
                  on_preroll: Callable[[Layer], None] | None = None,
                  on_transition: Callable[[Any], None] | None = None) -> None:
         self.volume = volume          # the wanted volume; what is applied glides towards it (see _mix_locked)
         self._volume_now = volume
         self.crossfade = crossfade    # seconds; 0 switches preroll off
+        self.glide = glide            # seconds; how slowly volume changes are followed (0 = at once)
         self._on_preroll = on_preroll
         self._on_transition = on_transition
         self._slots: list[_Slot] = []
@@ -279,8 +284,9 @@ class Mixer:
     def _mix_locked(self, events: list) -> bytes:
         self._activate_pending_locked(events)
         # A change of the volume takes a few frames: a step in the signal is heard as a click or a jolt.
+        alpha = glide_alpha(self.glide)
         v0 = self._volume_now
-        v1 = v0 + (self.volume - v0) * GLIDE_ALPHA
+        v1 = v0 + (self.volume - v0) * alpha
         v1 = self.volume if abs(self.volume - v1) < 0.002 else v1
         self._volume_now = v1
         mix: bytes | None = None
@@ -292,7 +298,7 @@ class Mixer:
             if frame is None:      # not decoded yet: this layer adds silence for now and its fade waits
                 continue
             g0, g1 = slot.step()
-            a0, a1 = slot.glide()
+            a0, a1 = slot.glide(alpha)
             part = _scale(frame, g0 * a0 * v0, g1 * a1 * v1)
             mix = part if mix is None else audioop.add(mix, part, 2)
             if slot.leaving and not slot.fading:

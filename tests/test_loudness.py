@@ -165,12 +165,15 @@ def test_target_and_boost_are_stored_and_validated(env):
 def test_fade_times_default_to_three_seconds_and_a_third_are_stored_and_validated(env):
     login(env, "admin")
     info = env.client.get("/api/system").json()
-    assert (info["crossfade_seconds"], info["scrub_seconds"]) == (3.0, 0.3)
-    res = env.client.patch("/api/system", json={"crossfade_seconds": 5, "scrub_seconds": 0})
-    assert res.status_code == 200 and (res.json()["crossfade_seconds"], res.json()["scrub_seconds"]) == (5.0, 0.0)
+    assert (info["crossfade_seconds"], info["scrub_seconds"], info["volume_glide_seconds"]) == (3.0, 0.3, 0.25)
+    res = env.client.patch("/api/system", json={"crossfade_seconds": 5, "scrub_seconds": 0, "volume_glide_seconds": 0.6})
+    assert res.status_code == 200 and (res.json()["crossfade_seconds"], res.json()["scrub_seconds"],
+                                       res.json()["volume_glide_seconds"]) == (5.0, 0.0, 0.6)
     fresh = RuntimeSettings(env.settings)
     fresh.load()
-    assert (fresh.crossfade, fresh.scrub) == (5.0, 0.0)  # 0 is a valid value: it means a hard cut
+    assert (fresh.crossfade, fresh.scrub, fresh.glide) == (5.0, 0.0, 0.6)  # 0 is valid: a hard cut / no glide
+    for bad in ({"volume_glide_seconds": -1}, {"volume_glide_seconds": 5}):
+        assert env.client.patch("/api/system", json=bad).status_code == 422, bad
     assert env.bot.settings_refreshed == 1
 
 

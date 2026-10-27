@@ -266,7 +266,7 @@ class GuildPlayer:
             vc.stop()
         loop = self.manager.loop
         mixer = Mixer(
-            volume=self.volume, crossfade=self.manager.crossfade_seconds(),
+            volume=self.volume, crossfade=self.manager.crossfade_seconds(), glide=self.manager.glide_seconds(),
             on_preroll=lambda lay: loop.call_soon_threadsafe(self._on_preroll, lay),
             on_transition=lambda token: loop.call_soon_threadsafe(self._on_transition, token))
         mixer.switch_to(layer, fade, 0.0)
@@ -450,6 +450,7 @@ class GuildPlayer:
         if mixer is None:
             return
         mixer.crossfade = self.manager.crossfade_seconds()
+        mixer.glide = self.manager.glide_seconds()
         for layer in mixer.layers():
             if layer.item is not None:
                 layer.gain = self.manager.gain_for(layer.item)
@@ -598,6 +599,9 @@ class BotManager:
 
     def scrub_seconds(self) -> float:
         return self.runtime.scrub
+
+    def glide_seconds(self) -> float:
+        return self.runtime.glide
 
     def refresh_settings(self) -> None:
         """The administrator changed the loudness or fade settings: apply them to what is playing right now."""

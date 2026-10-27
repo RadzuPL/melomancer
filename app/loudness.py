@@ -39,6 +39,9 @@ DEFAULT_CROSSFADE = 3.0              # seconds of overlap between two tracks (0 
 DEFAULT_SCRUB = 0.3                  # seconds of overlap when jumping inside a track (0 = hard cut)
 CROSSFADE_RANGE = (0.0, 12.0)
 SCRUB_RANGE = (0.0, 2.0)
+SETTING_GLIDE = "volume_glide_seconds"
+DEFAULT_GLIDE = 0.25                 # seconds: how slowly the volume follows the slider (0 = at once)
+GLIDE_RANGE = (0.0, 2.0)
 SETTING_TRIM = "trim_silence"
 SETTING_SILENCE_DB = "silence_threshold"
 DEFAULT_SILENCE_DB = -50.0           # dB: quieter than this counts as silence
@@ -132,6 +135,7 @@ class RuntimeSettings:
         self.scrub = DEFAULT_SCRUB
         self.trim_silence = True
         self.silence_db = DEFAULT_SILENCE_DB
+        self.glide = DEFAULT_GLIDE
 
     def load(self) -> None:
         with tx(self._settings.db_path) as conn:
@@ -143,7 +147,8 @@ class RuntimeSettings:
         for key, attr, (low, high) in ((SETTING_TARGET, "target", TARGET_RANGE), (SETTING_BOOST, "max_boost", BOOST_RANGE),
                                        (SETTING_CROSSFADE, "crossfade", CROSSFADE_RANGE),
                                        (SETTING_SCRUB, "scrub", SCRUB_RANGE),
-                                       (SETTING_SILENCE_DB, "silence_db", SILENCE_RANGE)):
+                                       (SETTING_SILENCE_DB, "silence_db", SILENCE_RANGE),
+                                       (SETTING_GLIDE, "glide", GLIDE_RANGE)):
             try:
                 setattr(self, attr, min(max(float(stored[key]), low), high))
             except (KeyError, ValueError):
@@ -151,7 +156,7 @@ class RuntimeSettings:
 
     def update(self, *, normalize: bool | None = None, target: float | None = None,
                max_boost: float | None = None, crossfade: float | None = None, scrub: float | None = None,
-               trim_silence: bool | None = None, silence_db: float | None = None) -> None:
+               trim_silence: bool | None = None, silence_db: float | None = None, glide: float | None = None) -> None:
         changes: dict[str, str] = {}
         if normalize is not None:
             self.normalize = normalize
@@ -174,6 +179,9 @@ class RuntimeSettings:
         if silence_db is not None:
             self.silence_db = min(max(float(silence_db), SILENCE_RANGE[0]), SILENCE_RANGE[1])
             changes[SETTING_SILENCE_DB] = f"{self.silence_db:g}"
+        if glide is not None:
+            self.glide = min(max(float(glide), GLIDE_RANGE[0]), GLIDE_RANGE[1])
+            changes[SETTING_GLIDE] = f"{self.glide:g}"
         with tx(self._settings.db_path) as conn:
             for key, value in changes.items():
                 conn.execute("INSERT INTO app_settings(key, value) VALUES (?, ?) "

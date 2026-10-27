@@ -85,7 +85,7 @@ def rig(tmp_path, monkeypatch):
                               loop=SimpleNamespace(call_soon_threadsafe=lambda fn, *a: fn(*a)),
                               gain_for=lambda item: 1.0,
                               crossfade_seconds=lambda: fades["crossfade"], scrub_seconds=lambda: fades["scrub"],
-                              trim_silence=lambda: fades["trim"])
+                              trim_silence=lambda: fades["trim"], glide_seconds=lambda: 0.07)
     items = []
     for n in range(4):
         path = tmp_path / f"{n}.opus"
