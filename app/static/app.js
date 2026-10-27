@@ -65,6 +65,145 @@ function fmtTime(sec) {
   return m + ":" + String(s).padStart(2, "0");
 }
 
+/* ---------- listening in the panel ---------- */
+
+/* One audio element serves the whole panel. Every play button mirrors it (▶ or ⏸), and the track being listened to
+   gets a seek bar right under its row. The sound stops when the screen or dialog it was started from goes away. */
+const Preview = {
+  audio: new Audio(),
+  track: null,
+  scope: null,
+  dragging: false,
+  buttons: new Map(),   // play button -> track id
+  bars: new Set(),      // seek bars on screen
+  watchers: new Map(),  // list element -> function that puts the bar under the current row
+
+  toggle(track, scope) {
+    const a = this.audio;
+    if (this.track && this.track.id === track.id) {
+      if (a.paused) a.play().catch(() => { /* the browser may refuse; the button stays as it is */ }); else a.pause();
+      return;
+    }
+    this.track = { id: track.id, title: track.title, duration: track.duration || 0 };
+    this.scope = scope;
+    a.src = `/api/tracks/${track.id}/stream`;
+    a.play().catch(() => { /* see above */ });
+    this.changed();
+  },
+
+  stop() {
+    this.track = null;
+    this.scope = null;
+    this.audio.pause();
+    this.audio.removeAttribute("src");
+    this.audio.load();
+    this.changed();
+  },
+
+  /* The track being listened to changed: move the bar, then bring every control up to date. */
+  changed() {
+    for (const [box, place] of [...this.watchers]) {
+      if (!box.isConnected) this.watchers.delete(box); else place();
+    }
+    this.refresh();
+  },
+
+  refresh() {
+    for (const [button, id] of [...this.buttons]) {
+      if (!button.isConnected) this.buttons.delete(button); else this.paintButton(button, id);
+    }
+    for (const bar of [...this.bars]) {
+      if (!bar.el.isConnected) this.bars.delete(bar); else this.paintBar(bar);
+    }
+  },
+
+  paintButton(button, id) {
+    const on = !!this.track && this.track.id === id;
+    const playing = on && !this.audio.paused;
+    button.textContent = playing ? "⏸" : "▶";
+    button.classList.toggle("on", on);
+    button.title = playing ? tr("preview_pause") : tr("preview_play");
+    button.setAttribute("aria-label", button.title);
+  },
+
+  paintBar(bar) {
+    const a = this.audio;
+    const total = Number.isFinite(a.duration) && a.duration > 0 ? a.duration : (this.track ? this.track.duration : 0);
+    bar.range.max = total || 0;
+    if (!this.dragging) bar.range.value = a.currentTime || 0;
+    bar.range.style.setProperty("--pos", (total ? Math.min(100, ((a.currentTime || 0) / total) * 100) : 0) + "%");
+    bar.time.textContent = fmtTime(a.currentTime || 0) + " / " + fmtTime(total);
+  },
+};
+
+for (const name of ["play", "pause", "ended", "timeupdate", "loadedmetadata", "durationchange"]) {
+  Preview.audio.addEventListener(name, () => {
+    if (Preview.scope && !Preview.scope.isConnected) Preview.stop(); else Preview.refresh();
+  });
+}
+Preview.audio.addEventListener("error", () => {
+  if (Preview.track) { toast(tr("preview_failed"), "err"); Preview.stop(); }
+});
+
+/* A ▶/⏸ button for a track ({id, title, duration}). */
+function previewButton(track) {
+  const button = h("button", { class: "btn small icon", onclick: (e) => {
+    e.stopPropagation();
+    Preview.toggle(track, button.closest(".overlay") || button.closest("main"));
+  } });
+  Preview.buttons.set(button, track.id);
+  Preview.paintButton(button, track.id);
+  return button;
+}
+
+function previewBar(track) {
+  const range = h("input", { type: "range", class: "seek", min: 0, max: track.duration || 0, step: 1, value: 0, "aria-label": tr("seek"),
+    oninput: (e) => { Preview.dragging = true; Preview.audio.currentTime = Number(e.target.value); Preview.refresh(); },
+    onchange: () => { Preview.dragging = false; },
+    onpointerup: () => setTimeout(() => { Preview.dragging = false; }, 200) });
+  const time = h("span", { class: "muted small previewtime" });
+  const close = h("button", { class: "btn small icon", title: tr("close"), "aria-label": tr("close"), onclick: () => Preview.stop() }, "✕");
+  const bar = { el: h("div", { class: "previewbar" }, range, time, close), range, time };
+  Preview.bars.add(bar);
+  Preview.paintBar(bar);
+  return bar.el;
+}
+
+/* Keeps the seek bar of the track being listened to right under its row. Rows carry data-preview-id. Returns the
+   function a list calls after it has rebuilt its rows. */
+function previewSlot(box) {
+  const place = () => {
+    box.querySelectorAll(".previewslot").forEach((n) => n.remove());
+    box.querySelectorAll(".previewing").forEach((n) => n.classList.remove("previewing"));
+    const current = Preview.track;
+    if (!current) return;
+    const row = [...box.querySelectorAll("[data-preview-id]")].find((n) => n.dataset.previewId === current.id);
+    if (!row) return;
+    row.classList.add("previewing");
+    const bar = previewBar(current);
+    row.after(row.tagName === "TR" ? h("tr", { class: "previewslot" }, h("td", { colspan: 99 }, bar))
+      : row.tagName === "LI" ? h("li", { class: "previewslot" }, bar)
+        : h("div", { class: "previewslot" }, bar));
+  };
+  Preview.watchers.set(box, place);
+  place();
+  return place;
+}
+
+/* "m:ss.d" for a point in a track, and the reverse: seconds, "m:ss" or "m:ss.d" (a comma works as well). */
+function fmtPoint(sec) {
+  if (sec === null || sec === undefined) return "";
+  const whole = Math.floor(sec), tenth = Math.round((sec - whole) * 10);
+  const s = tenth === 10 ? whole + 1 : whole, t = tenth === 10 ? 0 : tenth;
+  return Math.floor(s / 60) + ":" + String(s % 60).padStart(2, "0") + (t ? "." + t : "");
+}
+function parsePoint(text) {
+  const raw = String(text || "").trim().replace(",", ".");
+  if (!raw) return null;
+  const m = /^(?:(\d+):)?(\d+(?:\.\d+)?)$/.exec(raw);
+  return m ? (m[1] ? Number(m[1]) * 60 : 0) + Number(m[2]) : NaN;
+}
+
 function debounce(fn, ms) {
   let timer = null;
   return (...args) => { clearTimeout(timer); timer = setTimeout(() => fn(...args), ms); };
@@ -248,6 +387,7 @@ function tagInput(initial, pool, opts) {
 
 function render() {
   const root = $("#app");
+  if (Preview.track) Preview.stop();  // a new screen: whatever was being listened to ends
   root.replaceChildren();
   document.documentElement.lang = state.lang;
   if (!state.user) { root.append(viewLogin()); return; }
@@ -695,9 +835,6 @@ async function viewLibrary(main) {
   fillTagSel();
   const mineBox = h("input", { type: "checkbox", checked: lib.mine, onchange: (e) => { lib.mine = e.target.checked; paintTable(); } });
 
-  const preview = h("audio", { controls: true, class: "hidden" });
-  const previewTitle = h("div", { class: "muted small hidden" });
-
   put(main, 
     h("div", { class: "card" }, h("h2", {}, tr("add_music")),
       h("div", { class: "row" },
@@ -712,8 +849,9 @@ async function viewLibrary(main) {
     h("div", { class: "card" },
       h("div", { class: "row" }, h("h2", { class: "grow" }, tr("tab.library")), counter),
       h("div", { class: "row" }, search, tagSel, h("label", { class: "row small" }, mineBox, tr("only_mine"))),
-      list, bulk, preview, previewTitle));
+      list, bulk));
   paintUploads();
+  const placePreview = previewSlot(list);
 
   function visible() { return state.tracks.filter((x) => trackMatches(x, lib)); }
 
@@ -726,18 +864,20 @@ async function viewLibrary(main) {
       onchange: (e) => { for (const r of rows) e.target.checked ? lib.selected.add(r.id) : lib.selected.delete(r.id); paintTable(); } });
     list.replaceChildren(h("table", {},
       h("thead", {}, h("tr", {}, h("th", {}, allBox), h("th", {}, tr("title")), h("th", {}, tr("tags")), h("th", {}, tr("owner")), h("th", { class: "num" }, tr("length")), h("th", {}))),
-      h("tbody", {}, rows.map((r) => h("tr", { class: lib.selected.has(r.id) ? "selected" : "" },
+      h("tbody", {}, rows.map((r) => h("tr", { class: lib.selected.has(r.id) ? "selected" : "", "data-preview-id": r.id },
         h("td", {}, h("input", { type: "checkbox", checked: lib.selected.has(r.id), "aria-label": r.title,
           onchange: (e) => { e.target.checked ? lib.selected.add(r.id) : lib.selected.delete(r.id); paintTable(); } })),
-        h("td", { class: "title-cell", title: r.title }, r.title),
+        h("td", { class: "title-cell", title: r.title }, r.title,
+          r.trim_start !== null || r.trim_end !== null ? h("span", { class: "muted small", title: tr("trim_manual_badge") }, " ✂") : null),
         h("td", {}, r.tags.map((x) => h("span", { class: "chip", onclick: () => { lib.tag = x; tagSel.value = x; paintTable(); } }, x)),
           r.my_tags.map((x) => h("span", { class: "chip mine", title: tr("my_tag"), onclick: () => { lib.tag = x; paintTable(); } }, x))),
         h("td", { class: "muted small" }, r.owner),
         h("td", { class: "num" }, fmtTime(r.duration)),
         h("td", { class: "actions" },
-          h("button", { class: "btn small icon", title: tr("preview"), onclick: () => previewTrack(r) }, "▶"),
+          previewButton(r),
           h("button", { class: "btn small icon", title: tr("edit"), onclick: () => editTrack(r) }, "✎"),
           r.can_edit ? h("button", { class: "btn small icon danger", title: tr("delete"), onclick: () => deleteTrack(r) }, "✕") : null))))));
+    placePreview();
     const n = lib.selected.size;
     bulk.classList.toggle("hidden", n === 0);
     fill(bulk, h("span", { class: "grow" }, tr("n_selected", { n })),
@@ -746,29 +886,50 @@ async function viewLibrary(main) {
       h("button", { class: "btn", onclick: () => { lib.selected.clear(); paintTable(); } }, tr("clear")));
   }
 
-  function previewTrack(r) {
-    preview.src = `/api/tracks/${r.id}/stream`;
-    preview.classList.remove("hidden");
-    previewTitle.classList.remove("hidden");
-    previewTitle.textContent = r.title;
-    preview.play().catch(() => { /* autoplay can be blocked; controls stay visible */ });
-  }
-
   async function editTrack(r) {
     const title = h("input", { value: r.title, maxlength: 200, disabled: !r.can_edit });
     const shared = tagInput(r.tags, state.tags.shared);
     const mine = tagInput(r.my_tags, state.tags.mine);
+
+    /* Start and end of the track: empty means automatic (the silence analysis), a typed value wins over it. */
+    const startText = fmtPoint(r.trim_start), endText = fmtPoint(r.trim_end);
+    const autoStart = fmtPoint(r.lead || 0) || "0:00";
+    const autoEnd = r.duration ? fmtPoint(r.trail ? r.duration - r.trail : r.duration) : "";
+    const startIn = h("input", { type: "text", class: "timefield", inputmode: "decimal", value: startText, disabled: !r.can_edit,
+      placeholder: tr("trim_auto", { v: autoStart }), "aria-label": tr("trim_start") });
+    const endIn = h("input", { type: "text", class: "timefield", inputmode: "decimal", value: endText, disabled: !r.can_edit,
+      placeholder: tr("trim_auto", { v: autoEnd }), "aria-label": tr("trim_end") });
+    const here = (field) => () => {
+      if (!Preview.track || Preview.track.id !== r.id) { toast(tr("trim_play_first"), "err"); return; }
+      field.value = fmtPoint(Preview.audio.currentTime);
+    };
+    const pointRow = (label, field) => h("div", { class: "row" }, h("span", { class: "trimlabel" }, label), field,
+      h("button", { class: "btn small", disabled: !r.can_edit, onclick: here(field) }, tr("trim_set_here")),
+      h("button", { class: "btn small", disabled: !r.can_edit, title: tr("trim_auto_title"), onclick: () => { field.value = ""; } }, tr("trim_auto_btn")));
+    const listenBox = h("div", {}, h("div", { class: "row", "data-preview-id": r.id }, previewButton(r),
+      h("span", { class: "muted small" }, tr("trim_listen_hint"))));
+    previewSlot(listenBox);
+
     const ok = await modal(tr("edit_track"), h("div", { class: "stack" },
       h("label", {}, tr("title")), title,
       h("label", {}, tr("shared_tags")), r.can_edit ? shared.el : h("div", { class: "muted small" }, r.tags.join(", ") || "–"),
       h("label", {}, tr("my_tags") + " (" + tr("only_you") + ")"), mine.el,
+      h("label", {}, tr("trim_title")), listenBox, pointRow(tr("trim_start"), startIn), pointRow(tr("trim_end"), endIn),
+      h("div", { class: "muted small" }, tr("trim_hint_edit")),
       r.source_url ? h("div", { class: "muted small" }, tr("source") + ": " + r.source_url) : null,
       r.title !== r.original_title ? h("div", { class: "muted small" }, tr("original") + ": " + r.original_title) : null), [
       { label: tr("cancel"), value: false },
       {
         label: tr("save"), class: "primary", run: async () => {
           try {
-            if (r.can_edit) await api("PATCH", `/api/tracks/${r.id}`, { title: title.value, tags: shared.get() });
+            if (r.can_edit) {
+              const patch = { title: title.value, tags: shared.get() };
+              const s0 = parsePoint(startIn.value), e0 = parsePoint(endIn.value);
+              if (Number.isNaN(s0) || Number.isNaN(e0)) { toast(tr("err.bad_trim"), "err"); return false; }
+              if (startIn.value.trim() !== startText) patch.trim_start = s0;   // null: back to automatic
+              if (endIn.value.trim() !== endText) patch.trim_end = e0;
+              await api("PATCH", `/api/tracks/${r.id}`, patch);
+            }
             await api("PUT", `/api/tracks/${r.id}/my-tags`, { tags: mine.get() });
             return true;
           } catch (err) { fail(err); return false; }
@@ -850,13 +1011,15 @@ async function pickTracks(title, multi, exclude) {
     h("option", { value: "" }, tr("all_tags")), ...allTagNames().map((x) => h("option", { value: x }, x)));
   function paint() {
     const candidates = state.tracks.filter((x) => !skip.has(x.id) && trackMatches(x, f));
-    if (!candidates.length) { listBox.replaceChildren(h("p", { class: "muted small pad-text" }, tr(skip.size ? "nothing_left_to_add" : "no_matches"))); return; }
-    listBox.replaceChildren(...candidates.slice(0, 300).map((x) => h("label", {},
+    if (!candidates.length) { listBox.replaceChildren(h("p", { class: "muted small pad-text" }, tr(skip.size ? "nothing_left_to_add" : "no_matches"))); placePreview(); return; }
+    listBox.replaceChildren(...candidates.slice(0, 300).map((x) => h("label", { "data-preview-id": x.id },
       h("input", { type: multi ? "checkbox" : "radio", name: "pick", checked: chosen.has(x.id), onchange: (e) => {
         if (!multi) chosen.clear();
         e.target.checked ? chosen.add(x.id) : chosen.delete(x.id);
-      } }), h("span", { class: "grow" }, x.title), h("span", { class: "muted small" }, fmtTime(x.duration)))));
+      } }), previewButton(x), h("span", { class: "grow" }, x.title), h("span", { class: "muted small" }, fmtTime(x.duration)))));
+    placePreview();
   }
+  const placePreview = previewSlot(listBox);
   paint();
   const v = await modal(title, h("div", {}, h("div", { class: "row" }, q, tagSel), listBox), [
     { label: tr("cancel"), value: null },
@@ -980,10 +1143,14 @@ async function viewPlaylists(main) {
 
   function matchList(items) {
     const total = items.reduce((sum, i) => sum + (i.duration || 0), 0);
+    const ul = items.length ? h("ul", { class: "items" }, items.map((it, i) => h("li", { "data-preview-id": it.track_id },
+      h("span", { class: "muted small" }, i + 1),
+      previewButton({ id: it.track_id, title: it.title, duration: it.duration }),
+      h("span", { class: "t", title: it.title }, it.title),
+      h("span", { class: "muted small" }, fmtTime(it.duration))))) : null;
+    if (ul) previewSlot(ul);
     return [h("div", { class: "muted small" }, tr("matching_tracks") + ": " + tr("n_tracks", { n: items.length }) + " · " + fmtTime(total)),
-      items.length ? h("ul", { class: "items" }, items.map((it, i) => h("li", {},
-        h("span", { class: "muted small" }, i + 1), h("span", { class: "t", title: it.title }, it.title),
-        h("span", { class: "muted small" }, fmtTime(it.duration))))) : h("p", { class: "muted" }, tr("nothing_matches"))];
+      ul || h("p", { class: "muted" }, tr("nothing_matches"))];
   }
 
   /* Automatic playlist: the rule is edited here, the tracks are whatever matches it right now. */
@@ -1007,6 +1174,19 @@ async function viewPlaylists(main) {
   function manualBody(p) {
     const id = p.id;
     const total = p.items.filter((i) => !i.deleted).reduce((sum, i) => sum + (i.duration || 0), 0);
+    const itemList = h("ul", { class: "items" }, p.items.map((it, i) => h("li", { class: it.deleted ? "gone" : "", "data-preview-id": it.deleted ? null : it.track_id },
+      h("span", { class: "muted small" }, i + 1),
+      it.deleted ? null : previewButton({ id: it.track_id, title: it.title, duration: it.duration }),
+      h("span", { class: "t", title: it.title }, it.title),
+      it.deleted ? h("span", { class: "badge warn" }, tr("removed")) : h("span", { class: "muted small" }, fmtTime(it.duration)),
+      it.deleted ? h("button", { class: "btn small", onclick: async () => {
+        const picked = await pickTracks(tr("replace_track"), false, new Set(p.items.map((i) => i.track_id)));
+        if (picked) { try { await api("PUT", `/api/playlists/${id}/items/${it.id}`, { track_id: picked[0] }); await loadSets(); paintTree(); paintDetail(); } catch (err) { fail(err); } }
+      } }, tr("replace")) : null,
+      small("▲", tr("up"), async () => { try { await api("PUT", `/api/playlists/${id}/order`, { ids: move(p.items.map((x) => x.id), i, -1) }); paintDetail(); } catch (err) { fail(err); } }, i === 0),
+      small("▼", tr("down"), async () => { try { await api("PUT", `/api/playlists/${id}/order`, { ids: move(p.items.map((x) => x.id), i, 1) }); paintDetail(); } catch (err) { fail(err); } }, i === p.items.length - 1),
+      small("✕", tr("remove"), async () => { try { await api("DELETE", `/api/playlists/${id}/items/${it.id}`); await loadSets(); paintTree(); paintDetail(); } catch (err) { fail(err); } }))));
+    previewSlot(itemList);
     return h("div", {},
       h("div", { class: "row" },
         h("button", { class: "btn primary", onclick: async () => {
@@ -1015,17 +1195,7 @@ async function viewPlaylists(main) {
         } }, tr("add_tracks")),
         h("span", { class: "muted small" }, tr("n_tracks", { n: p.items.length }) + " · " + fmtTime(total))),
       p.items.length ? null : h("p", { class: "muted" }, tr("playlist_empty")),
-      h("ul", { class: "items" }, p.items.map((it, i) => h("li", { class: it.deleted ? "gone" : "" },
-        h("span", { class: "muted small" }, i + 1),
-        h("span", { class: "t", title: it.title }, it.title),
-        it.deleted ? h("span", { class: "badge warn" }, tr("removed")) : h("span", { class: "muted small" }, fmtTime(it.duration)),
-        it.deleted ? h("button", { class: "btn small", onclick: async () => {
-          const picked = await pickTracks(tr("replace_track"), false, new Set(p.items.map((i) => i.track_id)));
-          if (picked) { try { await api("PUT", `/api/playlists/${id}/items/${it.id}`, { track_id: picked[0] }); await loadSets(); paintTree(); paintDetail(); } catch (err) { fail(err); } }
-        } }, tr("replace")) : null,
-        small("▲", tr("up"), async () => { try { await api("PUT", `/api/playlists/${id}/order`, { ids: move(p.items.map((x) => x.id), i, -1) }); paintDetail(); } catch (err) { fail(err); } }, i === 0),
-        small("▼", tr("down"), async () => { try { await api("PUT", `/api/playlists/${id}/order`, { ids: move(p.items.map((x) => x.id), i, 1) }); paintDetail(); } catch (err) { fail(err); } }, i === p.items.length - 1),
-        small("✕", tr("remove"), async () => { try { await api("DELETE", `/api/playlists/${id}/items/${it.id}`); await loadSets(); paintTree(); paintDetail(); } catch (err) { fail(err); } })))));
+      itemList);
   }
 
   paintTree();

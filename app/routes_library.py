@@ -20,6 +20,9 @@ router = APIRouter(prefix="/api")
 class TrackPatchIn(BaseModel):
     title: str | None = Field(default=None, min_length=1, max_length=200)
     tags: list[str] | None = Field(default=None, max_length=60)
+    # Where the track starts and ends, in seconds of the file. An explicit null goes back to the automatic value.
+    trim_start: float | None = Field(default=None, ge=0, le=86400)
+    trim_end: float | None = Field(default=None, ge=0, le=86400)
 
 
 class TagsIn(BaseModel):
@@ -114,6 +117,16 @@ def patch_track(track_id: str, body: TrackPatchIn, request: Request, user: dict 
             conn.execute("UPDATE tracks SET title=? WHERE id=?", (library.clean_title(body.title), track_id))
         if body.tags is not None:
             library.set_shared_tags(conn, track_id, body.tags)
+        if "trim_start" in body.model_fields_set or "trim_end" in body.model_fields_set:
+            start = body.trim_start if "trim_start" in body.model_fields_set else row["trim_start"]
+            end = body.trim_end if "trim_end" in body.model_fields_set else row["trim_end"]
+            duration = row["duration"]
+            if end is not None and duration:
+                end = min(end, duration)  # "to the end" may be typed as a number slightly past it
+            if (start is not None and duration and start > duration - 1.0) or \
+                    (start is not None and end is not None and end - start < 1.0):
+                raise HTTPException(400, "bad_trim")
+            conn.execute("UPDATE tracks SET trim_start=?, trim_end=? WHERE id=?", (start, end, track_id))
     return {"ok": True}
 
 

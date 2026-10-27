@@ -154,6 +154,11 @@ MIGRATIONS: list[str] = [
     ALTER TABLE tracks ADD COLUMN silence_trail REAL;
     ALTER TABLE tracks ADD COLUMN silence_db REAL;
     """,
+    # 7: start and end of a track set by hand, in seconds of the file (NULL = decided by the silence analysis).
+    """
+    ALTER TABLE tracks ADD COLUMN trim_start REAL;
+    ALTER TABLE tracks ADD COLUMN trim_end REAL;
+    """,
 ]
 
 

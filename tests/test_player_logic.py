@@ -439,3 +439,45 @@ def test_seeking_is_measured_in_file_time_and_clamped_to_the_audible_end(rig):
     start(rig)
     rig.player.seek(9999)
     assert CREATED[-1].before_options == "-ss 1.00"   # 3 s is the audible end of a 4 s file, minus 2 s
+
+
+def test_a_start_set_by_hand_wins_over_the_analysis_and_works_with_the_switch_off(rig):
+    with_silence(rig, lead=1.0, trail=1.0)
+    rig.items[0].trim_start = 0.5
+    start(rig)
+    assert CREATED[0].before_options == "-ss 0.50"      # not the 1.0 s the analysis found
+    rig.fades["trim"] = False
+    rig.player.jump(0)
+    assert CREATED[-1].before_options == "-ss 0.50"      # hand-set points apply even with the analysis switched off
+    rig.player.jump(1)
+    assert CREATED[-1].before_options is None            # a track without them follows the switch
+
+
+def test_each_side_is_decided_on_its_own(rig):
+    with_silence(rig, lead=1.0, trail=1.0)               # 4 s tracks, analysis says 1.0 to 3.0
+    rig.items[0].trim_end = 3.8                            # only the end is set by hand
+    start(rig)
+    settle(rig)
+    assert CREATED[0].before_options == "-ss 1.00"        # the start still comes from the analysis
+    frames = 0
+    while pull(rig) is not None:
+        frames += 1
+    assert frames == 140                                   # 1.0 s to 3.8 s
+
+
+def test_zero_means_no_cut_at_the_start_even_when_silence_was_found(rig):
+    with_silence(rig, lead=1.0, trail=0.0)
+    rig.items[0].trim_start = 0.0
+    start(rig)
+    assert CREATED[0].before_options is None
+
+
+def test_a_hand_set_end_at_the_end_of_the_file_cancels_an_automatic_cut(rig):
+    with_silence(rig, lead=0.0, trail=1.0)
+    rig.items[0].trim_end = 4.0
+    start(rig)
+    settle(rig)
+    frames = 0
+    while pull(rig) is not None:
+        frames += 1
+    assert frames == 200

@@ -142,7 +142,8 @@ async def play(guild_id: str, body: PlayIn, request: Request, user: dict = Depen
             meta = {"id": None, "name": ("# " + (" + " if body.mode == "all" else " | ").join(wanted)), "set": None}
             opts = dict(loop=True, shuffle=True, fade=2.0, volume=None)
         else:
-            single = conn.execute("SELECT id, title, ext, duration, loudness, peak, silence_lead, silence_trail FROM tracks "
+            single = conn.execute("SELECT id, title, ext, duration, loudness, peak, silence_lead, silence_trail, trim_start, trim_end "
+                                  "FROM tracks "
                                   "WHERE id=? AND deleted_at IS NULL",
                                   (body.track_id,)).fetchone()
             if not single:
@@ -150,7 +151,8 @@ async def play(guild_id: str, body: PlayIn, request: Request, user: dict = Depen
             rows, meta = [single], {"id": None, "name": single["title"], "set": None}
             opts = dict(loop=False, shuffle=False, fade=0.0, volume=None)
     items = [QueueItem(r["id"], r["title"], str(library.track_path(settings, r["id"], r["ext"])), r["duration"],
-                       r["loudness"], r["peak"], r["silence_lead"] or 0.0, r["silence_trail"] or 0.0)
+                       r["loudness"], r["peak"], r["silence_lead"] or 0.0, r["silence_trail"] or 0.0,
+                       r["trim_start"], r["trim_end"])
              for r in rows]
     if not items:
         raise HTTPException(400, "empty_playlist")

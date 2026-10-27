@@ -76,7 +76,8 @@ class FakeBot:
             raise PlayerError("not_connected", 409)
         st.update(state="playing", controller_id=controller["id"], controller=controller["username"],
                   queue_length=len(items), playlist=playlist)
-        self.played.append({"gid": gid, "titles": [i.title for i in items], "opts": opts, "playlist": playlist})
+        self.played.append({"gid": gid, "titles": [i.title for i in items], "opts": opts, "playlist": playlist,
+                            "items": items})
 
     def control(self, gid, action, value=None):
         st = self._st(gid)

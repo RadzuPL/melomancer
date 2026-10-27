@@ -199,7 +199,8 @@ def tracks_for_tags(conn: sqlite3.Connection, user_id: int, tags: Iterable[str],
                        "OR EXISTS (SELECT 1 FROM user_tags ut WHERE ut.track_id = t.id AND ut.user_id = ? AND ut.tag = ?))")
         params += [tag, user_id, tag]
     joiner = " AND " if mode == "all" else " OR "
-    rows = conn.execute("SELECT t.id, t.title, t.ext, t.duration, t.loudness, t.peak, t.silence_lead, t.silence_trail FROM tracks t "
+    rows = conn.execute("SELECT t.id, t.title, t.ext, t.duration, t.loudness, t.peak, t.silence_lead, t.silence_trail, "
+                        "t.trim_start, t.trim_end FROM tracks t "
                         "WHERE t.deleted_at IS NULL AND ("
                         + joiner.join(clauses) + ")", params).fetchall()
     return sorted(rows, key=lambda r: r["title"].casefold())
@@ -234,6 +235,10 @@ def list_tracks(conn: sqlite3.Connection, user: dict) -> list[dict]:
             "owner_id": r["owner_id"],
             "owner": r["owner"],
             "created_at": r["created_at"],
+            "lead": r["silence_lead"],        # what the silence analysis found (seconds to skip / to cut off)
+            "trail": r["silence_trail"],
+            "trim_start": r["trim_start"],    # set by hand, None = automatic
+            "trim_end": r["trim_end"],
             "tags": shared.get(r["id"], []),
             "my_tags": mine.get(r["id"], []),
             "can_edit": user["role"] == "admin" or r["owner_id"] == user["id"],

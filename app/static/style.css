@@ -208,3 +208,15 @@ button.ghost.icon-only { font-size: 1.1rem; line-height: 1; padding: .25rem .45r
 .menuitem { background: none; border: 0; color: var(--text); text-align: left; padding: .45rem .7rem; border-radius: 6px; cursor: pointer; font: inherit; white-space: nowrap; }
 .menuitem:hover { background: var(--panel-2); }
 .menuitem.active { color: var(--accent); font-weight: 600; }
+
+/* listening in the panel: the seek bar sits right under the row being played */
+.previewbar { display: flex; align-items: center; gap: .6rem; padding: .25rem .6rem .5rem; box-sizing: border-box; width: 100%; }
+.previewbar input[type="range"].seek { flex: 1; min-width: 6rem; width: auto; background: linear-gradient(to right, var(--accent) var(--pos, 0%), var(--line) var(--pos, 0%)); background-clip: content-box; }
+.previewbar .previewtime { min-width: 6.5rem; text-align: right; font-variant-numeric: tabular-nums; }
+tr.previewslot td { padding: 0; background: var(--panel-2); }
+li.previewslot { display: block; padding: 0; background: var(--panel-2); }
+div.previewslot { background: var(--panel-2); border-bottom: 1px solid var(--line); }
+.previewing, tr.previewing td { background: rgba(122, 82, 214, .14); }
+.picker-list label .btn.icon { flex: none; }
+.trimlabel { min-width: 4.5rem; }
+input.timefield { width: 8rem; }

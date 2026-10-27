@@ -40,6 +40,8 @@ class QueueItem:
     peak: float | None = None      # measured true peak in dBTP
     lead: float = 0.0              # seconds of silence at the start that can be skipped
     trail: float = 0.0             # seconds of silence at the end that can be cut
+    trim_start: float | None = None  # where the track starts, set by hand (seconds of the file), None = automatic
+    trim_end: float | None = None    # where it ends, set by hand
 
 
 class MixerSource(discord.AudioSource):
@@ -127,14 +129,24 @@ class GuildPlayer:
         return options
 
     def _span(self, item: QueueItem, offset: float = 0.0) -> tuple[float, float | None, bool]:
-        """Where in the file the audio starts and ends, and whether the end is a cut (silence trimmed)."""
-        start, end, cut = offset, item.duration, False
-        if self.manager.trim_silence() and item.duration:
-            usable_end = item.duration - item.trail
-            first = offset if offset > 0 else item.lead
-            if usable_end - first >= 2.0:  # a trim that would leave next to nothing is ignored
-                start, end, cut = first, usable_end, item.trail > 0
-        return start, end, cut
+        """Where in the file the audio starts and ends, and whether the end is a cut.
+
+        A start or end set by hand wins over the silence analysis (each side on its own, and whatever the
+        administrator's switch says); without one, the analysis applies while the switch is on.
+        """
+        automatic = self.manager.trim_silence()
+        duration = item.duration
+        first = item.trim_start if item.trim_start is not None else (item.lead if automatic else 0.0)
+        end = duration
+        if duration:
+            if item.trim_end is not None:
+                end = min(item.trim_end, duration)
+            elif automatic and item.trail:
+                end = duration - item.trail
+        start = offset if offset > 0 else first
+        if duration and end - start < 1.0:  # a trim that would leave next to nothing is ignored
+            return offset, duration, False
+        return start, end, bool(duration and end < duration - 0.01)
 
     def _new_layer(self, item: QueueItem, offset: float = 0.0) -> Layer:
         start, end, cut = self._span(item, offset)

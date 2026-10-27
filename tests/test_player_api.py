@@ -147,3 +147,18 @@ def test_seek_endpoint(env, wavs):
     res = env.client.post("/api/player/111/seek", json={"seconds": 42.5})
     assert res.status_code == 200 and res.json()["seeked"] == 42.5
     assert env.client.post("/api/player/111/seek", json={"seconds": -1}).status_code == 422
+
+
+def test_the_queue_carries_silence_and_hand_set_trim_points(env, wavs):
+    login(env, "admin")
+    track_id = upload(env, wavs[0]).json()["id"]
+    set_id = env.client.post("/api/sets", json={"name": "S"}).json()["id"]
+    playlist = env.client.post(f"/api/sets/{set_id}/playlists", json={"name": "P"}).json()["id"]
+    env.client.post(f"/api/playlists/{playlist}/items", json={"track_ids": [track_id]})
+    from app.db import tx
+    with tx(env.settings.db_path) as conn:
+        conn.execute("UPDATE tracks SET silence_lead=0.4, silence_trail=0.2, trim_start=0.1 WHERE id=?", (track_id,))
+    env.client.post("/api/player/111/connect", json={"channel_id": "100100"})
+    assert env.client.post("/api/player/111/play", json={"playlist_id": playlist}).status_code == 200
+    item = env.bot.played[-1]["items"][0]
+    assert (item.lead, item.trail, item.trim_start, item.trim_end) == (0.4, 0.2, 0.1, None)
