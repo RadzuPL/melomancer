@@ -261,15 +261,60 @@ function render() {
         class: state.tab === id ? "active" : "", onclick: () => { state.tab = id; stopPolling(); render(); },
       }, tr(label)))),
       h("span", { class: "grow" }),
-      h("select", { "aria-label": tr("language"), onchange: (e) => setLang(e.target.value) },
-        h("option", { value: "pl", selected: state.lang === "pl" }, "Polski"),
-        h("option", { value: "en", selected: state.lang === "en" }, "English")),
-      h("button", { class: "btn small", onclick: accountDialog }, state.user.username),
-      h("button", { class: "btn small", onclick: logout }, tr("logout"))),
+      h("div", { class: "hdr-right" }, themeMenu(), langToggle(), userMenu())),
     main,
     h("footer", { class: "foot" }, "Melomancer " + (state.system ? state.system.version : "")));
   const views = { player: viewPlayer, library: viewLibrary, playlists: viewPlaylists, downloads: viewDownloads, admin: viewAdmin };
   views[state.tab](main).catch(fail);
+}
+
+/* A button that opens a small list. `items` is a function so that the list is current each time it opens. */
+function menu(trigger, items) {
+  const list = h("div", { class: "menu hidden", role: "menu" });
+  const wrap = h("div", { class: "dropdown" }, trigger, list);
+  const close = () => {
+    list.classList.add("hidden");
+    trigger.setAttribute("aria-expanded", "false");
+    document.removeEventListener("mousedown", away);
+    document.removeEventListener("keydown", escape);
+  };
+  const away = (e) => { if (!wrap.contains(e.target)) close(); };
+  const escape = (e) => { if (e.key === "Escape") { close(); trigger.focus(); } };
+  trigger.setAttribute("aria-haspopup", "menu");
+  trigger.setAttribute("aria-expanded", "false");
+  trigger.addEventListener("click", () => {
+    if (!list.classList.contains("hidden")) { close(); return; }
+    list.replaceChildren(...items().map((it) => h("button", { class: "menuitem" + (it.active ? " active" : ""), role: "menuitem",
+      onclick: () => { close(); it.onclick(); } }, it.label)));
+    list.classList.remove("hidden");
+    trigger.setAttribute("aria-expanded", "true");
+    document.addEventListener("mousedown", away);
+    document.addEventListener("keydown", escape);
+  });
+  return wrap;
+}
+
+function langToggle() {
+  const other = state.lang === "pl" ? "en" : "pl";
+  const label = tr("switch_language", { lang: other.toUpperCase() });
+  return h("button", { class: "ghost", title: label, "aria-label": label, onclick: () => setLang(other) }, state.lang.toUpperCase());
+}
+
+function themeMenu() {
+  const icons = { auto: "◐", light: "☀", dark: "☾" };
+  const trigger = h("button", { class: "ghost icon-only", title: tr("theme"), "aria-label": tr("theme") }, icons[MelomancerTheme.get()]);
+  return menu(trigger, () => ["auto", "light", "dark"].map((mode) => ({
+    label: icons[mode] + "  " + tr("theme_" + mode), active: MelomancerTheme.get() === mode,
+    onclick: () => { MelomancerTheme.set(mode); trigger.textContent = icons[mode]; },
+  })));
+}
+
+function userMenu() {
+  const trigger = h("button", { class: "btn small" }, state.user.username + " ▾");
+  return menu(trigger, () => [
+    { label: tr("change_password"), onclick: accountDialog },
+    { label: tr("logout"), onclick: logout },
+  ]);
 }
 
 async function setLang(lang) {
@@ -289,7 +334,7 @@ async function logout() {
 async function accountDialog() {
   const current = h("input", { type: "password", autocomplete: "current-password" });
   const next = h("input", { type: "password", autocomplete: "new-password" });
-  await modal(tr("account"), h("div", { class: "stack" },
+  await modal(tr("change_password"), h("div", { class: "stack" },
     h("div", { class: "muted" }, state.user.username + " (" + tr("role." + state.user.role) + ")"),
     h("label", {}, tr("current_password")), current,
     h("label", {}, tr("new_password") + " (" + tr("min_chars", { n: 10 }) + ")"), next), [
@@ -321,10 +366,9 @@ function viewLogin() {
   }, h("label", {}, tr("username")), user, h("label", {}, tr("password")), pass,
   h("button", { class: "btn primary", type: "submit" }, tr("login")));
   return h("div", { class: "login card" }, h("h1", {}, "Melomancer"), form,
-    h("div", { class: "row", }, h("span", { class: "grow" }),
-      h("select", { "aria-label": tr("language"), onchange: (e) => { state.lang = e.target.value; pref("lang", state.lang); render(); } },
-        h("option", { value: "pl", selected: state.lang === "pl" }, "Polski"),
-        h("option", { value: "en", selected: state.lang === "en" }, "English"))));
+    h("div", { class: "row" }, h("span", { class: "grow" }), themeMenu(),
+      h("button", { class: "ghost", title: tr("switch_language", { lang: (state.lang === "pl" ? "en" : "pl").toUpperCase() }),
+        onclick: () => { state.lang = state.lang === "pl" ? "en" : "pl"; pref("lang", state.lang); render(); } }, state.lang.toUpperCase())));
 }
 
 /* ---------- player ---------- */
@@ -347,7 +391,14 @@ async function viewPlayer(main) {
   const connectBtn = h("button", { class: "btn primary", onclick: toggleConnect });
   const titleEl = h("div", { class: "title" });
   const subEl = h("div", { class: "muted small" });
-  const bar = h("div", {});
+  let seeking = false;
+  const seekBar = h("input", { type: "range", class: "seek", min: 0, max: 0, step: 1, value: 0, disabled: true, "aria-label": tr("seek"),
+    oninput: (e) => { seeking = true; timeEl.textContent = fmtTime(Number(e.target.value)) + " / " + fmtTime(Number(e.target.max)); },
+    onchange: async (e) => {
+      try { applyState(await api("POST", `/api/player/${ps.guildId}/seek`, { seconds: Number(e.target.value) })); } catch (err) { fail(err); }
+      seeking = false;
+    },
+    onpointerup: () => setTimeout(() => { seeking = false; }, 300) });
   const timeEl = h("span", { class: "muted small" });
   const btn = (label, title, fn) => h("button", { class: "btn", title, "aria-label": title, onclick: fn }, label);
   const prevB = btn("⏮", tr("prev"), () => control("prev"));
@@ -384,7 +435,7 @@ async function viewPlayer(main) {
     h("div", { class: "card" }, h("div", { class: "row" },
       guildSel, chanSel, connectBtn, status, h("span", { class: "grow" }),
       guilds.length === 0 && system.bot_status === "ready" ? h("span", { class: "muted small" }, tr("no_servers")) : null)),
-    h("div", { class: "card now" }, titleEl, subEl, h("div", { class: "progress" }, bar), timeEl,
+    h("div", { class: "card now" }, titleEl, subEl, seekBar, timeEl,
       h("div", { class: "controls" }, prevB, toggleB, nextB, stopB, loopB, shuffleB,
         h("div", { class: "volume" }, "🔈", vol, volLabel)),
       queueWrap),
@@ -490,10 +541,17 @@ async function viewPlayer(main) {
 
   function tickBar() {
     const s = ps.st;
-    if (!s || !s.now) { bar.style.width = "0"; timeEl.textContent = ""; return; }
+    if (seeking) return;  // the person is dragging the handle: do not fight them
+    if (!s || !s.now) {
+      seekBar.disabled = true; seekBar.max = 0; seekBar.value = 0; seekBar.style.setProperty("--pos", "0%"); timeEl.textContent = "";
+      return;
+    }
     const elapsed = s.now.elapsed + (s.state === "playing" ? (Date.now() - ps.stAt) / 1000 : 0);
     const total = s.now.duration;
-    bar.style.width = total ? Math.min(100, (elapsed / total) * 100) + "%" : "0";
+    seekBar.disabled = !total;
+    seekBar.max = total || 0;
+    seekBar.value = Math.min(elapsed, total || 0);
+    seekBar.style.setProperty("--pos", (total ? Math.min(100, (elapsed / total) * 100) : 0) + "%");
     timeEl.textContent = fmtTime(elapsed) + (total ? " / " + fmtTime(total) : "");
   }
 
@@ -527,7 +585,7 @@ async function viewPlayer(main) {
   paintQuick();
   stopPolling();
   ps.timer = setInterval(() => { poll(); }, 2500);
-  const tickId = setInterval(() => { if (state.tab !== "player" || !document.body.contains(bar)) clearInterval(tickId); else tickBar(); }, 1000);
+  const tickId = setInterval(() => { if (state.tab !== "player" || !document.body.contains(seekBar)) clearInterval(tickId); else tickBar(); }, 1000);
   poll();
 }
 

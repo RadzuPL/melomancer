@@ -87,13 +87,14 @@ class GuildPlayer:
             return self._elapsed_base + (time.monotonic() - self._t_start)
         return self._elapsed_base
 
-    def _ffmpeg_options(self, item: QueueItem) -> str:
+    def _ffmpeg_options(self, item: QueueItem, offset: float = 0.0) -> str:
         options = "-vn"
         fade = self.fade
         if fade > 0:
             filters = [f"afade=t=in:st=0:d={fade:g}"]
-            if item.duration and item.duration > fade * 3:
-                filters.append(f"afade=t=out:st={item.duration - fade:.2f}:d={fade:g}")
+            remaining = (item.duration or 0) - offset  # the filter clock starts at the seek position
+            if item.duration and remaining > fade * 3:
+                filters.append(f"afade=t=out:st={remaining - fade:.2f}:d={fade:g}")
             options += " -af " + ",".join(filters)
         return options
 
@@ -186,7 +187,7 @@ class GuildPlayer:
         self._fail_streak = 0
         self._start_current()
 
-    def _start_current(self) -> None:
+    def _start_current(self, offset: float = 0.0) -> None:
         vc = self.vc
         if not (vc and vc.is_connected()):
             self.state = "idle"
@@ -195,7 +196,8 @@ class GuildPlayer:
         self._gen += 1
         gen = self._gen
         try:
-            source = discord.FFmpegPCMAudio(item.path, options=self._ffmpeg_options(item))
+            before = f"-ss {offset:.2f}" if offset > 0 else None
+            source = discord.FFmpegPCMAudio(item.path, before_options=before, options=self._ffmpeg_options(item, offset))
             source = discord.PCMVolumeTransformer(source, volume=self.volume)
             vc.play(source, after=lambda err, g=gen: self.manager.loop.call_soon_threadsafe(self._on_after, g, err))
         except Exception as exc:  # noqa: BLE001
@@ -204,7 +206,7 @@ class GuildPlayer:
             return
         self.state = "playing"
         self._t_start = time.monotonic()
-        self._elapsed_base = 0.0
+        self._elapsed_base = offset
 
     def _on_after(self, gen: int, err: Exception | None) -> None:
         if gen != self._gen or self.state != "playing":
@@ -294,6 +296,27 @@ class GuildPlayer:
         self.state = "playing"
         self._fail_streak = 0
         self._start_current()
+
+    def seek(self, seconds: float) -> None:
+        """Continue the current track from this position (a paused player stays paused)."""
+        if self.state == "idle" or not 0 <= self.pos < len(self.order):
+            raise PlayerError("not_playing", 409)
+        item = self.items[self.order[self.pos]]
+        if not item.duration:
+            raise PlayerError("bad_seek", 400)
+        # Never seek into the last two seconds: a track that ends at once would look like a failed one.
+        target = max(0.0, min(float(seconds), item.duration - 2.0))
+        was_paused = self.state == "paused"
+        self._gen += 1
+        self._fail_streak = 0
+        vc = self.vc
+        if vc and (vc.is_playing() or vc.is_paused()):
+            vc.stop()
+        self._start_current(target)
+        if was_paused and self.state == "playing" and vc:
+            vc.pause()
+            self._elapsed_base = target
+            self.state = "paused"
 
     def set_volume(self, volume: float) -> None:
         self.volume = max(0.0, min(volume, 1.5))
@@ -483,6 +506,8 @@ class BotManager:
             player.stop()
         elif action == "jump":
             player.jump(int(value))
+        elif action == "seek":
+            player.seek(float(value))
         elif action == "volume":
             player.set_volume(float(value))
         elif action == "options":

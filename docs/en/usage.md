@@ -2,7 +2,7 @@
 
 Languages: **English** · [Polski](../pl/usage.md)
 
-The panel has five tabs: **Player**, **Library**, **Playlists**, **Downloads** and, for administrators, **Administration**. The language (Polish or English) is switched in the top bar and remembered per user.
+The panel has five tabs: **Player**, **Library**, **Playlists**, **Downloads** and, for administrators, **Administration**. At the right of the top bar there are three small controls: the **theme** icon (automatic, light or dark; automatic follows your system, the light theme is deliberately soft rather than white, and the choice is remembered in the browser), the **PL / EN** marker (click to switch the language; it is remembered per user) and your **user name**, which opens a menu with **Change password** and **Log out**.
 
 ## The idea in one minute
 
@@ -69,6 +69,8 @@ Right side: the selected playlist.
 4. Press a playlist. If the bot is not in the channel yet it joins first, then starts playing. The active playlist is highlighted.
 
 Below the controls the **tracks of the playing playlist** are listed, the current one highlighted. Click any track to play it right away; playback then continues from there (with shuffle on, the rest of the shuffled order follows). Missing or deleted tracks are not in the list.
+
+The progress bar of the current track is also a **seek bar**: drag it or click a point to jump there, handy for tracks that take a long time to get going. The bot restarts the track from that position, so expect a brief gap; a paused player stays paused.
 
 Controls: previous, pause/resume, next, stop, loop, shuffle and the **volume** slider (0 to 150 %). Volume changes apply immediately. Players can also lower the bot individually in Discord.
 

@@ -136,3 +136,14 @@ def test_jump_respects_the_controller_lock(env, wavs):
     env.client.post("/api/player/111/play", json={"playlist_id": playlist_id})
     login(env, "other")
     assert env.client.post("/api/player/111/jump", json={"index": 1}).status_code == 409
+
+
+def test_seek_endpoint(env, wavs):
+    login(env, "admin")
+    playlist_id, _ = _playlist_with_tracks(env, wavs, 1)
+    assert env.client.post("/api/player/111/seek", json={"seconds": 10}).status_code == 409  # nothing plays yet
+    env.client.post("/api/player/111/connect", json={"channel_id": "100100"})
+    env.client.post("/api/player/111/play", json={"playlist_id": playlist_id})
+    res = env.client.post("/api/player/111/seek", json={"seconds": 42.5})
+    assert res.status_code == 200 and res.json()["seeked"] == 42.5
+    assert env.client.post("/api/player/111/seek", json={"seconds": -1}).status_code == 422

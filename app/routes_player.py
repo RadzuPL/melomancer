@@ -31,6 +31,10 @@ class VolumeIn(BaseModel):
     volume: float = Field(ge=0, le=1.5)
 
 
+class SeekIn(BaseModel):
+    seconds: float = Field(ge=0, le=86400)
+
+
 class JumpIn(BaseModel):
     index: int = Field(ge=0, le=100000)
 
@@ -183,6 +187,19 @@ def volume(guild_id: str, body: VolumeIn, request: Request, user: dict = Depends
     def call():
         _check_lock(bot, gid, user)
         bot.control(gid, "volume", body.volume)
+        return bot.state(gid)
+
+    return _run(call)
+
+
+@router.post("/{guild_id}/seek")
+def seek(guild_id: str, body: SeekIn, request: Request, user: dict = Depends(current_user)):
+    gid = _check(request, user, guild_id)
+    bot = _bot(request)
+
+    def call():
+        _check_lock(bot, gid, user)
+        bot.control(gid, "seek", body.seconds)
         return bot.state(gid)
 
     return _run(call)

@@ -15,9 +15,10 @@ const dynamic = [
   "dl.queued", "dl.running", "dl.done", "dl.error",
   "dl.preparing", "dl.downloading", "dl.converting", "dl.importing",
   "role.user", "role.admin",
+  "theme_auto", "theme_light", "theme_dark",
   "bot.disabled", "bot.starting", "bot.ready", "bot.login_failed", "bot.error",
 ];
-const used = new Set([...app.matchAll(/\btr\(\s*"([^"]+)"/g)].map((m) => m[1]).filter((k) => !k.endsWith(".")));
+const used = new Set([...app.matchAll(/\btr\(\s*"([^"]+)"/g)].map((m) => m[1]).filter((k) => !k.endsWith(".") && !k.endsWith("_")));
 dynamic.forEach((k) => used.add(k));
 
 let problems = 0;

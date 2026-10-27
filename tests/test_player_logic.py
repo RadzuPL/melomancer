@@ -11,8 +11,8 @@ from app.player import GuildPlayer, PlayerError, QueueItem
 
 
 class FakeSource:
-    def __init__(self, path, options=None):
-        self.path, self.options = path, options
+    def __init__(self, path, before_options=None, options=None):
+        self.path, self.before_options, self.options = path, before_options, options
 
 
 class FakeVolume:
@@ -124,3 +124,37 @@ def test_snapshot_lists_the_queue_only_while_something_plays(rig):
     assert [q["title"] for q in snap["queue"]] == ["Track 0", "Track 1", "Track 2", "Track 3"]
     rig.player.stop()
     assert rig.player.snapshot()["queue"] == []
+
+
+def test_seek_restarts_the_track_from_that_position(rig):
+    start(rig, fade=2.0)
+    rig.player.seek(45)
+    last = rig.vc.sources[-1].source
+    assert last.path.endswith("0.opus") and last.before_options == "-ss 45.00"
+    assert "afade=t=out:st=73.00" in last.options  # 120 s track, 45 s in: the fade-out starts 73 s into the rest
+    snap = rig.player.snapshot()
+    assert snap["state"] == "playing" and 45 <= snap["now"]["elapsed"] < 50 and snap["now"]["index"] == 0
+
+
+def test_seek_keeps_a_paused_player_paused_and_ignores_the_old_source(rig):
+    start(rig)
+    rig.player.pause()
+    rig.player.seek(30)
+    assert rig.player.state == "paused" and rig.vc._paused
+    assert rig.player.snapshot()["now"]["elapsed"] == 30
+    rig.vc.afters[0](None)  # the replaced source reports its end late
+    assert len(rig.vc.sources) == 2
+
+
+def test_seek_is_clamped_and_validated(rig):
+    with pytest.raises(PlayerError) as idle:
+        rig.player.seek(5)
+    assert idle.value.code == "not_playing"
+    start(rig)
+    rig.player.seek(9999)  # past the end: the last two seconds are left
+    assert rig.vc.sources[-1].source.before_options == "-ss 118.00"
+    rig.items[0].duration = None
+    rig.player.items[0].duration = None
+    with pytest.raises(PlayerError) as unknown:
+        rig.player.seek(10)
+    assert unknown.value.code == "bad_seek"

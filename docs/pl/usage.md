@@ -2,7 +2,7 @@
 
 Języki: [English](../en/usage.md) · **Polski**
 
-Panel ma pięć zakładek: **Odtwarzacz**, **Biblioteka**, **Playlisty**, **Pobieranie** i, dla administratorów, **Administracja**. Język (polski lub angielski) przełączasz w górnym pasku, zapamiętuje się dla każdego użytkownika.
+Panel ma pięć zakładek: **Odtwarzacz**, **Biblioteka**, **Playlisty**, **Pobieranie** i, dla administratorów, **Administracja**. Po prawej w górnym pasku są trzy małe kontrolki: ikona **motywu** (automatyczny, jasny lub ciemny; automatyczny podąża za systemem, jasny jest celowo stonowany, a nie biały, wybór zapamiętuje przeglądarka), znacznik **PL / EN** (kliknięcie przełącza język, zapamiętywany dla każdego użytkownika) oraz **nazwa użytkownika**, która otwiera menu ze **Zmień hasło** i **Wyloguj**.
 
 ## Idea w minutę
 
@@ -69,6 +69,8 @@ Po prawej wybrana playlista.
 4. Naciśnij playlistę. Jeśli bota nie ma jeszcze na kanale, najpierw do niego dołączy, potem zacznie grać. Aktywna playlista jest podświetlona.
 
 Pod przyciskami widać **listę utworów grającej playlisty** z podświetlonym bieżącym. Kliknij dowolny utwór, żeby zagrać go od razu; odtwarzanie idzie dalej od niego (przy losowaniu dalej w wylosowanej kolejności). Brakujące i usunięte utwory nie są na liście.
+
+Pasek postępu bieżącego utworu jest też **suwakiem przewijania**: przeciągnij go albo kliknij w wybranym miejscu, żeby tam skoczyć, co przydaje się przy utworach, które długo się rozkręcają. Bot uruchamia utwór od nowa od tego miejsca, więc będzie krótka przerwa; wstrzymany odtwarzacz zostaje wstrzymany.
 
 Sterowanie: poprzedni, pauza/wznów, następny, stop, pętla, losowo oraz suwak **głośności** (0 do 150 %). Zmiany głośności działają od razu. Gracze mogą też osobno ściszyć bota w Discordzie.
 
