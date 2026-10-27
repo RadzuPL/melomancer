@@ -57,6 +57,7 @@ Right side: the selected playlist.
 - **Fade in/out**: each track fades in and out over this many seconds (0 turns it off). Useful for ambient music.
 - **Own volume**: when ticked, pressing this playlist sets the bot's volume to this value. When not ticked, the current volume stays.
 - **Move playlist** puts it directly under a set or into any folder (of any of your sets).
+- **Copy to…** gives another person their own copy of the playlist. It lands in a set named after you ("From <your name>", "Od <twoja nazwa>" for a Polish-speaking recipient) in their account, and from then on the two lists are independent: nobody sees or changes the other's. Only the playlist is copied, the tracks are shared by everyone anyway. Tracks you have deleted are left out. Tick **Also copy my private tags on these tracks** to give the recipient your personal tags for them too; without it they get none of your private tags. An automatic playlist is copied as its rule, so if the rule uses one of your private tags, tick the box too, otherwise the copy will find nothing for the recipient (the panel warns you).
 - **Add tracks** opens a picker with search and tag filter, tick any number of tracks. Tracks that are already on this playlist are not offered.
 - Arrows move a track, the cross removes it from the playlist (not from the library).
 - A greyed, struck-through entry is a track that was deleted from the library. **Replace** lets you pick another track for the same slot.
@@ -94,6 +95,6 @@ Rules that protect your IP address: one download at a time, a pause between them
 
 - **Users**: create accounts (username, password of at least 10 characters, role), change roles, reset a password, disable or enable an account. A disabled account is logged out immediately. The last active administrator cannot be demoted or disabled.
 - **Servers**: for every non-administrator, tick the Discord servers they may control. A user without any ticked server sees an empty Player tab.
-- **System**: the version and the bot status.
+- **System**: the version, the bot status and the **Loudness evening-out** switch. With it on, every track is measured once in the background (the line below the switch shows how many are done) and played with a correction, so a quiet ambient piece and a loud battle theme come out at a similar level. Your files are never changed, the correction happens while playing, so switching it off applies at once, even to the track that is playing now. A track not measured yet, or one that is silent, plays as it is. The slider in the Player still sets the overall volume on top of it. The switch is stored in the database and wins over the `NORMALIZE_VOLUME` variable; if something sounds wrong in the middle of a session, switch it off here instead of restarting the container.
 
 Your own name in the top bar opens the account dialog: change your password. Changing a password logs you out everywhere else.

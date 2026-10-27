@@ -50,7 +50,8 @@ def rig(tmp_path, monkeypatch):
     vc = FakeVoiceClient()
     guild = SimpleNamespace(voice_client=vc)
     manager = SimpleNamespace(client=SimpleNamespace(get_guild=lambda gid: guild),
-                              loop=SimpleNamespace(call_soon_threadsafe=lambda fn, *a: fn(*a)))
+                              loop=SimpleNamespace(call_soon_threadsafe=lambda fn, *a: fn(*a)),
+                              gain_for=lambda item: 1.0)
     items = []
     for n in range(4):
         path = tmp_path / f"{n}.opus"
@@ -158,3 +159,14 @@ def test_seek_is_clamped_and_validated(rig):
     with pytest.raises(PlayerError) as unknown:
         rig.player.seek(10)
     assert unknown.value.code == "bad_seek"
+
+
+def test_loudness_gain_scales_the_volume_of_each_track_and_follows_changes(rig):
+    rig.player.manager.gain_for = lambda item: 0.5
+    start(rig)
+    assert rig.vc.source.volume == pytest.approx(0.4 * 0.5)
+    rig.player.set_volume(0.8)
+    assert rig.vc.source.volume == pytest.approx(0.8 * 0.5)  # the slider and the gain multiply
+    rig.player.manager.gain_for = lambda item: 1.0  # the administrator switched evening-out off
+    rig.player.refresh_gain()
+    assert rig.vc.source.volume == pytest.approx(0.8)

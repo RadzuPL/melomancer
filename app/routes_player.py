@@ -142,13 +142,14 @@ async def play(guild_id: str, body: PlayIn, request: Request, user: dict = Depen
             meta = {"id": None, "name": ("# " + (" + " if body.mode == "all" else " | ").join(wanted)), "set": None}
             opts = dict(loop=True, shuffle=True, fade=2.0, volume=None)
         else:
-            single = conn.execute("SELECT id, title, ext, duration FROM tracks WHERE id=? AND deleted_at IS NULL",
+            single = conn.execute("SELECT id, title, ext, duration, loudness, peak FROM tracks WHERE id=? AND deleted_at IS NULL",
                                   (body.track_id,)).fetchone()
             if not single:
                 raise HTTPException(404, "not_found")
             rows, meta = [single], {"id": None, "name": single["title"], "set": None}
             opts = dict(loop=False, shuffle=False, fade=0.0, volume=None)
-    items = [QueueItem(r["id"], r["title"], str(library.track_path(settings, r["id"], r["ext"])), r["duration"])
+    items = [QueueItem(r["id"], r["title"], str(library.track_path(settings, r["id"], r["ext"])), r["duration"],
+                       r["loudness"], r["peak"])
              for r in rows]
     if not items:
         raise HTTPException(400, "empty_playlist")

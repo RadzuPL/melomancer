@@ -934,6 +934,25 @@ async function viewPlaylists(main) {
     act(() => api("PATCH", `/api/playlists/${p.id}`, body));
   }
 
+  async function copyPlaylist(p) {
+    let people;
+    try { people = await api("GET", "/api/people"); } catch (err) { fail(err); return; }
+    if (!people.length) { toast(tr("no_people"), "err"); return; }
+    const who = h("select", { "aria-label": tr("copy_to") }, people.map((u) => h("option", { value: u.id }, u.username)));
+    const mine = h("input", { type: "checkbox" });
+    const choice = await modal(tr("copy_title", { name: p.name }), h("div", { class: "stack" },
+      who, h("label", { class: "row" }, mine, tr("copy_with_tags")), h("p", { class: "muted small" }, tr("copy_hint"))), [
+      { label: tr("cancel"), value: null },
+      { label: tr("copy_do"), class: "primary", run: () => ({ user_id: Number(who.value), with_my_tags: mine.checked }) },
+    ]);
+    if (!choice) return;
+    try {
+      const r = await api("POST", `/api/playlists/${p.id}/copy`, choice);
+      toast(tr("copied_to", { user: r.user, set: r.set_name, n: r.copied }) + (r.skipped ? " · " + tr("copied_skipped", { n: r.skipped }) : ""), "ok");
+      if (p.kind === "tags" && r.copied === 0) toast(tr("copied_empty"), "err");
+    } catch (err) { fail(err); }
+  }
+
   async function paintDetail() {
     const id = state.pl.selected;
     if (!id) { fill(detail, h("p", { class: "muted" }, tr("select_playlist"))); return; }
@@ -947,6 +966,7 @@ async function viewPlaylists(main) {
     fill(detail, 
       h("div", { class: "row" }, h("h2", { class: "grow" }, p.name),
         h("button", { class: "btn small", onclick: () => movePlaylist(p) }, tr("move_playlist")),
+        h("button", { class: "btn small", onclick: () => copyPlaylist(p) }, tr("copy_to")),
         h("button", { class: "btn small", onclick: async () => { const name = await promptDialog(tr("rename"), tr("name"), p.name); if (name) { await patch({ name }); paintDetail(); } } }, tr("rename")),
         h("button", { class: "btn small danger", onclick: async () => { if (await confirmDialog(tr("delete_playlist", { name: p.name }), true)) { state.pl.selected = null; act(() => api("DELETE", `/api/playlists/${id}`)); } } }, tr("delete"))),
       h("div", { class: "row" },
@@ -1097,9 +1117,19 @@ async function viewAdmin(main) {
   const pass = h("input", { type: "password", placeholder: tr("password") + " (" + tr("min_chars", { n: 10 }) + ")", autocomplete: "new-password" });
   const role = h("select", {}, h("option", { value: "user" }, tr("role.user")), h("option", { value: "admin" }, tr("role.admin")));
 
+  const normBox = h("input", { type: "checkbox", checked: system.normalize, onchange: async (e) => {
+    try { state.system = await api("PATCH", "/api/system", { normalize: e.target.checked }); toast(tr("saved"), "ok"); refresh(); }
+    catch (err) { e.target.checked = !e.target.checked; fail(err); }
+  } });
+  const loud = system.loudness;
+
   put(main, 
     h("div", { class: "card" }, h("h2", {}, tr("system")),
-      h("div", {}, "Melomancer " + system.version), h("div", {}, tr("bot_status") + ": " + tr("bot." + system.bot_status))),
+      h("div", {}, "Melomancer " + system.version), h("div", {}, tr("bot_status") + ": " + tr("bot." + system.bot_status)),
+      h("label", { class: "row" }, normBox, tr("normalize_label", { target: system.normalize_target })),
+      h("div", { class: "muted small" }, tr("normalize_hint")),
+      h("div", { class: "muted small" }, tr("normalize_status", { measured: loud.measured, total: loud.total })
+        + (loud.waiting ? " · " + tr("normalize_waiting", { n: loud.waiting }) : ""))),
     h("div", { class: "card" }, h("h2", {}, tr("tab.admin")),
       h("table", {}, h("thead", {}, h("tr", {}, h("th", {}, tr("username")), h("th", {}, tr("role")), h("th", {}, tr("servers")), h("th", {}))),
         h("tbody", {}, users.map((u) => h("tr", {},

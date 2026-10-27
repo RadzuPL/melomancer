@@ -136,6 +136,17 @@ MIGRATIONS: list[str] = [
     ALTER TABLE playlists ADD COLUMN kind TEXT NOT NULL DEFAULT 'manual';
     ALTER TABLE playlists ADD COLUMN rule TEXT;
     """,
+    # 5: loudness measured in the background (integrated LUFS and true peak in dBTP; NULL = unknown), plus a small
+    # key/value table for settings an administrator changes in the panel.
+    """
+    ALTER TABLE tracks ADD COLUMN loudness REAL;
+    ALTER TABLE tracks ADD COLUMN peak REAL;
+    ALTER TABLE tracks ADD COLUMN loudness_tried INTEGER NOT NULL DEFAULT 0;
+    CREATE TABLE app_settings (
+        key TEXT PRIMARY KEY,
+        value TEXT NOT NULL
+    );
+    """,
 ]
 
 

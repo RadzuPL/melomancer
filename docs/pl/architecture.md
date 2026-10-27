@@ -56,6 +56,7 @@ downloads (użytkownik, url, stan, utwór)
 - **tracks** nigdy nie są fizycznie usuwane. Usunięcie ustawia `deleted_at` i kasuje plik, więc `playlist_items` nadal wskazują wiersz ze starym tytułem (wyszarzony wpis). Częściowy indeks unikalny pilnuje unikalności `sha256` tylko wśród żywych utworów, więc ponowne wgranie identycznej zawartości przywraca stary wiersz (to samo id).
 - Zestawy, foldery i playlisty usuwają się kaskadowo. Utworów to nie dotyka.
 - Pozycje to liczby całkowite, przepisywane przy zapisie kolejności.
+- `tracks.loudness` (głośność całkowita w LUFS) i `tracks.peak` (true peak, dBTP) uzupełnia wątek w tle (`app/loudness.py`): bierze najnowszy niezmierzony utwór, mierzy go przez ffmpeg `loudnorm` (tylko analiza, uruchamiana przez `nice`) i ustawia `loudness_tried`. NULL oznacza „nieznane”: utwór gra bez zmian. Przy odtwarzaniu `BotManager.gain_for` zamienia pomiar na wzmocnienie (cel minus głośność, ograniczone maksymalnym podbiciem i utrzymaniem szczytu poniżej -1 dBTP), które mnoży głośność `PCMVolumeTransformer`; nic nie jest przekodowywane. Przełącznik administratora leży w tabeli `app_settings` i ma pierwszeństwo przed `NORMALIZE_VOLUME`.
 - `playlists.kind` to `manual` (wiersze w `playlist_items`) albo `tags` (reguła JSON w `playlists.rule`: `{"tags": [...], "mode": "all"|"any"}`). Playlista z tagów nie przechowuje utworów, są liczone przez `library.tracks_for_tags` przy wyświetlaniu lub odtwarzaniu, ze wspólnych tagów i tagów osobistych właściciela. `POST /player/{guild}/play` przyjmuje też wprost `tags` i `mode`, żeby zagrać niezapisany wybór.
 
 ## Uprawnienia
@@ -98,10 +99,11 @@ Wszystkie ścieżki są pod `/api`; żądania zmieniające stan wymagają nagł�
 | Użytkownicy | `GET/POST /users`, `PATCH /users/{id}`, `PUT /users/{id}/guilds` |
 | Biblioteka | `GET /tracks`, `POST /tracks/upload`, `PATCH/DELETE /tracks/{id}`, `GET /tracks/{id}/usage`, `GET /tracks/{id}/stream`, `PUT /tracks/{id}/my-tags`, `GET /tags` |
 | Pobrania | `GET/POST /downloads` (lista niesie też postęp na żywo, upłynięte sekundy i pozostałą przerwę; `POST` przyjmuje `tags` i `my_tags`), `DELETE /downloads/{id}` |
-| Playlisty | `GET/POST /sets`, `PATCH/DELETE /sets/{id}`, `POST /sets/{id}/playlists`, `PUT /sets/{id}/playlists/order`, `POST /sets/{id}/groups`, `PUT /sets/{id}/groups/order`, `PATCH/DELETE /groups/{id}`, `POST /groups/{id}/playlists`, `PUT /groups/{id}/playlists/order`, `GET/PATCH/DELETE /playlists/{id}`, `POST /playlists/{id}/items`, `PUT /playlists/{id}/order`, `PUT/DELETE /playlists/{id}/items/{item}` |
+| Playlisty | `GET/POST /sets`, `PATCH/DELETE /sets/{id}`, `POST /sets/{id}/playlists`, `PUT /sets/{id}/playlists/order`, `POST /sets/{id}/groups`, `PUT /sets/{id}/groups/order`, `PATCH/DELETE /groups/{id}`, `POST /groups/{id}/playlists`, `PUT /groups/{id}/playlists/order`, `GET/PATCH/DELETE /playlists/{id}`, `POST /playlists/{id}/copy`, `POST /playlists/{id}/items`, `PUT /playlists/{id}/order`, `PUT/DELETE /playlists/{id}/items/{item}` |
 | Odtwarzacz | `GET /player/guilds`, `GET /player/{guild}/state`, `POST /player/{guild}/connect`, `disconnect`, `play`, `pause`, `resume`, `next`, `prev`, `jump`, `seek`, `stop`, `volume`, `PATCH /player/{guild}/options` |
-| System | `GET /system`, `GET /health` |
+| Osoby | `GET /people` (aktywne konta poza twoim, tylko nazwy, do wyboru odbiorcy kopii) |
+| System | `GET /system`, `PATCH /system` (administrator: przełącznik głośności), `GET /health` |
 
 ## Jeszcze nie zrobione
 
-Nakładające się przejście między playlistami (crossfade), normalizacja głośności przy imporcie, warstwy ambientu pod muzyką, tablica efektów dźwiękowych, współdzielenie zestawu z innym użytkownikiem. Model danych nie stoi na drodze żadnemu z tych pomysłów.
+Nakładające się przejście między utworami (crossfade), warstwy ambientu pod muzyką, tablica efektów dźwiękowych. Model danych nie stoi na drodze żadnemu z tych pomysłów.

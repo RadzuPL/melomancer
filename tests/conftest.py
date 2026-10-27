@@ -25,6 +25,14 @@ class StubDownloader:
     def pause_remaining(self): return 0
 
 
+class StubLoudness:
+    """Keeps the API tests from starting the measuring thread; tests call measure_all() themselves."""
+
+    def start(self): ...
+    def stop(self): ...
+    def wake(self): ...
+
+
 class FakeBot:
     """Stands in for BotManager: same interface, no Discord."""
 
@@ -39,6 +47,9 @@ class FakeBot:
 
     async def start(self): ...
     async def stop(self): ...
+
+    def refresh_gain(self):
+        self.gain_refreshed = getattr(self, "gain_refreshed", 0) + 1
 
     def _st(self, gid: int) -> dict:
         return self.states.setdefault(gid, {
@@ -105,7 +116,7 @@ def env(tmp_path):
         discord_token="", ytdlp_enabled=True, ytdlp_daily_limit=3, login_max_failures=5,
     )
     bot = FakeBot()
-    app = create_app(settings, bot=bot, downloader=StubDownloader())
+    app = create_app(settings, bot=bot, downloader=StubDownloader(), loudness=StubLoudness())
     with TestClient(app) as client:
         client.headers["X-Melomancer"] = "1"
         yield SimpleNamespace(client=client, settings=settings, bot=bot, app=app, tmp=tmp_path)

@@ -16,6 +16,7 @@ from .config import Settings
 from .db import init_db, tx
 from .deps import csrf_guard
 from .downloader import Downloader
+from .loudness import LoudnessWorker, RuntimeSettings
 from .player import BotManager
 from .security import LoginThrottle, MIN_PASSWORD_LENGTH, hash_password
 
@@ -53,7 +54,8 @@ def bootstrap_admin(settings: Settings) -> None:
                  settings.admin_username)
 
 
-def create_app(settings: Settings | None = None, bot=None, downloader: Downloader | None = None) -> FastAPI:
+def create_app(settings: Settings | None = None, bot=None, downloader: Downloader | None = None,
+               loudness: LoudnessWorker | None = None) -> FastAPI:
     settings = settings or Settings.from_env()
     logging.basicConfig(level=getattr(logging, settings.log_level, logging.INFO),
                         format="%(asctime)s %(levelname)s %(name)s: %(message)s")
@@ -67,18 +69,23 @@ def create_app(settings: Settings | None = None, bot=None, downloader: Downloade
             if leftover.is_file():
                 leftover.unlink(missing_ok=True)
         log.info("Melomancer %s starting", settings.version)
+        app.state.runtime.load()
         await app.state.bot.start()
         app.state.downloader.start()
+        app.state.loudness.start()
         try:
             yield
         finally:
+            app.state.loudness.stop()
             app.state.downloader.stop()
             await app.state.bot.stop()
 
     app = FastAPI(title="Melomancer", version=settings.version, lifespan=lifespan,
                   docs_url=None, redoc_url=None, openapi_url=None)
     app.state.settings = settings
-    app.state.bot = bot or BotManager(settings)
+    app.state.runtime = RuntimeSettings(settings)
+    app.state.bot = bot or BotManager(settings, app.state.runtime)
+    app.state.loudness = loudness or LoudnessWorker(settings)
     app.state.downloader = downloader or Downloader(settings)
     app.state.throttle = LoginThrottle(settings.login_max_failures, settings.login_window_seconds)
 

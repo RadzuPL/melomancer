@@ -23,6 +23,9 @@ Wszystko konfiguruje się zmiennymi środowiskowymi. Uwagi wymagają tylko `DISC
 | `YTDLP_COOKIES_FILE` | (puste) | Ścieżka w kontenerze do pliku cookies dla yt-dlp. Używaj tylko jednorazowego konta, nigdy głównego konta Google. |
 | `IDLE_LEAVE_MINUTES` | `30` | Bot opuszcza kanał głosowy, gdy przez tyle minut nie ma w nim człowieka (0 = nigdy). |
 | `DEFAULT_VOLUME` | `0.4` | Głośność początkowa, od 0.0 do 1.5 (1.0 = 100 %). |
+| `NORMALIZE_VOLUME` | `true` | Wyrównywanie głośności podczas odtwarzania (opis w [Użytkowaniu](usage.md)). To tylko wartość startowa: administrator może to przełączyć w panelu, a zapisany tam wybór ma pierwszeństwo przed tą zmienną. |
+| `NORMALIZE_TARGET_LUFS` | `-16` | Poziom, do którego wyrównywane są utwory, od -30 do -8. |
+| `NORMALIZE_MAX_BOOST_DB` | `6` | O ile najwyżej podgłośnić cichy utwór, od 0 do 12 dB. Utwór nigdy nie jest podgłaśniany do przesterowania, niezależnie od tej wartości. |
 | `SESSION_HOURS` | `168` | Jak długo trwa logowanie (7 dni). |
 | `COOKIE_SECURE` | `auto` | `auto` oznacza ciasteczko logowania jako Secure, gdy panel otwarto przez https. `true` / `false` wymuszają wartość. |
 | `LOGIN_MAX_FAILURES` | `5` | Liczba nieudanych logowań na nazwę użytkownika lub adres przed czasową blokadą. |

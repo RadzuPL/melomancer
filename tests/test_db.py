@@ -51,3 +51,24 @@ def test_fresh_database_gets_every_migration_without_a_backup(tmp_path):
     conn.close()
     assert not list(tmp_path.glob("*.before-*"))
     init_db(path)  # running again changes nothing
+
+
+def test_migration_5_adds_loudness_columns_without_touching_existing_tracks(tmp_path):
+    path = tmp_path / "v4.db"
+    conn = sqlite3.connect(path)
+    for script in MIGRATIONS[:4]:
+        conn.executescript(script)
+    conn.execute("PRAGMA user_version=4")
+    conn.execute("INSERT INTO users(id, username, pw_hash) VALUES (1, 'u', 'x')")
+    conn.execute("INSERT INTO tracks(id, owner_id, title, original_title, ext, sha256) VALUES ('t', 1, 'T', 'T', '.wav', 'h')")
+    conn.commit()
+    conn.close()
+
+    init_db(path)
+
+    conn = sqlite3.connect(path)
+    row = conn.execute("SELECT title, loudness, peak, loudness_tried FROM tracks WHERE id='t'").fetchone()
+    assert row == ("T", None, None, 0)
+    conn.execute("INSERT INTO app_settings(key, value) VALUES ('normalize', '0')")
+    assert (path.parent / "v4.db.before-v5").exists()
+    conn.close()

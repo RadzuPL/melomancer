@@ -10,6 +10,7 @@ from pydantic import BaseModel, Field
 from .config import Settings
 from .db import tx
 from .deps import SESSION_COOKIE, current_user, get_settings, require_admin
+from .loudness import counts as loudness_counts
 from .security import (MIN_PASSWORD_LENGTH, hash_password, new_session_token, sha256_hex, utc_string,
                        verify_password)
 
@@ -138,6 +139,15 @@ def list_users(request: Request, _: dict = Depends(require_admin)):
         ]
 
 
+@router.get("/people")
+def list_people(request: Request, user: dict = Depends(current_user)):
+    """Active accounts other than your own, for choosing who to copy a playlist to. Names only."""
+    with tx(get_settings(request).db_path) as conn:
+        return [{"id": r["id"], "username": r["username"]}
+                for r in conn.execute("SELECT id, username FROM users WHERE disabled=0 AND id != ? ORDER BY username",
+                                      (user["id"],))]
+
+
 @router.post("/users", status_code=201)
 def create_user(body: UserCreateIn, request: Request, _: dict = Depends(require_admin)):
     with tx(get_settings(request).db_path) as conn:
@@ -189,8 +199,7 @@ def health(request: Request):
     return {"status": "ok", "version": get_settings(request).version}
 
 
-@router.get("/system")
-def system(request: Request, _: dict = Depends(current_user)):
+def _system_info(request: Request) -> dict:
     settings = get_settings(request)
     return {
         "version": settings.version,
@@ -198,4 +207,24 @@ def system(request: Request, _: dict = Depends(current_user)):
         "downloads_enabled": settings.ytdlp_enabled,
         "download_hosts": list(settings.ytdlp_allowed_hosts),
         "max_upload_mb": settings.max_upload_mb,
+        "normalize": request.app.state.runtime.normalize,
+        "normalize_target": settings.normalize_target,
+        "loudness": loudness_counts(settings),
     }
+
+
+@router.get("/system")
+def system(request: Request, _: dict = Depends(current_user)):
+    return _system_info(request)
+
+
+class SystemPatch(BaseModel):
+    normalize: bool
+
+
+@router.patch("/system")
+def patch_system(body: SystemPatch, request: Request, _: dict = Depends(require_admin)):
+    """Switch loudness evening-out on or off while the bot runs; what is playing now follows at once."""
+    request.app.state.runtime.set_normalize(body.normalize)
+    request.app.state.bot.refresh_gain()
+    return _system_info(request)

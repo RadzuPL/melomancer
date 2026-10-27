@@ -12,6 +12,7 @@ from dataclasses import dataclass
 import discord
 
 from .config import Settings
+from .loudness import RuntimeSettings, linear_gain
 
 log = logging.getLogger("melomancer.player")
 
@@ -34,6 +35,8 @@ class QueueItem:
     title: str
     path: str
     duration: float | None
+    loudness: float | None = None  # measured LUFS, None while unknown
+    peak: float | None = None      # measured true peak in dBTP
 
 
 class GuildPlayer:
@@ -198,7 +201,7 @@ class GuildPlayer:
         try:
             before = f"-ss {offset:.2f}" if offset > 0 else None
             source = discord.FFmpegPCMAudio(item.path, before_options=before, options=self._ffmpeg_options(item, offset))
-            source = discord.PCMVolumeTransformer(source, volume=self.volume)
+            source = discord.PCMVolumeTransformer(source, volume=self.volume * self.manager.gain_for(item))
             vc.play(source, after=lambda err, g=gen: self.manager.loop.call_soon_threadsafe(self._on_after, g, err))
         except Exception as exc:  # noqa: BLE001
             log.warning("Could not start %s: %s", item.track_id, exc)
@@ -318,11 +321,19 @@ class GuildPlayer:
             self._elapsed_base = target
             self.state = "paused"
 
+    def _apply_volume(self) -> None:
+        """Put the volume (and the loudness gain of the current track) on the source that is playing now."""
+        vc = self.vc
+        if vc and isinstance(vc.source, discord.PCMVolumeTransformer) and 0 <= self.pos < len(self.order):
+            item = self.items[self.order[self.pos]]
+            vc.source.volume = self.volume * self.manager.gain_for(item)
+
     def set_volume(self, volume: float) -> None:
         self.volume = max(0.0, min(volume, 1.5))
-        vc = self.vc
-        if vc and isinstance(vc.source, discord.PCMVolumeTransformer):
-            vc.source.volume = self.volume
+        self._apply_volume()
+
+    def refresh_gain(self) -> None:
+        self._apply_volume()
 
     def set_options(self, loop: bool | None, shuffle: bool | None) -> None:
         if loop is not None:
@@ -380,8 +391,9 @@ class MelomancerClient(discord.Client):
 class BotManager:
     """Owns the Discord client and one GuildPlayer per server."""
 
-    def __init__(self, settings: Settings) -> None:
+    def __init__(self, settings: Settings, runtime: RuntimeSettings | None = None) -> None:
         self.settings = settings
+        self.runtime = runtime
         self.client: MelomancerClient | None = None
         self.status = "disabled"  # disabled | starting | ready | login_failed | error
         self.loop: asyncio.AbstractEventLoop | None = None
@@ -449,6 +461,18 @@ class BotManager:
                     await player.disconnect()
 
     # ---- access for the API ---------------------------------------------
+
+    def gain_for(self, item: QueueItem) -> float:
+        """Linear loudness gain for a track: 1.0 when evening-out is off or the track has not been measured."""
+        enabled = self.runtime.normalize if self.runtime else self.settings.normalize_volume
+        if not enabled:
+            return 1.0
+        return linear_gain(item.loudness, item.peak, self.settings.normalize_target, self.settings.normalize_max_boost)
+
+    def refresh_gain(self) -> None:
+        """The administrator switched loudness evening-out: apply it to what is playing right now."""
+        for player in self._players.values():
+            player.refresh_gain()
 
     def player(self, guild_id: int) -> GuildPlayer:
         if guild_id not in self._players:

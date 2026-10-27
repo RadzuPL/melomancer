@@ -43,6 +43,11 @@ class PlaylistPatchIn(BaseModel):
     mode: Literal["all", "any"] | None = None
 
 
+class CopyIn(BaseModel):
+    user_id: int
+    with_my_tags: bool = False  # also give the recipient the personal tags the owner put on these tracks
+
+
 class TrackIdsIn(BaseModel):
     track_ids: list[str] = Field(min_length=1, max_length=500)
 
@@ -112,7 +117,7 @@ def playlist_tracks(conn: sqlite3.Connection, row) -> list:
         rule = _rule(row)
         return library.tracks_for_tags(conn, row["owner_id"], rule["tags"], rule["mode"])
     return conn.execute(
-        "SELECT t.id, t.title, t.ext, t.duration FROM playlist_items i JOIN tracks t ON t.id = i.track_id "
+        "SELECT t.id, t.title, t.ext, t.duration, t.loudness, t.peak FROM playlist_items i JOIN tracks t ON t.id = i.track_id "
         "WHERE i.playlist_id=? AND t.deleted_at IS NULL ORDER BY i.position, i.id", (row["id"],)).fetchall()
 
 
@@ -319,6 +324,52 @@ def patch_playlist(playlist_id: int, body: PlaylistPatchIn, request: Request, us
         if changes.get("name"):
             conn.execute("UPDATE playlists SET name=? WHERE id=?", (_name(changes["name"]), playlist_id))
     return {"ok": True}
+
+
+@router.post("/playlists/{playlist_id}/copy", status_code=201)
+def copy_playlist(playlist_id: int, body: CopyIn, request: Request, user: dict = Depends(current_user)):
+    """Give another user their own copy of a playlist. The tracks themselves are shared by everyone, so a copy is
+    only a new playlist row (and its items) in a set of the recipient's; from then on the two lists are independent.
+    """
+    with tx(get_settings(request).db_path) as conn:
+        source = playlist_for(conn, user, playlist_id)
+        recipient = conn.execute("SELECT id, username, lang FROM users WHERE id=? AND disabled=0",
+                                 (body.user_id,)).fetchone()
+        if not recipient or recipient["id"] == source["owner_id"]:
+            raise HTTPException(400, "bad_recipient")
+
+        # One set per sender in the recipient's account, so copies do not mix with their own scenarios.
+        set_name = _name(("Od " if recipient["lang"] == "pl" else "From ") + user["username"])
+        target = conn.execute("SELECT id FROM sets WHERE owner_id=? AND name=?", (recipient["id"], set_name)).fetchone()
+        target_set = target["id"] if target else conn.execute(
+            "INSERT INTO sets(owner_id, name) VALUES (?,?)", (recipient["id"], set_name)).lastrowid
+
+        live = playlist_tracks(conn, source)  # tracks that still exist, in playing order
+        cur = conn.execute(
+            "INSERT INTO playlists(set_id, group_id, name, position, loop, shuffle, volume, fade, kind, rule) "
+            "VALUES (?,?,?,?,?,?,?,?,?,?)",
+            (target_set, None, source["name"], _next_playlist_position(conn, target_set, None), source["loop"],
+             source["shuffle"], source["volume"], source["fade"], source["kind"], source["rule"]))
+        new_id = int(cur.lastrowid)
+        skipped = 0
+        if source["kind"] == "manual":
+            conn.executemany("INSERT INTO playlist_items(playlist_id, track_id, position) VALUES (?,?,?)",
+                             [(new_id, t["id"], pos) for pos, t in enumerate(live)])
+            skipped = conn.execute("SELECT COUNT(*) FROM playlist_items WHERE playlist_id=?",
+                                   (playlist_id,)).fetchone()[0] - len(live)
+        tags_copied = 0
+        if body.with_my_tags:
+            ids = [t["id"] for t in live]
+            for start in range(0, len(ids), 400):  # stay well under SQLite's limit on bound parameters
+                chunk = ids[start:start + 400]
+                tags_copied += conn.execute(
+                    "INSERT OR IGNORE INTO user_tags(user_id, track_id, tag) SELECT ?, track_id, tag FROM user_tags "
+                    f"WHERE user_id=? AND track_id IN ({','.join('?' * len(chunk))})",
+                    (recipient["id"], source["owner_id"], *chunk)).rowcount
+        copy = playlist_for(conn, {"id": recipient["id"], "role": "user"}, new_id)
+        matches = len(playlist_tracks(conn, copy))
+    return {"id": new_id, "set_id": target_set, "set_name": set_name, "user": recipient["username"],
+            "copied": matches, "skipped": skipped, "tags_copied": tags_copied}
 
 
 @router.delete("/playlists/{playlist_id}")

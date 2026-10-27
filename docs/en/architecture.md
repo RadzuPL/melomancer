@@ -56,6 +56,7 @@ downloads (user, url, status, track)
 - **tracks** are never physically deleted. Deleting sets `deleted_at` and removes the file, so `playlist_items` keep pointing at a row with the old title (the greyed-out entry). A partial unique index keeps `sha256` unique among live tracks only, so re-uploading identical content revives the old row (same id).
 - Sets, folders and playlists cascade on delete. Tracks are never touched by that.
 - Positions are integers, rewritten when an order is saved.
+- `tracks.loudness` (integrated LUFS) and `tracks.peak` (true peak, dBTP) are filled in by a background thread (`app/loudness.py`) that picks the newest unmeasured track, measures it with ffmpeg `loudnorm` (analysis only, run under `nice`) and sets `loudness_tried`. NULL means unknown: the track plays unchanged. At playback `BotManager.gain_for` turns the measurement into a gain (target minus loudness, limited by the maximum boost and by keeping the peak under -1 dBTP) that multiplies the volume of the `PCMVolumeTransformer`; nothing is re-encoded. The administrator's switch lives in the `app_settings` table and wins over `NORMALIZE_VOLUME`.
 - `playlists.kind` is `manual` (rows in `playlist_items`) or `tags` (a JSON rule in `playlists.rule`: `{"tags": [...], "mode": "all"|"any"}`). A tag playlist stores no items, its tracks are computed with `library.tracks_for_tags` when it is shown or played, from shared tags and the owner's personal tags. `POST /player/{guild}/play` can also take `tags` and `mode` directly to play an unsaved selection.
 
 ## Permissions
@@ -98,10 +99,11 @@ All paths are under `/api`; state-changing requests need the header `X-Melomance
 | Users | `GET/POST /users`, `PATCH /users/{id}`, `PUT /users/{id}/guilds` |
 | Library | `GET /tracks`, `POST /tracks/upload`, `PATCH/DELETE /tracks/{id}`, `GET /tracks/{id}/usage`, `GET /tracks/{id}/stream`, `PUT /tracks/{id}/my-tags`, `GET /tags` |
 | Downloads | `GET/POST /downloads` (the list also carries live progress, elapsed seconds and the remaining pause; `POST` takes `tags` and `my_tags`), `DELETE /downloads/{id}` |
-| Playlists | `GET/POST /sets`, `PATCH/DELETE /sets/{id}`, `POST /sets/{id}/playlists`, `PUT /sets/{id}/playlists/order`, `POST /sets/{id}/groups`, `PUT /sets/{id}/groups/order`, `PATCH/DELETE /groups/{id}`, `POST /groups/{id}/playlists`, `PUT /groups/{id}/playlists/order`, `GET/PATCH/DELETE /playlists/{id}`, `POST /playlists/{id}/items`, `PUT /playlists/{id}/order`, `PUT/DELETE /playlists/{id}/items/{item}` |
+| Playlists | `GET/POST /sets`, `PATCH/DELETE /sets/{id}`, `POST /sets/{id}/playlists`, `PUT /sets/{id}/playlists/order`, `POST /sets/{id}/groups`, `PUT /sets/{id}/groups/order`, `PATCH/DELETE /groups/{id}`, `POST /groups/{id}/playlists`, `PUT /groups/{id}/playlists/order`, `GET/PATCH/DELETE /playlists/{id}`, `POST /playlists/{id}/copy`, `POST /playlists/{id}/items`, `PUT /playlists/{id}/order`, `PUT/DELETE /playlists/{id}/items/{item}` |
 | Player | `GET /player/guilds`, `GET /player/{guild}/state`, `POST /player/{guild}/connect`, `disconnect`, `play`, `pause`, `resume`, `next`, `prev`, `jump`, `seek`, `stop`, `volume`, `PATCH /player/{guild}/options` |
-| System | `GET /system`, `GET /health` |
+| People | `GET /people` (active accounts other than yours, names only, for choosing who to copy to) |
+| System | `GET /system`, `PATCH /system` (administrator: loudness switch), `GET /health` |
 
 ## Not built yet
 
-Overlapping cross-fade between playlists, loudness normalisation on import, ambient layers under the music, a sound-effects board, sharing a set with another user. The data model does not stand in the way of any of them.
+Overlapping cross-fade between tracks, ambient layers under the music, a sound-effects board. The data model does not stand in the way of any of them.

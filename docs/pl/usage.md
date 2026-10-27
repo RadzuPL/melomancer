@@ -57,6 +57,7 @@ Po prawej wybrana playlista.
 - **Płynne wejście/wyjście**: każdy utwór wchodzi i wychodzi przez tyle sekund (0 wyłącza). Przydatne przy muzyce tła.
 - **Własna głośność**: po zaznaczeniu naciśnięcie tej playlisty ustawia głośność bota na tę wartość. Bez zaznaczenia zostaje obecna głośność.
 - **Przenieś playlistę** umieszcza ją wprost w zestawie albo w dowolnym folderze (w dowolnym z twoich zestawów).
+- **Kopiuj do…** daje innej osobie jej własną kopię playlisty. Trafia do zestawu na jej koncie nazwanego od ciebie („Od <twoja nazwa>”, a dla odbiorcy z angielskim „From <your name>”) i od tej chwili obie listy są niezależne: nikt nie widzi ani nie zmienia cudzej. Kopiowana jest tylko playlista, same utwory i tak są wspólne dla wszystkich. Utwory, które usunąłeś, są pomijane. Zaznacz **Skopiuj też moje prywatne tagi z tych utworów**, żeby odbiorca dostał również twoje osobiste tagi do nich; bez tego nie dostaje żadnego prywatnego tagu. Playlista automatyczna jest kopiowana jako reguła, więc jeśli reguła używa twojego prywatnego tagu, zaznacz to pole, inaczej kopia nic nie znajdzie u odbiorcy (panel ostrzeże).
 - **Dodaj utwory** otwiera wybieralkę z wyszukiwaniem i filtrem tagów, zaznacz dowolną liczbę utworów. Utwory, które już są na tej playliście, nie są proponowane.
 - Strzałki przesuwają utwór, krzyżyk usuwa go z playlisty (nie z biblioteki).
 - Wyszarzony, przekreślony wpis to utwór usunięty z biblioteki. **Zastąp** pozwala wybrać inny utwór na to samo miejsce.
@@ -94,6 +95,6 @@ Zasady chroniące twój adres IP: jedno pobieranie naraz, przerwa między nimi, 
 
 - **Użytkownicy**: zakładanie kont (nazwa, hasło co najmniej 10 znaków, rola), zmiana ról, reset hasła, wyłączanie i włączanie konta. Wyłączone konto jest natychmiast wylogowywane. Ostatniego aktywnego administratora nie można zdegradować ani wyłączyć.
 - **Serwery**: dla każdego użytkownika niebędącego administratorem zaznacz serwery Discord, którymi może sterować. Użytkownik bez zaznaczonego serwera widzi pustą zakładkę Odtwarzacz.
-- **System**: wersja i stan bota.
+- **System**: wersja, stan bota i przełącznik **Wyrównywanie głośności**. Gdy jest włączony, każdy utwór jest raz zmierzony w tle (linia pod przełącznikiem pokazuje, ile już jest gotowych) i odtwarzany z korektą, więc cichy ambient i głośny motyw walki wychodzą na podobnym poziomie. Pliki nigdy nie są zmieniane, korekta dzieje się podczas odtwarzania, więc wyłączenie działa od razu, także na utwór, który właśnie gra. Utwór jeszcze niezmierzony albo cichy jak makiem zasiał gra bez zmian. Suwak w Odtwarzaczu nadal ustawia ogólną głośność na wierzchu korekty. Przełącznik jest zapisany w bazie i ma pierwszeństwo przed zmienną `NORMALIZE_VOLUME`; jeśli w środku sesji coś brzmi źle, wyłącz go tutaj zamiast restartować kontener.
 
 Twoja nazwa w górnym pasku otwiera okno konta: zmiana hasła. Zmiana hasła wylogowuje cię wszędzie indziej.
