@@ -10,7 +10,7 @@ from pydantic import BaseModel, Field
 from .config import Settings
 from .db import tx
 from .deps import SESSION_COOKIE, current_user, get_settings, require_admin
-from .loudness import counts as loudness_counts
+from .loudness import BOOST_RANGE, TARGET_RANGE, counts as loudness_counts
 from .security import (MIN_PASSWORD_LENGTH, hash_password, new_session_token, sha256_hex, utc_string,
                        verify_password)
 
@@ -208,7 +208,8 @@ def _system_info(request: Request) -> dict:
         "download_hosts": list(settings.ytdlp_allowed_hosts),
         "max_upload_mb": settings.max_upload_mb,
         "normalize": request.app.state.runtime.normalize,
-        "normalize_target": settings.normalize_target,
+        "normalize_target": request.app.state.runtime.target,
+        "normalize_max_boost": request.app.state.runtime.max_boost,
         "loudness": loudness_counts(settings),
     }
 
@@ -219,12 +220,15 @@ def system(request: Request, _: dict = Depends(current_user)):
 
 
 class SystemPatch(BaseModel):
-    normalize: bool
+    normalize: bool | None = None
+    normalize_target: float | None = Field(default=None, ge=TARGET_RANGE[0], le=TARGET_RANGE[1])
+    normalize_max_boost: float | None = Field(default=None, ge=BOOST_RANGE[0], le=BOOST_RANGE[1])
 
 
 @router.patch("/system")
 def patch_system(body: SystemPatch, request: Request, _: dict = Depends(require_admin)):
-    """Switch loudness evening-out on or off while the bot runs; what is playing now follows at once."""
-    request.app.state.runtime.set_normalize(body.normalize)
+    """Change the loudness evening-out settings while the bot runs; what is playing now follows at once."""
+    request.app.state.runtime.update(normalize=body.normalize, target=body.normalize_target,
+                                     max_boost=body.normalize_max_boost)
     request.app.state.bot.refresh_gain()
     return _system_info(request)

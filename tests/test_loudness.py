@@ -53,8 +53,11 @@ def test_the_bot_applies_the_gain_only_while_evening_out_is_on(tmp_path):
     runtime = RuntimeSettings(settings)
     manager = BotManager(settings, runtime)
     item = QueueItem("t", "T", "/x", 60.0, loudness=-26.0, peak=-10.0)
-    runtime.normalize = True
     assert manager.gain_for(item) == pytest.approx(10 ** (6 / 20))  # +10 wanted, +6 allowed by default
+    runtime.max_boost, runtime.target = 3.0, -20.0
+    assert manager.gain_for(item) == pytest.approx(10 ** (3 / 20))  # now only +3 allowed
+    runtime.max_boost = 12.0
+    assert manager.gain_for(item) == pytest.approx(10 ** (6 / 20))  # +6 wanted to reach -20
     runtime.normalize = False
     assert manager.gain_for(item) == 1.0
     assert manager.gain_for(QueueItem("u", "U", "/y", 60.0)) == 1.0
@@ -85,7 +88,7 @@ def test_system_shows_the_switch_and_only_an_admin_can_flip_it(env):
     make_user(env, "bob")
     login(env, "bob")
     info = env.client.get("/api/system").json()
-    assert info["normalize"] is True and info["normalize_target"] == -16.0
+    assert (info["normalize"], info["normalize_target"], info["normalize_max_boost"]) == (True, -16.0, 6.0)
     assert info["loudness"] == {"total": 0, "measured": 0, "waiting": 0}
     assert env.client.patch("/api/system", json={"normalize": False}).status_code == 403
 
@@ -95,15 +98,23 @@ def test_system_shows_the_switch_and_only_an_admin_can_flip_it(env):
     assert env.bot.gain_refreshed == 1  # what is playing right now was told to follow
 
     fresh = RuntimeSettings(env.settings)
-    assert fresh.normalize is True  # the environment's default ...
+    assert fresh.normalize is True  # the built-in default ...
     fresh.load()
     assert fresh.normalize is False  # ... until the stored choice is read, as happens at start-up
 
 
-def test_a_stored_choice_beats_the_environment_default(env):
+def test_target_and_boost_are_stored_and_validated(env):
     login(env, "admin")
-    assert env.client.patch("/api/system", json={"normalize": False}).status_code == 200
-    assert env.client.patch("/api/system", json={"normalize": True}).status_code == 200
+    res = env.client.patch("/api/system", json={"normalize_target": -20, "normalize_max_boost": 3})
+    assert res.status_code == 200
+    assert (res.json()["normalize"], res.json()["normalize_target"], res.json()["normalize_max_boost"]) == (True, -20.0, 3.0)
+    assert env.bot.gain_refreshed == 1
+
     fresh = RuntimeSettings(env.settings)
     fresh.load()
-    assert fresh.normalize is True
+    assert (fresh.normalize, fresh.target, fresh.max_boost) == (True, -20.0, 3.0)  # survives a restart
+
+    for bad in ({"normalize_target": -5}, {"normalize_target": -40}, {"normalize_max_boost": 20},
+                {"normalize_max_boost": -1}):
+        assert env.client.patch("/api/system", json=bad).status_code == 422, bad
+    assert env.client.get("/api/system").json()["normalize_target"] == -20.0  # nothing was changed by the bad ones

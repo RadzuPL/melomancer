@@ -23,9 +23,6 @@ Everything is configured with environment variables. Only `DISCORD_TOKEN` and th
 | `YTDLP_COOKIES_FILE` | (empty) | Path inside the container to a cookies file for yt-dlp. Use only a throw-away account, never your main Google account. |
 | `IDLE_LEAVE_MINUTES` | `30` | The bot leaves a voice channel after this many minutes with no human in it (0 = never). |
 | `DEFAULT_VOLUME` | `0.4` | Starting volume, 0.0 to 1.5 (1.0 = 100 %). |
-| `NORMALIZE_VOLUME` | `true` | Even out loudness while playing (see [Usage](usage.md)). This is only the starting value: an administrator can switch it in the panel, and the choice made there is stored and wins over this variable. |
-| `NORMALIZE_TARGET_LUFS` | `-16` | The level tracks are brought to, from -30 to -8. |
-| `NORMALIZE_MAX_BOOST_DB` | `6` | The most a quiet track is raised, from 0 to 12 dB. A track is never boosted into clipping, whatever this says. |
 | `SESSION_HOURS` | `168` | How long a login lasts (7 days). |
 | `COOKIE_SECURE` | `auto` | `auto` marks the login cookie as Secure when the panel is opened over https. `true` / `false` force it. |
 | `LOGIN_MAX_FAILURES` | `5` | Failed logins per user name or address before a temporary block. |

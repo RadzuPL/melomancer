@@ -393,7 +393,7 @@ class BotManager:
 
     def __init__(self, settings: Settings, runtime: RuntimeSettings | None = None) -> None:
         self.settings = settings
-        self.runtime = runtime
+        self.runtime = runtime or RuntimeSettings(settings)
         self.client: MelomancerClient | None = None
         self.status = "disabled"  # disabled | starting | ready | login_failed | error
         self.loop: asyncio.AbstractEventLoop | None = None
@@ -464,13 +464,12 @@ class BotManager:
 
     def gain_for(self, item: QueueItem) -> float:
         """Linear loudness gain for a track: 1.0 when evening-out is off or the track has not been measured."""
-        enabled = self.runtime.normalize if self.runtime else self.settings.normalize_volume
-        if not enabled:
+        if not self.runtime.normalize:
             return 1.0
-        return linear_gain(item.loudness, item.peak, self.settings.normalize_target, self.settings.normalize_max_boost)
+        return linear_gain(item.loudness, item.peak, self.runtime.target, self.runtime.max_boost)
 
     def refresh_gain(self) -> None:
-        """The administrator switched loudness evening-out: apply it to what is playing right now."""
+        """The administrator changed the loudness settings: apply them to what is playing right now."""
         for player in self._players.values():
             player.refresh_gain()
 

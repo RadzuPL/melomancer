@@ -1117,16 +1117,23 @@ async function viewAdmin(main) {
   const pass = h("input", { type: "password", placeholder: tr("password") + " (" + tr("min_chars", { n: 10 }) + ")", autocomplete: "new-password" });
   const role = h("select", {}, h("option", { value: "user" }, tr("role.user")), h("option", { value: "admin" }, tr("role.admin")));
 
-  const normBox = h("input", { type: "checkbox", checked: system.normalize, onchange: async (e) => {
-    try { state.system = await api("PATCH", "/api/system", { normalize: e.target.checked }); toast(tr("saved"), "ok"); refresh(); }
-    catch (err) { e.target.checked = !e.target.checked; fail(err); }
-  } });
+  const saveNormalize = async (body) => {
+    try { state.system = await api("PATCH", "/api/system", body); toast(tr("saved"), "ok"); } catch (err) { fail(err); }
+    refresh();
+  };
+  const normBox = h("input", { type: "checkbox", checked: system.normalize, onchange: (e) => saveNormalize({ normalize: e.target.checked }) });
+  const normNumber = (key, min, max, label) => h("label", { class: "row" }, label,
+    h("input", { type: "number", min, max, step: 1, value: system[key], disabled: !system.normalize, "aria-label": label,
+      onchange: (e) => saveNormalize({ [key]: Math.min(max, Math.max(min, Number(e.target.value))) }) }));
   const loud = system.loudness;
 
   put(main, 
     h("div", { class: "card" }, h("h2", {}, tr("system")),
       h("div", {}, "Melomancer " + system.version), h("div", {}, tr("bot_status") + ": " + tr("bot." + system.bot_status)),
-      h("label", { class: "row" }, normBox, tr("normalize_label", { target: system.normalize_target })),
+      h("label", { class: "row" }, normBox, tr("normalize_label")),
+      h("div", { class: "row" },
+        normNumber("normalize_target", -30, -8, tr("normalize_target")),
+        normNumber("normalize_max_boost", 0, 12, tr("normalize_boost"))),
       h("div", { class: "muted small" }, tr("normalize_hint")),
       h("div", { class: "muted small" }, tr("normalize_status", { measured: loud.measured, total: loud.total })
         + (loud.waiting ? " · " + tr("normalize_waiting", { n: loud.waiting }) : ""))),

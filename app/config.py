@@ -50,9 +50,6 @@ class Settings:
     ytdlp_cookies_file: str
     idle_leave_minutes: int
     default_volume: float
-    normalize_volume: bool
-    normalize_target: float
-    normalize_max_boost: float
     login_max_failures: int
     login_window_seconds: int
     log_level: str
@@ -83,9 +80,6 @@ class Settings:
             ytdlp_cookies_file=os.getenv("YTDLP_COOKIES_FILE", "").strip(),
             idle_leave_minutes=_env_int("IDLE_LEAVE_MINUTES", 30, 0),
             default_volume=_env_float("DEFAULT_VOLUME", 0.4, 0.0, 1.5),
-            normalize_volume=_env_bool("NORMALIZE_VOLUME", True),
-            normalize_target=_env_float("NORMALIZE_TARGET_LUFS", -16.0, -30.0, -8.0),
-            normalize_max_boost=_env_float("NORMALIZE_MAX_BOOST_DB", 6.0, 0.0, 12.0),
             login_max_failures=_env_int("LOGIN_MAX_FAILURES", 5, 1),
             login_window_seconds=_env_int("LOGIN_WINDOW_SECONDS", 300, 10),
             log_level=os.getenv("LOG_LEVEL", "INFO").strip().upper() or "INFO",

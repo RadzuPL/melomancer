@@ -26,6 +26,12 @@ MIN_GAIN_DB = -24.0      # a very loud track is never turned down by more than t
 MEASURE_TIMEOUT = 900
 IDLE_POLL_SECONDS = 15
 SETTING_NORMALIZE = "normalize"
+SETTING_TARGET = "normalize_target"
+SETTING_BOOST = "normalize_max_boost"
+DEFAULT_TARGET = -16.0               # LUFS: a comfortable level for music over Discord, with some headroom
+DEFAULT_MAX_BOOST = 6.0              # dB: a very quiet track is raised by at most this much
+TARGET_RANGE = (-30.0, -8.0)
+BOOST_RANGE = (0.0, 12.0)
 
 
 def measure(path: Path) -> tuple[float, float] | None:
@@ -66,23 +72,41 @@ def linear_gain(loudness: float | None, peak: float | None, target: float, max_b
 
 
 class RuntimeSettings:
-    """Settings an administrator can change while the bot runs. The environment gives the starting value."""
+    """Settings an administrator changes in the panel while the bot runs; they are kept in the database."""
 
     def __init__(self, settings: Settings) -> None:
         self._settings = settings
-        self.normalize = settings.normalize_volume
+        self.normalize = True
+        self.target = DEFAULT_TARGET
+        self.max_boost = DEFAULT_MAX_BOOST
 
     def load(self) -> None:
         with tx(self._settings.db_path) as conn:
-            row = conn.execute("SELECT value FROM app_settings WHERE key=?", (SETTING_NORMALIZE,)).fetchone()
-        if row:
-            self.normalize = row["value"] == "1"
+            stored = {r["key"]: r["value"] for r in conn.execute("SELECT key, value FROM app_settings")}
+        if SETTING_NORMALIZE in stored:
+            self.normalize = stored[SETTING_NORMALIZE] == "1"
+        for key, attr, (low, high) in ((SETTING_TARGET, "target", TARGET_RANGE), (SETTING_BOOST, "max_boost", BOOST_RANGE)):
+            try:
+                setattr(self, attr, min(max(float(stored[key]), low), high))
+            except (KeyError, ValueError):
+                pass  # not set (or damaged): the default stays
 
-    def set_normalize(self, enabled: bool) -> None:
+    def update(self, *, normalize: bool | None = None, target: float | None = None,
+               max_boost: float | None = None) -> None:
+        changes: dict[str, str] = {}
+        if normalize is not None:
+            self.normalize = normalize
+            changes[SETTING_NORMALIZE] = "1" if normalize else "0"
+        if target is not None:
+            self.target = min(max(float(target), TARGET_RANGE[0]), TARGET_RANGE[1])
+            changes[SETTING_TARGET] = f"{self.target:g}"
+        if max_boost is not None:
+            self.max_boost = min(max(float(max_boost), BOOST_RANGE[0]), BOOST_RANGE[1])
+            changes[SETTING_BOOST] = f"{self.max_boost:g}"
         with tx(self._settings.db_path) as conn:
-            conn.execute("INSERT INTO app_settings(key, value) VALUES (?, ?) "
-                         "ON CONFLICT(key) DO UPDATE SET value=excluded.value", (SETTING_NORMALIZE, "1" if enabled else "0"))
-        self.normalize = enabled
+            for key, value in changes.items():
+                conn.execute("INSERT INTO app_settings(key, value) VALUES (?, ?) "
+                             "ON CONFLICT(key) DO UPDATE SET value=excluded.value", (key, value))
 
 
 def counts(settings: Settings) -> dict:
