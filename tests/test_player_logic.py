@@ -256,17 +256,26 @@ def test_seek_uses_the_short_scrub_fade(rig):
     assert levels[-1] == 1000 and len(rig.player._mixer.layers()) == 1  # the old position faded out and was dropped
 
 
+def settled(rig, frames=80):
+    """The level after the volume has had time to glide to where it was told to go."""
+    level = None
+    for _ in range(frames):
+        level = pull(rig)
+    return level
+
+
 def test_loudness_gain_and_volume_multiply_and_follow_changes(rig):
     rig.manager.gain_for = lambda item: 0.5
     start(rig)
     rig.player.set_volume(0.4)
     settle(rig)
-    assert pull(rig) == 200                                     # 1000 * volume 0.4 * gain 0.5
+    assert settled(rig) == 200                                  # 1000 * volume 0.4 * gain 0.5
     rig.player.set_volume(0.8)
-    assert pull(rig) == 400
+    assert 200 < pull(rig) < 400                                # glides there, it does not jump
+    assert settled(rig) == 400                                  # the slider and the gain multiply
     rig.manager.gain_for = lambda item: 1.0                     # the administrator switched evening-out off
     rig.player.refresh_settings()
-    assert pull(rig) == 800
+    assert settled(rig) == 800
 
 
 def test_a_new_playlist_is_crossfaded_into_the_running_one(rig):

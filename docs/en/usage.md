@@ -75,7 +75,7 @@ Below the controls the **tracks of the playing playlist** are listed, the curren
 
 The progress bar of the current track is also a **seek bar**: drag it or click a point to jump there, handy for tracks that take a long time to get going. The new position fades in over the old one (a short cross-fade, 0.3 s by default), so there is no click or gap. A paused player stays paused and makes the jump when you resume.
 
-Controls: previous, pause/resume, next, stop, loop, shuffle and the **volume** slider (0 to 150 %). Volume changes apply immediately. Players can also lower the bot individually in Discord.
+Controls: previous, pause/resume, next, stop, loop, shuffle and the **volume** slider (0 to 150 %). The bot follows the slider while you drag it, and it glides between volumes over a fraction of a second, so even a click from 100 % to 10 % is a smooth fade, not a jolt. The same goes for the loudness evening-out being switched on or off. Players can also lower the bot individually in Discord.
 
 **Connect / Disconnect / Move here** manage the bot's presence in the channel. Playing a playlist on another channel needs a click on **Move here** first.
 

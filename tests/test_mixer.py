@@ -244,3 +244,43 @@ def test_stop_at_counts_from_the_position_in_the_file_not_from_the_start_of_the_
     m = Mixer()
     start(m, Tone(7000, 500), offset=0.6, stop_at=1.0)   # starts 0.6 s into the file: 0.4 s = 20 frames left
     assert len(drain(m)) == 20
+
+
+def test_a_volume_change_glides_instead_of_jumping():
+    m = Mixer(volume=1.0)
+    start(m, Tone(10000, 2000))
+    assert [level(read_audio(m)) for _ in range(3)] == [10000] * 3
+    m.volume = 0.1                                   # the slider was clicked at 10 % while it stood at 100 %
+    levels = [level(read_audio(m)) for _ in range(60)]
+    steps = [a - b for a, b in zip([10000] + levels, levels)]
+    assert 5000 < levels[0] < 10000, levels[:3]      # the first frame has hardly moved
+    assert max(steps) < 2500 and min(steps) >= 0, steps[:5]   # no frame drops by more than a quarter of the range
+    assert levels == sorted(levels, reverse=True)    # a smooth descent, no overshoot
+    assert levels[-1] == 1000                        # and it lands exactly on the target
+
+
+def test_raising_the_volume_glides_too_and_never_overshoots():
+    m = Mixer(volume=0.1)
+    start(m, Tone(10000, 2000))
+    read_audio(m)
+    m.volume = 1.0
+    levels = [level(read_audio(m)) for _ in range(60)]
+    assert levels == sorted(levels) and max(levels) <= 10000 and levels[-1] == 10000
+    assert levels[0] < 3000
+
+
+def test_a_change_of_the_loudness_gain_glides_as_well():
+    m = Mixer()
+    layer = start(m, Tone(10000, 2000))
+    read_audio(m)
+    layer.gain = 0.5                                 # the administrator switched evening-out on
+    levels = [level(read_audio(m)) for _ in range(60)]
+    assert levels[0] > 8000 and levels == sorted(levels, reverse=True) and levels[-1] == 5000
+
+
+def test_a_new_layer_starts_at_its_gain_without_gliding_up_from_nothing():
+    m = Mixer(volume=0.5)
+    layer = Layer(Tone(10000, 100), gain=0.5)
+    assert m.switch_to(layer, 0, 0)
+    ready(layer)
+    assert level(read_audio(m)) == 2500

@@ -75,7 +75,7 @@ Pod przyciskami widać **listę utworów grającej playlisty** z podświetlonym 
 
 Pasek postępu bieżącego utworu jest też **suwakiem przewijania**: przeciągnij go albo kliknij w wybranym miejscu, żeby tam skoczyć, co przydaje się przy utworach, które długo się rozkręcają. Nowe miejsce wchodzi płynnie na stare (krótkie przejście, domyślnie 0,3 s), więc nie ma trzasku ani przerwy. Wstrzymany odtwarzacz zostaje wstrzymany i skacze dopiero po wznowieniu.
 
-Sterowanie: poprzedni, pauza/wznów, następny, stop, pętla, losowo oraz suwak **głośności** (0 do 150 %). Zmiany głośności działają od razu. Gracze mogą też osobno ściszyć bota w Discordzie.
+Sterowanie: poprzedni, pauza/wznów, następny, stop, pętla, losowo oraz suwak **głośności** (0 do 150 %). Bot idzie za suwakiem podczas przeciągania i przechodzi między głośnościami płynnie, w ułamku sekundy, więc nawet kliknięcie ze 100 % na 10 % jest gładkim ściszeniem, a nie szarpnięciem. To samo dotyczy włączania i wyłączania wyrównywania głośności. Gracze mogą też osobno ściszyć bota w Discordzie.
 
 **Połącz / Rozłącz / Przenieś tutaj** zarządzają obecnością bota na kanale. Odpalenie playlisty na innym kanale wymaga najpierw kliknięcia **Przenieś tutaj**.
 

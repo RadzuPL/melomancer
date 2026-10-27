@@ -204,6 +204,24 @@ function parsePoint(text) {
   return m ? (m[1] ? Number(m[1]) * 60 : 0) + Number(m[2]) : NaN;
 }
 
+/* Runs fn at most once per `ms` while it is called over and over, with the latest arguments, and once more at the end. */
+function throttle(fn, ms) {
+  let last = 0, timer = null, pending = null;
+  return (...args) => {
+    pending = args;
+    const wait = ms - (Date.now() - last);
+    if (wait <= 0) {
+      clearTimeout(timer);
+      timer = null;
+      last = Date.now();
+      fn(...pending);
+      pending = null;
+    } else if (!timer) {
+      timer = setTimeout(() => { timer = null; last = Date.now(); if (pending) { fn(...pending); pending = null; } }, wait);
+    }
+  };
+}
+
 function debounce(fn, ms) {
   let timer = null;
   return (...args) => { clearTimeout(timer); timer = setTimeout(() => fn(...args), ms); };
@@ -567,9 +585,14 @@ async function viewPlayer(main) {
   const shuffleB = h("button", { class: "btn", onclick: () => options({ shuffle: !(ps.st && ps.st.shuffle) }) }, "🔀 " + tr("shuffle"));
   const volLabel = h("span", { class: "small", }, "");
   let dragging = false;
-  const sendVolume = debounce(async (v) => { try { applyState(await api("POST", `/api/player/${ps.guildId}/volume`, { volume: v / 100 })); } catch (err) { fail(err); } }, 150);
+  // The bot follows the slider while it is dragged (the server glides between the values, so it sounds smooth).
+  // Requests go out one after another, so that an older value can never arrive after a newer one.
+  let volumeChain = Promise.resolve();
+  const postVolume = (v) => { volumeChain = volumeChain.then(() => api("POST", `/api/player/${ps.guildId}/volume`, { volume: v / 100 })); return volumeChain; };
+  const sendVolume = throttle((v) => { postVolume(v).catch(fail); }, 80);
   const vol = h("input", { type: "range", min: 0, max: 150, step: 1, value: 40, "aria-label": tr("volume"),
-    onpointerdown: () => { dragging = true; }, onpointerup: () => { dragging = false; }, onchange: () => { dragging = false; },
+    onpointerdown: () => { dragging = true; }, onpointerup: () => { dragging = false; },
+    onchange: async (e) => { dragging = false; try { applyState(await postVolume(Number(e.target.value))); } catch (err) { fail(err); } },
     oninput: (e) => { volLabel.textContent = e.target.value + "%"; sendVolume(Number(e.target.value)); } });
   const padsBox = h("div", {});
   const quickChips = h("div", { class: "quickchips" });
