@@ -263,9 +263,17 @@ function render() {
       h("span", { class: "grow" }),
       h("div", { class: "hdr-right" }, themeMenu(), langToggle(), userMenu())),
     main,
-    h("footer", { class: "foot" }, "Melomancer " + (state.system ? state.system.version : "")));
+    footer());
   const views = { player: viewPlayer, library: viewLibrary, playlists: viewPlaylists, downloads: viewDownloads, admin: viewAdmin };
   views[state.tab](main).catch(fail);
+}
+
+const REPO_URL = "https://github.com/RadzuPL/melomancer";
+function footer() {
+  const link = (href, text) => h("a", { href, target: "_blank", rel: "noopener noreferrer" }, text);
+  const version = state.system ? state.system.version : "";
+  return h("footer", { class: "foot" }, link(REPO_URL, "Melomancer"), " ",
+    version ? link(REPO_URL + "/releases", version) : null, " · by ", link("https://radzu.net/", "Radzu"));
 }
 
 /* A button that opens a small list. `items` is a function so that the list is current each time it opens. */
