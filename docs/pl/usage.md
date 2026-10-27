@@ -2,7 +2,7 @@
 
 Języki: [English](../en/usage.md) · **Polski**
 
-Panel ma pięć zakładek: **Odtwarzacz**, **Biblioteka**, **Playlisty**, **Pobieranie** i, dla administratorów, **Administracja**. Po prawej w górnym pasku są trzy małe kontrolki: ikona **motywu** (automatyczny, jasny lub ciemny; automatyczny podąża za systemem, jasny jest celowo stonowany, a nie biały, wybór zapamiętuje przeglądarka), znacznik **PL / EN** (kliknięcie przełącza język, zapamiętywany dla każdego użytkownika) oraz **nazwa użytkownika**, która otwiera menu ze **Zmień hasło** i **Wyloguj**.
+Panel ma pięć zakładek: **Odtwarzacz**, **Biblioteka**, **Playlisty**, **Pobieranie** i, dla administratorów, **Administracja**. Po prawej w górnym pasku są trzy małe kontrolki: ikona **motywu** (każde kliknięcie przełącza na następny: automatyczny, jasny, ciemny; automatyczny podąża za systemem, jasny jest celowo stonowany, a nie biały, wybór zapamiętuje przeglądarka), znacznik **PL / EN** (kliknięcie przełącza język, zapamiętywany dla każdego użytkownika) oraz **nazwa użytkownika**, która otwiera menu ze **Zmień hasło** i **Wyloguj**.
 
 ## Idea w minutę
 

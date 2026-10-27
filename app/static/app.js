@@ -310,11 +310,21 @@ function langToggle() {
 
 function themeMenu() {
   const icons = { auto: "◐", light: "☀", dark: "☾" };
-  const trigger = h("button", { class: "ghost icon-only", title: tr("theme"), "aria-label": tr("theme") }, icons[MelomancerTheme.get()]);
-  return menu(trigger, () => ["auto", "light", "dark"].map((mode) => ({
-    label: icons[mode] + "  " + tr("theme_" + mode), active: MelomancerTheme.get() === mode,
-    onclick: () => { MelomancerTheme.set(mode); trigger.textContent = icons[mode]; },
-  })));
+  const order = ["auto", "light", "dark"];
+  const button = h("button", { class: "ghost icon-only" });
+  const paint = () => {
+    const mode = MelomancerTheme.get();
+    const label = tr("theme") + ": " + tr("theme_" + mode);
+    button.textContent = icons[mode];
+    button.title = label;
+    button.setAttribute("aria-label", label);
+  };
+  button.addEventListener("click", () => {
+    MelomancerTheme.set(order[(order.indexOf(MelomancerTheme.get()) + 1) % order.length]);
+    paint();
+  });
+  paint();
+  return button;
 }
 
 function userMenu() {
