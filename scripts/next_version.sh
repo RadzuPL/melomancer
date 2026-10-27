@@ -4,9 +4,11 @@
 #   HEAD already carries a vX.Y.Z tag  -> that version (re-runs do not burn numbers)
 #   no vX.Y.Z tag exists yet           -> 0.1.0
 #   otherwise the newest tag, bumped according to the commit messages since it:
-#       "BREAKING CHANGE" or "type!:"  -> major
-#       "feat:" / "feat(scope):"       -> minor
-#       anything else                  -> patch
+#       "[major]" anywhere             -> major (X+1.0.0)
+#       "[minor]" anywhere             -> minor (X.Y+1.0)
+#       anything else                  -> patch (X.Y.Z+1)
+#   The type of a commit ("feat:", "fix:" ...) does not matter: only the markers do, so the middle and
+#   the first number change only when you ask for it.
 #
 # NO_BUMP=1 prints the newest existing version without bumping (used by the weekly rebuild,
 # which only refreshes the image and must not create a release).
@@ -36,9 +38,9 @@ fi
 IFS=. read -r major minor patch <<<"${last#v}"
 log=$(git log --format=%B "${last}..HEAD")
 
-if grep -Eq 'BREAKING CHANGE|^[a-z]+(\([^)]*\))?!:' <<<"$log"; then
+if grep -Fq '[major]' <<<"$log"; then
   major=$((major + 1)); minor=0; patch=0
-elif grep -Eq '^feat(\([^)]*\))?:' <<<"$log"; then
+elif grep -Fq '[minor]' <<<"$log"; then
   minor=$((minor + 1)); patch=0
 else
   patch=$((patch + 1))

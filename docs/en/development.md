@@ -59,13 +59,13 @@ The workflow `.github/workflows/build.yml` does the following:
 | Monday 03:23 UTC (schedule) | yes | rebuilt with fresh base image and the newest yt-dlp, pushed as `latest` and the current version | none |
 | Manual run | yes | like a push | like a push |
 
-The version is computed by `scripts/next_version.sh` from the newest `vX.Y.Z` tag and the commit messages since it:
+The version is computed by `scripts/next_version.sh` from the newest `vX.Y.Z` tag and the commit messages since it. Every push to `main` is a patch release (`0.6.1`, `0.6.2` ...). The first or the middle number changes only when a commit message asks for it:
 
-| Commit message | Bump |
+| Commit message contains | Bump |
 |---|---|
-| contains `BREAKING CHANGE`, or a subject like `refactor!: ...` | major |
-| subject starts with `feat:` or `feat(scope):` | minor |
-| anything else (`fix:`, `docs:`, `ci:` ...) | patch |
+| `[major]` | major (`1.0.0`) |
+| `[minor]` | minor (`0.7.0`) |
+| nothing special (`feat:`, `fix:`, `docs:` ... are all the same) | patch |
 
 The first release is `0.1.0`. The version is baked into the image (`APP_VERSION`, shown in the panel footer and `/api/health`). The tag is created only after the image was pushed, so a failed build does not use up a number. The `latest` tag is what Watchtower follows.
 

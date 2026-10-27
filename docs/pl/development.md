@@ -59,13 +59,13 @@ Workflow `.github/workflows/build.yml` robi to:
 | Poniedziałek 03:23 UTC (harmonogram) | tak | przebudowany ze świeżym obrazem bazowym i najnowszym yt-dlp, wypchnięty jako `latest` i bieżąca wersja | brak |
 | Uruchomienie ręczne | tak | jak push | jak push |
 
-Wersję liczy `scripts/next_version.sh` z najnowszego tagu `vX.Y.Z` i komunikatów commitów od niego:
+Wersję liczy `scripts/next_version.sh` z najnowszego tagu `vX.Y.Z` i komunikatów commitów od niego. Każdy push na `main` to wydanie poprawkowe (`0.6.1`, `0.6.2` ...). Pierwsza lub środkowa liczba zmienia się tylko wtedy, gdy komunikat commita o to prosi:
 
-| Komunikat commita | Podbicie |
+| Komunikat commita zawiera | Podbicie |
 |---|---|
-| zawiera `BREAKING CHANGE` albo temat w rodzaju `refactor!: ...` | major |
-| temat zaczyna się od `feat:` lub `feat(zakres):` | minor |
-| cokolwiek innego (`fix:`, `docs:`, `ci:` ...) | patch |
+| `[major]` | major (`1.0.0`) |
+| `[minor]` | minor (`0.7.0`) |
+| nic szczególnego (`feat:`, `fix:`, `docs:` ... wszystkie tak samo) | patch |
 
 Pierwsze wydanie to `0.1.0`. Wersja jest wpisana w obraz (`APP_VERSION`, widoczna w stopce panelu i w `/api/health`). Tag powstaje dopiero po wypchnięciu obrazu, więc nieudana budowa nie zużywa numeru. Tag `latest` śledzi Watchtower.
 
