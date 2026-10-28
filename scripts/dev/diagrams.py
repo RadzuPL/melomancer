@@ -86,12 +86,12 @@ TEXT = {
         "bot": "BotManager", "bot_sub": ("one GuildPlayer per server", "Mixer: layers, cross-fades,", "loudness gain, volume glide"),
         "dl": "Downloader", "dl_sub": "yt-dlp + ffmpeg, rate limits",
         "ld": "Loudness worker", "ld_sub": "ffmpeg: loudness and silence",
-        "db": "SQLite", "db_sub": ("/data/melomancer.db", "users, tracks, playlists, settings"),
-        "files": "Music files", "files_sub": ("/data/music/<id>.<ext>", "one shared library"),
+        "db": "SQLite", "db_sub": ("melomancer.db", "users, tracks, playlists, settings"),
+        "files": "Music files", "files_sub": ("music/<id>.<ext>", "one shared library"),
         "discord": "Discord", "discord_sub": ("gateway + voice (UDP)", "end-to-end encrypted (DAVE)"),
         "src": "Internet", "src_sub": ("YouTube, SoundCloud, Bandcamp", "added by URL, downloaded once"),
         "https": "HTTPS", "voice": "voice (Opus)", "state": "play, volume, ...", "queue": "job queue",
-        "sql": "data", "measures": "measures", "writes": "saves", "fetch": "yt-dlp", "stream": "audio stream (Play here)",
+        "sql": "data", "audio": "audio", "reads": "ffmpeg", "data_group": "Data volume (/data)", "measures": "measures", "writes": "saves", "fetch": "yt-dlp", "stream": "audio stream (Play here)",
         # playback
         "decides": "The server decides what plays",
         "decides_sub": "playlist, tag selection or one track  →  queue with where each track starts and ends and its loudness gain (app/playback.py)",
@@ -116,12 +116,12 @@ TEXT = {
         "bot": "BotManager", "bot_sub": ("jeden GuildPlayer na serwer", "Mikser: warstwy, przejścia,", "wzmocnienie głośności, glide"),
         "dl": "Downloader", "dl_sub": "yt-dlp + ffmpeg, limity",
         "ld": "Pomiar głośności", "ld_sub": "ffmpeg: głośność i cisza",
-        "db": "SQLite", "db_sub": ("/data/melomancer.db", "użytkownicy, utwory, playlisty"),
-        "files": "Pliki muzyczne", "files_sub": ("/data/music/<id>.<ext>", "jedna wspólna biblioteka"),
-        "discord": "Discord", "discord_sub": ("gateway + głos (UDP)", "szyfrowanie end-to-end (DAVE)"),
+        "db": "SQLite", "db_sub": ("melomancer.db", "użytkownicy, utwory, playlisty"),
+        "files": "Pliki muzyczne", "files_sub": ("music/<id>.<ext>", "jedna wspólna biblioteka"),
+        "discord": "Discord", "discord_sub": ("gateway + głos (UDP)", "szyfrowanie E2E (DAVE)"),
         "src": "Internet", "src_sub": ("YouTube, SoundCloud, Bandcamp", "dodawane po URL, pobierane raz"),
         "https": "HTTPS", "voice": "głos (Opus)", "state": "graj, głośność, ...", "queue": "kolejka zadań",
-        "sql": "dane", "measures": "mierzy", "writes": "zapisuje", "fetch": "yt-dlp", "stream": "strumień audio (Odtwarzaj tutaj)",
+        "sql": "dane", "audio": "audio", "reads": "ffmpeg", "data_group": "Wolumen danych (/data)", "measures": "mierzy", "writes": "zapisuje", "fetch": "yt-dlp", "stream": "strumień audio (Odtwarzaj tutaj)",
         "decides": "Serwer decyduje, co gra",
         "decides_sub": "playlista, wybór tagów albo jeden utwór  →  kolejka z miejscem startu i końca każdego utworu i jego wzmocnieniem głośności (app/playback.py)",
         "lane_discord": "Na Discordzie (bot)", "lane_here": "Tutaj (przeglądarka)", "either": "albo / albo",
@@ -141,39 +141,45 @@ TEXT = {
 
 def overview(lang: str, theme: str) -> str:
     t = TEXT[lang]
-    s = Svg(1200, 700, theme)
+    s = Svg(1200, 710, theme)
     # the browser, and what is outside the container on the left
-    s.box(30, 70, 210, 380, "", fill="none", stroke="blue", dash=True)
-    s.text(135, 95, t["browser"], size=15, weight=700, color="blue")
-    s.box(45, 110, 180, 70, t["panel"], t["panel_sub"], fill="blue_bg", stroke="blue")
-    s.box(45, 330, 180, 80, t["local"], t["local_sub"], fill="blue_bg", stroke="blue")
-    s.text(135, 435, t["speakers"], size=12, color="muted")
-    s.box(262, 110, 130, 70, t["cf"], t["cf_sub"], fill="none", dash=True)
-    s.box(30, 470, 210, 80, t["src"], t["src_sub"], fill="none", dash=True)
+    s.box(10, 70, 225, 185, "", fill="none", stroke="blue", dash=True)
+    s.text(122, 87, t["browser"], size=15, weight=700, color="blue")
+    s.box(22, 98, 201, 52, t["panel"], t["panel_sub"], fill="blue_bg", stroke="blue")
+    s.box(22, 168, 201, 52, t["local"], t["local_sub"], fill="blue_bg", stroke="blue")
+    s.text(122, 241, t["speakers"], size=12, color="muted")
+    s.box(250, 95, 140, 125, t["cf"], t["cf_sub"], fill="none", dash=True)
+    s.box(10, 275, 225, 70, t["src"], t["src_sub"], fill="none", dash=True)
     # the container
-    s.box(410, 30, 490, 640, "", fill="none", stroke="accent")
-    s.text(655, 55, t["container"], size=15, weight=700, color="accent")
-    s.box(440, 70, 430, 150, t["api"], t["api_sub"], fill="accent_bg", stroke="accent")
-    s.box(440, 260, 210, 75, t["dl"], t["dl_sub"])
-    s.box(440, 355, 210, 75, t["ld"], t["ld_sub"])
-    s.box(670, 260, 200, 170, t["bot"], t["bot_sub"], fill="accent_bg", stroke="accent")
-    s.box(440, 480, 210, 90, t["db"], t["db_sub"], fill="green_bg", stroke="green")
-    s.box(670, 480, 200, 90, t["files"], t["files_sub"], fill="green_bg", stroke="green")
-    s.text(655, 652, t["loop"], size=12, color="muted")
+    s.box(420, 30, 490, 650, "", fill="none", stroke="accent")
+    s.text(665, 55, t["container"], size=15, weight=700, color="accent")
+    s.box(450, 70, 430, 135, t["api"], t["api_sub"], fill="accent_bg", stroke="accent")
+    s.box(450, 270, 200, 80, t["dl"], t["dl_sub"])
+    s.box(450, 365, 200, 75, t["ld"], t["ld_sub"])
+    s.box(700, 270, 180, 170, t["bot"], t["bot_sub"], fill="accent_bg", stroke="accent")
+    # the data volume: the database and the music files
+    s.box(440, 490, 450, 130, "", fill="none", stroke="green", dash=True)
+    s.text(665, 609, t["data_group"], size=12, color="muted")
+    s.box(455, 505, 195, 80, t["db"], t["db_sub"], fill="green_bg", stroke="green")
+    s.box(700, 505, 180, 80, t["files"], t["files_sub"], fill="green_bg", stroke="green")
+    s.text(665, 662, t["loop"], size=12, color="muted")
     # Discord, on the right
-    s.box(950, 260, 220, 170, t["discord"], t["discord_sub"], fill="disc_bg", stroke="disc", color="disc_ink")
-    # the panel talks to the API
-    s.arrow([(225, 145), (262, 145)], color="blue")
-    s.arrow([(392, 145), (440, 145)], color="blue", both=True)
-    s.text(327, 100, t["https"], size=12, color="blue", weight=600)
-    # inside
-    s.arrow([(770, 220), (770, 260)], t["state"], at=(780, 245), anchor="start")
-    s.arrow([(660, 220), (660, 525), (650, 525)], color="green")
-    s.arrow([(545, 430), (545, 480)], t["measures"], at=(553, 462), anchor="start", color="green")
-    s.arrow([(870, 345), (950, 345)], t["voice"], at=(910, 336))
-    # downloads come in from the Internet; the audio goes out to the browser
-    s.arrow([(240, 510), (425, 510), (425, 298), (440, 298)], t["fetch"], at=(332, 502), color="blue")
-    s.arrow([(770, 570), (770, 625), (330, 625), (330, 370), (225, 370)], t["stream"], at=(550, 617), color="blue")
+    s.box(985, 270, 200, 170, t["discord"], t["discord_sub"], fill="disc_bg", stroke="disc", color="disc_ink")
+    # the browser talks to the API through the (optional) Cloudflare tunnel: the panel, and the audio of "Play here"
+    s.arrow([(223, 120), (450, 120)], color="blue", both=True)
+    s.text(320, 111, t["https"], size=12, color="blue", weight=600)
+    s.arrow([(450, 195), (223, 195)], color="blue")
+    s.text(320, 212, t["audio"], size=12, color="blue", weight=600)
+    # inside the container
+    s.arrow([(550, 205), (550, 270)], t["queue"], at=(558, 243), anchor="start", color="blue")
+    s.arrow([(790, 205), (790, 270)], t["state"], at=(798, 243), anchor="start")
+    s.arrow([(675, 205), (675, 490)], color="green", both=True)
+    s.text(675, 349, t["sql"], size=12, color="green", weight=600)
+    s.arrow([(550, 440), (550, 505)], t["measures"], at=(558, 475), anchor="start", color="green")
+    s.arrow([(790, 505), (790, 440)], t["reads"], at=(798, 473), anchor="start", color="green")
+    s.arrow([(880, 355), (985, 355)], t["voice"], at=(932, 346))
+    # downloads come in from the Internet, in a straight line
+    s.arrow([(235, 310), (450, 310)], t["fetch"], at=(342, 301), color="blue")
     return s.render()
 
 
