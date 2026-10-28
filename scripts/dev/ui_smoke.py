@@ -497,6 +497,26 @@ with sync_playwright() as p:
     connect_btn = page.get_by_role("button", name="Połącz", exact=True)
     here_btn = page.get_by_role("button", name="Odtwarzaj tutaj")
     assert connect_btn.is_enabled() and here_btn.is_enabled(), "both ways are open while the bot is not connected"
+    # a playlist pressed while the bot is not connected is only loaded: nothing connects, nothing plays
+    assert "primary" in here_btn.get_attribute("class") and "primary" in connect_btn.get_attribute("class"), "both buttons look alike"
+    mark = len(calls)
+    page.locator(".pad", has_text="Walka").click()
+    page.wait_for_timeout(300)
+    assert not [c for c in calls[mark:] if c.startswith("POST")], calls[mark:]
+    assert "Wybrana: Walka" in page.inner_text(".now .title") and page.locator(".pad.armed").count() == 1
+    assert page.get_by_role("button", name="Pauza / wznów").is_disabled(), "cannot start before connecting"
+    STATE.update(connected=True, channel_id="1001", channel_name="Voice A")
+    connect_btn.click()
+    page.wait_for_timeout(300)
+    assert "POST /api/player/111/connect" in calls[mark:] and "POST /api/player/111/play" not in calls[mark:], "connecting does not start it"
+    assert page.get_by_role("button", name="Pauza / wznów").is_enabled()
+    page.get_by_role("button", name="Pauza / wznów").click()
+    page.wait_for_timeout(300)
+    assert _k.loads(bodies["/api/player/111/play"]) == {"playlist_id": 12}, bodies["/api/player/111/play"]
+    assert page.locator(".pad.armed").count() == 0
+    STATE.update(connected=False, channel_id=None, channel_name=None, state="idle")
+    page.reload()
+    page.wait_for_selector(".pad")
     here_btn.click()
     page.wait_for_timeout(300)
     assert page.get_by_role("button", name="Wyłącz odtwarzanie tutaj").count() == 1

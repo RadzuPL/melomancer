@@ -7,7 +7,7 @@ const state = {
   user: null, lang: "pl", tab: "player", system: null,
   tracks: [], tags: { shared: [], mine: [] }, sets: [], showAllSets: false,
   lib: { q: "", tag: "", mine: false, selected: new Set() },
-  player: { guilds: [], guildId: "", channelId: "", setId: "", st: null, stAt: 0, timer: null },
+  player: { guilds: [], guildId: "", channelId: "", setId: "", st: null, stAt: 0, timer: null, armed: null },
   pl: { selected: null, detail: null },
   dlTags: { shared: [], mine: [] }, upTags: { shared: [], mine: [] },
   quick: { tags: new Set(), mode: "any" },
@@ -584,7 +584,7 @@ async function viewPlayer(main) {
   const chanSel = h("select", { "aria-label": tr("channel"), onchange: (e) => { ps.channelId = e.target.value; pref("channel", ps.channelId); } });
   const status = h("span", { class: "badge" });
   const connectBtn = h("button", { class: "btn primary", onclick: toggleConnect });
-  const localBtn = h("button", { class: "btn", onclick: toggleLocal });
+  const localBtn = h("button", { class: "btn primary", onclick: toggleLocal });
   const localHint = h("p", { class: "muted small hidden" }, tr("local_hint"));
   const notice = system.bot_status !== "ready" ? h("div", { class: "notice" }, tr("bot." + system.bot_status)) : null;
   const titleEl = h("div", { class: "title" });
@@ -603,7 +603,10 @@ async function viewPlayer(main) {
   const timeEl = h("span", { class: "muted small" });
   const btn = (label, title, fn) => h("button", { class: "btn", title, "aria-label": title, onclick: fn }, label);
   const prevB = btn("⏮", tr("prev"), () => control("prev"));
-  const toggleB = btn("⏯", tr("pause_resume"), () => control(ps.st && ps.st.state === "paused" ? "resume" : "pause"));
+  const toggleB = btn("⏯", tr("pause_resume"), () => {
+    if (armedReady()) return playArmed();
+    control(ps.st && ps.st.state === "paused" ? "resume" : "pause");
+  });
   const nextB = btn("⏭", tr("next"), () => control("next"));
   const stopB = btn("⏹", tr("stop"), () => control("stop"));
   const loopB = h("button", { class: "btn", onclick: () => options({ loop: !(ps.st && ps.st.loop) }) }, "🔁 " + tr("loop"));
@@ -699,16 +702,20 @@ async function viewPlayer(main) {
     localHint.classList.toggle("hidden", !here);
     if (notice) notice.classList.toggle("hidden", here);
     const playing = s && s.state !== "idle";
-    titleEl.textContent = playing && s.now ? s.now.title : tr("nothing_playing");
-    subEl.textContent = playing && s.playlist ? s.playlist.name + (s.playlist.set ? " · " + s.playlist.set : "") + (s.controller ? " · " + s.controller : "") : "";
+    const armed = !playing && !here && ps.armed;
+    titleEl.textContent = playing && s.now ? s.now.title : (armed ? tr("armed_title", { name: ps.armed.name }) : tr("nothing_playing"));
+    subEl.textContent = playing && s.playlist ? s.playlist.name + (s.playlist.set ? " · " + s.playlist.set : "") + (s.controller ? " · " + s.controller : "")
+      : (armed ? tr(connected ? "armed_ready" : "armed_connect") : "");
     for (const b of [prevB, toggleB, nextB, stopB]) b.disabled = !playing;
-    toggleB.textContent = s && s.state === "paused" ? "▶" : "⏸";
+    toggleB.disabled = !playing && !armedReady();
+    toggleB.textContent = (s && s.state === "paused") || (!playing && armed) ? "▶" : "⏸";
     loopB.classList.toggle("on", !!(s && s.loop));
     shuffleB.classList.toggle("on", !!(s && s.shuffle));
     if (s && !dragging) { vol.value = Math.round(s.volume * 100); volUi.paint(); volLabel.textContent = vol.value + "%"; }
     paintQueue(s, playing);
     for (const pad of padsBox.querySelectorAll(".pad")) {
       pad.classList.toggle("active", !!(playing && s.playlist && String(s.playlist.id) === pad.dataset.id));
+      pad.classList.toggle("armed", !!(armed && ps.armed.target.playlist_id !== undefined && String(ps.armed.target.playlist_id) === pad.dataset.id));
     }
     tickBar();
   }
@@ -737,15 +744,9 @@ async function viewPlayer(main) {
   }
 
   async function playQuick() {
-    if (LocalPlayer.on) return playHere({ tags: [...state.quick.tags], mode: state.quick.mode });
-    if (!ps.guildId) return toast(tr("pick_server"), "err");
-    try {
-      if (!(ps.st && ps.st.connected)) {
-        if (!ps.channelId) return toast(tr("pick_channel"), "err");
-        await api("POST", `/api/player/${ps.guildId}/connect`, { channel_id: ps.channelId });
-      }
-      applyState(await api("POST", `/api/player/${ps.guildId}/play`, { tags: [...state.quick.tags], mode: state.quick.mode }));
-    } catch (err) { fail(err); }
+    const target = { tags: [...state.quick.tags], mode: state.quick.mode };
+    if (LocalPlayer.on) return playHere(target);
+    return playOnDiscord(target, "# " + target.tags.join(state.quick.mode === "all" ? " + " : " | "));
   }
 
   function paintQueue(s, playing) {
@@ -830,6 +831,7 @@ async function viewPlayer(main) {
         poll();
       } else {
         if (Preview.track) Preview.stop();
+        ps.armed = null;
         await LocalPlayer.enable();
         pref("local", "1");
         LocalPlayer.setVolume(Number(pref("local_volume") || 40) / 100);
@@ -839,14 +841,22 @@ async function viewPlayer(main) {
   }
   async function playPad(p) {
     if (LocalPlayer.on) return playHere({ playlist_id: p.id });
+    return playOnDiscord({ playlist_id: p.id }, p.name);
+  }
+  /* Never connects by itself: a bot that is not in a channel only gets the playlist loaded (selected, stopped).
+     The person connects on purpose, and then starts it with ▶ or by pressing the playlist again. */
+  async function playOnDiscord(target, name) {
     if (!ps.guildId) return toast(tr("pick_server"), "err");
+    if (!(ps.st && ps.st.connected)) { ps.armed = { target, name }; applyState(); return; }
     try {
-      if (!(ps.st && ps.st.connected)) {
-        if (!ps.channelId) return toast(tr("pick_channel"), "err");
-        await api("POST", `/api/player/${ps.guildId}/connect`, { channel_id: ps.channelId });
-      }
-      applyState(await api("POST", `/api/player/${ps.guildId}/play`, { playlist_id: p.id }));
+      ps.armed = null;
+      applyState(await api("POST", `/api/player/${ps.guildId}/play`, target));
     } catch (err) { fail(err); }
+  }
+  const armedReady = () => !LocalPlayer.on && !!ps.armed && !!(ps.st && ps.st.connected) && ps.st.state === "idle";
+  async function playArmed() {
+    const { target, name } = ps.armed;
+    await playOnDiscord(target, name);
   }
 
   fillChannels();

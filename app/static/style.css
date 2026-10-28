@@ -132,6 +132,7 @@ tr.selected { background: rgba(122, 82, 214, .18); }
 .pads { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: .6rem; }
 .pad { background: var(--panel-2); border: 1px solid var(--line); border-radius: var(--radius); padding: .8rem; text-align: left; cursor: pointer; color: var(--text); font: inherit; min-height: 4.2rem; }
 .pad:hover { border-color: var(--accent); }
+.pad.armed { border-style: dashed; border-color: var(--accent); }
 .pad.active { background: var(--accent-2); border-color: var(--accent); color: var(--on-accent); }
 .pad .count { color: var(--muted); font-size: .8rem; display: block; margin-top: .2rem; }
 .pad.active .count { color: rgba(255, 255, 255, .8); }
