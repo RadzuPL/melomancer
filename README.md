@@ -10,6 +10,8 @@
 
 A self-hosted Discord music bot with a web panel, made for tabletop RPG sessions. One shared music library, private **playlists** collected in **sets** (a game system or a scenario), optionally sorted into **folders** (for example locations or kinds of scenes), one-click playback into a voice channel, live volume control, and several game masters on one server, each with playlists the others cannot see.
 
+![The Player tab of the panel](docs/img/player.png)
+
 ### Features
 
 - Web panel (Polish and English) with its own user accounts. Put it behind Cloudflare Access for a second factor.
@@ -46,6 +48,10 @@ services:
       - ./data:/data
 ```
 
+### How it fits together
+
+![Melomancer: browser, container, Discord](docs/img/overview-en.svg)
+
 ### Documentation
 
 | | |
@@ -70,6 +76,8 @@ MIT, see [LICENSE](LICENSE). The software Melomancer uses and the container imag
 [Go to the English version ↑](#english)
 
 Własny bot muzyczny Discord z panelem webowym, stworzony na sesje RPG. Jedna wspólna biblioteka muzyki, prywatne **playlisty** zebrane w **zestawy** (system gry albo scenariusz), opcjonalnie podzielone na **foldery** (np. lokacje albo rodzaje scen), odpalanie jednym przyciskiem na kanale głosowym, regulacja głośności na żywo oraz kilku mistrzów gry na jednym serwerze, każdy z playlistami niewidocznymi dla pozostałych.
+
+![Zakładka Odtwarzacz w panelu](docs/img/player.png)
 
 ### Funkcje
 
@@ -106,6 +114,10 @@ services:
     volumes:
       - ./data:/data
 ```
+
+### Jak to jest zbudowane
+
+![Melomancer: przeglądarka, kontener, Discord](docs/img/overview-pl.svg)
 
 ### Dokumentacja
 

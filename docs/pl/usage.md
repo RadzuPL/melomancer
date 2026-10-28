@@ -24,6 +24,8 @@ Panel ma cztery zakładki dla wszystkich, **Odtwarzacz**, **Biblioteka**, **Play
 
 ## Biblioteka
 
+![Zakładka Biblioteka](../img/library.png)
+
 **Dodawanie muzyki.** Naciśnij **Wybierz pliki** albo **Wybierz folder**, albo przeciągnij pliki audio na przerywane pole. Wiele plików naraz to nie problem, wysyłane są jeden po drugim (po dwa równocześnie) z linijką stanu dla każdego. Obsługiwane typy: mp3, ogg, opus, flac, wav, m4a, aac, webm. Wgrywanie folderu może zamienić nazwy folderów na **tagi wspólne** (pole wyboru obok przycisków).
 
 Plik, który już jest w bibliotece (ta sama zawartość), nie zostanie dodany drugi raz: zobaczysz „już w bibliotece”. Jeśli utwór został wcześniej usunięty i wisi wyszarzony w czyjejś playliście, wgranie tego samego pliku przywraca go i wpis na playliście znów się „zapala”.
@@ -49,6 +51,8 @@ Plik, który już jest w bibliotece (ta sama zawartość), nie zostanie dodany d
 
 ## Playlisty
 
+![Zakładka Playlisty](../img/playlists.png)
+
 Po lewej twoje drzewo. Użyj **+ Zestaw**, potem przycisku **♪+** przy zestawie (nowa playlista wprost w zestawie) albo **📁+** (nowy folder). Folder ma własny **♪+** na playlisty w środku. Ołówek zmienia nazwę, krzyżyk usuwa, strzałki zmieniają kolejność. Usunięcie zestawu, grupy lub playlisty nigdy nie usuwa muzyki z biblioteki.
 
 Po prawej wybrana playlista.
@@ -65,6 +69,8 @@ Po prawej wybrana playlista.
 - Wyszarzony, przekreślony wpis to utwór usunięty z biblioteki. **Zastąp** pozwala wybrać inny utwór na to samo miejsce.
 
 ## Odtwarzacz
+
+![Zakładka Odtwarzacz](../img/player.png)
 
 1. Wybierz **serwer** i **kanał głosowy**. Bot musi być na tym serwerze (zobacz [Tworzenie bota Discord](discord-bot.md)). Panel pamięta twój ostatni wybór, kanał osobno dla każdego serwera, i proponuje go ponownie następnym razem, także w innej przeglądarce. Sam wybór nie łączy bota.
 2. Wybierz **zestaw**. Jego playlisty pojawią się jako przyciski, foldery jako nagłówki z playlistami pod spodem.

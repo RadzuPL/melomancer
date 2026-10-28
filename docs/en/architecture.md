@@ -4,6 +4,8 @@ Languages: **English** · [Polski](../pl/architecture.md)
 
 ## Overview
 
+![Melomancer: browser, container, Discord](../img/overview-en.svg)
+
 One Python process, one container:
 
 ```
@@ -81,6 +83,8 @@ user_prefs (user, key, value: the server and channel last chosen in the player)
 | Player of a Discord server | users granted that server, administrators | same, one controller at a time |
 
 ## Playback
+
+![Two ways to play the same playlist: on Discord and in the browser](../img/playback-en.svg)
 
 - One `GuildPlayer` per Discord server holds the queue (track ids, titles, paths), the order (shuffled or not), loop and shuffle flags, volume and the controlling user.
 - Each track is played through `FFmpegPCMAudio` wrapped in `PCMVolumeTransformer`. Changing the volume sets the transformer's volume, so it applies within a frame (20 ms).

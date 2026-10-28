@@ -24,6 +24,8 @@ The panel has four tabs for everyone, **Player**, **Library**, **Playlists** and
 
 ## Library
 
+![The Library tab](../img/library.png)
+
 **Adding music.** Press **Choose files** or **Choose folder**, or drag audio files onto the dashed area. Many files at once are fine, they are sent one after another (two at a time) with a status line for each. Accepted types: mp3, ogg, opus, flac, wav, m4a, aac, webm. Folder upload can turn folder names into **shared tags** (the checkbox next to the buttons).
 
 A file that is already in the library (same content) is not added twice: you see "already in the library". If the track was deleted earlier and still sits greyed out in somebody's playlist, uploading the same file brings it back and the playlist entry lights up again.
@@ -49,6 +51,8 @@ A file that is already in the library (same content) is not added twice: you see
 
 ## Playlists
 
+![The Playlists tab](../img/playlists.png)
+
 Left side: your tree. Use **+ Set**, then the **♪+** button on a set (new playlist directly in the set) or the **📁+** button (new folder). A folder has its own **♪+** for playlists inside it. The pencil renames, the cross deletes, the arrows change the order. Deleting a set, group or playlist never deletes music from the library.
 
 Right side: the selected playlist.
@@ -65,6 +69,8 @@ Right side: the selected playlist.
 - A greyed, struck-through entry is a track that was deleted from the library. **Replace** lets you pick another track for the same slot.
 
 ## Player
+
+![The Player tab](../img/player.png)
 
 1. Choose the **server** and the **voice channel**. The bot has to be on that server (see [Creating the Discord bot](discord-bot.md)). The panel remembers your last choice, the channel for each server separately, and offers it again next time, also in another browser. Choosing does not connect the bot.
 2. Choose a **set**. Its playlists appear as buttons, folders as headings with their playlists below.
