@@ -18,12 +18,12 @@ OUT = pathlib.Path(__file__).resolve().parents[2] / "docs" / "img"
 
 THEMES = {
     "light": dict(ink="#25222f", muted="#6c6779", line="#cfcbdb", page="#ffffff", grey="#f6f5f9",
-                  accent="#6a43c2", accent_bg="#efe9fb", blue="#2b6cb0", blue_bg="#e8f1fa",
-                  green="#2f855a", green_bg="#e6f4ec", disc="#5865f2", disc_bg="#eef0ff", disc_ink="#3a45c4"),
-    # GitHub's dark theme: page #0d1117, boxes a little lighter, the same hues brighter
+                  accent="#1668dc", accent_bg="#e6f4ff", blue="#08979c", blue_bg="#e6fffb",
+                  green="#389e0d", green_bg="#f6ffed", disc="#5865f2", disc_bg="#eef0ff", disc_ink="#3a45c4"),
+    # GitHub's dark theme: page #0d1117, boxes a little lighter, the same hues brighter (the blue is the panel's accent)
     "dark": dict(ink="#e6edf3", muted="#9198a1", line="#3d444d", page="#0d1117", grey="#151b23",
-                 accent="#a78bfa", accent_bg="#241c3d", blue="#58a6ff", blue_bg="#0f2236",
-                 green="#3fb950", green_bg="#0f2a1a", disc="#8b93ff", disc_bg="#1a1e3d", disc_ink="#aab0ff"),
+                 accent="#3c89e8", accent_bg="#111a2c", blue="#36cfc9", blue_bg="#112123",
+                 green="#6abe39", green_bg="#162312", disc="#8b93ff", disc_bg="#1a1e3d", disc_ink="#aab0ff"),
 }
 
 

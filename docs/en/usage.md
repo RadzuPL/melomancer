@@ -2,7 +2,7 @@
 
 Languages: **English** · [Polski](../pl/usage.md)
 
-The panel has four tabs for everyone, **Player**, **Library**, **Playlists** and **Downloads**, and two more for administrators: **Users** and **Settings**. At the right of the top bar there are three small controls: the **theme** icon (each click switches to the next one: automatic, light, dark; automatic follows your system, the light theme is deliberately soft rather than white, and the choice is remembered in the browser), the **PL / EN** marker (click to switch the language; it is remembered per user) and your **user name**, which opens a menu with **Change password** and **Log out**.
+The panel has four tabs for everyone, **Player**, **Library**, **Playlists** and **Downloads**, and two more for administrators: **Users** and **Settings**. At the right of the top bar there are three small controls: the **theme** icon (each click switches to the next one: automatic, light, dark; automatic follows your system, and the choice is remembered in the browser), the **PL / EN** marker (click to switch the language; it is remembered per user) and your **user name**, which opens a menu with **Change password** and **Log out**.
 
 ## The idea in one minute
 
