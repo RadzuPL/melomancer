@@ -79,7 +79,7 @@ Set `PUID` and `PGID` to the owner of the data folder on the host (Unraid: 99 an
 Move the data folder from `/mnt/user/...` to a direct pool path such as `/mnt/nvme/appdata/melomancer`. SQLite does not like the FUSE user share.
 
 **Unraid cannot pull the image: "unauthorized".**
-The package is private and the registry login is gone (the login does not survive a reboot on Unraid). See the first section of [Installation](installation.md): log in again, script the login, or make the package public.
+The official image is public, so this only happens with a private package, for example the image of your own fork, when the registry login is gone (it does not survive a reboot on Unraid). See the first section of [Installation](installation.md): log in again, script the login, or make the package public.
 
 **The panel looks old after an update.**
 Reload the page with Ctrl+F5. The page and its scripts carry the version number, so this normally happens by itself.

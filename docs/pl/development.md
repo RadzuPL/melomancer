@@ -48,6 +48,22 @@ node scripts/check_i18n.js
 
 Drugie polecenie zawodzi, gdy słowniki polski i angielski się różnią albo gdy `app.js` używa brakującego klucza.
 
+### Bez instalowania wszystkiego
+
+Tam, gdzie nie da się zainstalować zależności (piaskownica, goła maszyna), w `scripts/dev/` są dwa pomocniki. To wygoda, źródłem prawdy zostaje CI.
+
+```
+PYTHONPATH=scripts/dev/stubs python3.12 -W ignore scripts/dev/run_tests.py tests.test_mixer tests.test_player_logic tests.test_db
+```
+
+uruchamia testy miksera, playera i bazy bez pytesta, z atrapą modułu `discord` i prawdziwym ffmpegiem (Python 3.12, bo 3.13 nie ma `audioop`). Nie uruchomi testów, które potrzebują FastAPI.
+
+```
+python3 scripts/dev/ui_smoke.py
+```
+
+otwiera panel w bezgłowym Chromium z atrapą API (najpierw `pip install playwright` i `playwright install chromium`) i przechodzi przez każdy ekran. Dane atrapy zmieniaj razem z API.
+
 ## Ciągła integracja i wersje
 
 Workflow `.github/workflows/build.yml` robi to:

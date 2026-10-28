@@ -14,20 +14,17 @@ The image is built by GitHub Actions and published to the GitHub Container Regis
 ghcr.io/radzupl/melomancer:latest
 ```
 
-Because the repository is private, the package is private too by default. Pick one of these:
+The package is public, so no registry login is needed: `docker pull` and the Unraid template work as they are.
 
-**A. Log in to the registry on the machine that runs Docker** (keeps the image private).
-Create a classic personal access token with only the `read:packages` scope at https://github.com/settings/tokens, then run:
+If you fork the repository and build your own image, GitHub makes the new package private by default. Then either make it public (package page, Package settings, Danger Zone, Change package visibility), or log in on the machine that runs Docker. For the login create a classic personal access token with only the `read:packages` scope at https://github.com/settings/tokens, then run:
 
 ```
-docker login ghcr.io -u RadzuPL
+docker login ghcr.io -u YOUR_GITHUB_NAME
 ```
 
 Paste the token when asked for the password.
 
-**B. Make the package public** at https://github.com/users/RadzuPL/packages/container/melomancer/settings (Danger Zone, Change package visibility). Anyone can then pull the image, and the image contains the application code, so only do this if you are fine with that.
-
-> Unraid: the root file system lives in RAM, so a `docker login` typed in the terminal is usually forgotten after a reboot and later updates fail with "unauthorized". Option B, or a User Scripts job that runs `docker login` at array start, avoids that.
+> Unraid: the root file system lives in RAM, so a `docker login` typed in the terminal is usually forgotten after a reboot and later updates fail with "unauthorized". A public package, or a User Scripts job that runs `docker login` at array start, avoids that.
 
 ## 2. Docker run
 
@@ -97,7 +94,7 @@ Unraid users normally add containers from a template in the Docker tab. The temp
 
 5. Click **Apply**. When the container is running, open its **WebUI** from the Docker tab.
 
-If the image is private, do the registry login from section 1 first, otherwise Unraid shows a pull error.
+If the image is private (your own fork), do the registry login from section 1 first, otherwise Unraid shows a pull error.
 
 Updates: Docker tab, **Check for Updates**, then **apply update** next to the container. If you run Watchtower it will pick up new `latest` images by itself. A new image is also built every Monday, which refreshes `yt-dlp` (it gets a new version number, the middle one goes up).
 

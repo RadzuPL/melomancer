@@ -48,6 +48,22 @@ node scripts/check_i18n.js
 
 The second command fails when the Polish and English dictionaries differ or when `app.js` uses a key that is missing.
 
+### Without installing everything
+
+In a place that cannot install the dependencies (a sandbox, a bare machine), `scripts/dev/` has two helpers. They are conveniences, CI stays the source of truth.
+
+```
+PYTHONPATH=scripts/dev/stubs python3.12 -W ignore scripts/dev/run_tests.py tests.test_mixer tests.test_player_logic tests.test_db
+```
+
+runs the mixer, player and database tests without pytest, with a stub `discord` module and real ffmpeg (Python 3.12, because 3.13 has no `audioop`). It cannot run the tests that need FastAPI.
+
+```
+python3 scripts/dev/ui_smoke.py
+```
+
+opens the panel in headless Chromium against a mocked API (`pip install playwright` and `playwright install chromium` first) and drives every screen. Change its mock data together with the API.
+
 ## Continuous integration and versions
 
 The workflow `.github/workflows/build.yml` does the following:

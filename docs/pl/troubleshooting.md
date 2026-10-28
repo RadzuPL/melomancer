@@ -79,7 +79,7 @@ Ustaw `PUID` i `PGID` na właściciela folderu danych na hoście (Unraid: 99 i 1
 Przenieś folder danych z `/mnt/user/...` na bezpośrednią ścieżkę puli, np. `/mnt/nvme/appdata/melomancer`. SQLite nie lubi udziału użytkownika FUSE.
 
 **Unraid nie może pobrać obrazu: „unauthorized”.**
-Pakiet jest prywatny, a logowanie do rejestru zniknęło (na Unraidzie logowanie nie przetrwa restartu). Zobacz pierwszy punkt w [Instalacji](installation.md): zaloguj się ponownie, zautomatyzuj logowanie skryptem albo ustaw pakiet jako publiczny.
+Oficjalny obraz jest publiczny, więc to zdarza się tylko przy prywatnym pakiecie, np. obrazie własnego forka, gdy zniknęło logowanie do rejestru (na Unraidzie nie przetrwa restartu). Zobacz pierwszy punkt w [Instalacji](installation.md): zaloguj się ponownie, zautomatyzuj logowanie skryptem albo ustaw pakiet jako publiczny.
 
 **Panel wygląda staro po aktualizacji.**
 Odśwież stronę przez Ctrl+F5. Strona i jej skrypty niosą numer wersji, więc zwykle dzieje się to samo.

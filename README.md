@@ -59,6 +59,10 @@ services:
 | [Development](docs/en/development.md) | Running locally, tests, CI, automatic versions |
 | [Troubleshooting](docs/en/troubleshooting.md) | Common problems and fixes |
 
+### License
+
+MIT, see [LICENSE](LICENSE). The software Melomancer uses and the container image contains keeps its own licenses, see [THIRD_PARTY.md](THIRD_PARTY.md).
+
 ---
 
 ## Polski
@@ -115,3 +119,7 @@ services:
 | [Architektura](docs/pl/architecture.md) | Komponenty, model danych, uprawnienia, API |
 | [Rozwój](docs/pl/development.md) | Uruchomienie lokalne, testy, CI, automatyczne wersje |
 | [Rozwiązywanie problemów](docs/pl/troubleshooting.md) | Typowe problemy i ich rozwiązania |
+
+### Licencja
+
+MIT, zobacz [LICENSE](LICENSE). Oprogramowanie, z którego korzysta Melomancer i które zawiera obraz kontenera, zachowuje własne licencje, zobacz [THIRD_PARTY.md](THIRD_PARTY.md).

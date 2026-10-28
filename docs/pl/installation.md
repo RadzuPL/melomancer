@@ -14,20 +14,17 @@ Obraz jest budowany przez GitHub Actions i publikowany w GitHub Container Regist
 ghcr.io/radzupl/melomancer:latest
 ```
 
-Repozytorium jest prywatne, więc pakiet domyślnie też jest prywatny. Wybierz jedną z opcji:
+Pakiet jest publiczny, więc nie trzeba logować się do rejestru: `docker pull` i szablon Unraida działają od razu.
 
-**A. Zaloguj się do rejestru na maszynie z Dockerem** (obraz zostaje prywatny).
-Utwórz klasyczny token dostępu (personal access token) tylko z uprawnieniem `read:packages` na stronie https://github.com/settings/tokens, a potem uruchom:
+Jeśli zrobisz fork repozytorium i zbudujesz własny obraz, GitHub domyślnie tworzy nowy pakiet jako prywatny. Wtedy albo ustaw go jako publiczny (strona pakietu, Package settings, Danger Zone, Change package visibility), albo zaloguj się na maszynie z Dockerem. Do logowania utwórz klasyczny token dostępu (personal access token) tylko z uprawnieniem `read:packages` na stronie https://github.com/settings/tokens, a potem uruchom:
 
 ```
-docker login ghcr.io -u RadzuPL
+docker login ghcr.io -u TWOJA_NAZWA_NA_GITHUBIE
 ```
 
 Jako hasło wklej token.
 
-**B. Ustaw pakiet jako publiczny** na stronie https://github.com/users/RadzuPL/packages/container/melomancer/settings (Danger Zone, Change package visibility). Każdy będzie mógł wtedy pobrać obraz, a obraz zawiera kod aplikacji, więc rób to tylko wtedy, gdy ci to nie przeszkadza.
-
-> Unraid: system plików roota leży w RAM-ie, więc `docker login` wpisany w terminalu zwykle znika po restarcie i późniejsze aktualizacje kończą się błędem „unauthorized”. Opcja B albo zadanie w User Scripts wykonujące `docker login` przy starcie macierzy rozwiązuje ten problem.
+> Unraid: system plików roota leży w RAM-ie, więc `docker login` wpisany w terminalu zwykle znika po restarcie i późniejsze aktualizacje kończą się błędem „unauthorized”. Publiczny pakiet albo zadanie w User Scripts wykonujące `docker login` przy starcie macierzy rozwiązuje ten problem.
 
 ## 2. Docker run
 
@@ -97,7 +94,7 @@ Na Unraidzie kontenery zwykle dodaje się z szablonu w zakładce Docker. Szablon
 
 5. Kliknij **Apply**. Gdy kontener działa, otwórz jego **WebUI** z zakładki Docker.
 
-Jeśli obraz jest prywatny, najpierw wykonaj logowanie do rejestru z punktu 1, inaczej Unraid pokaże błąd pobierania.
+Jeśli obraz jest prywatny (twój własny fork), najpierw wykonaj logowanie do rejestru z punktu 1, inaczej Unraid pokaże błąd pobierania.
 
 Aktualizacje: zakładka Docker, **Check for Updates**, potem **apply update** przy kontenerze. Jeśli masz Watchtowera, sam podmieni nowe obrazy `latest`. Nowy obraz powstaje też co poniedziałek, co odświeża `yt-dlp` (dostaje nowy numer wersji, środkowa liczba rośnie).
 
