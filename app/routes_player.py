@@ -28,8 +28,8 @@ class PlayIn(BaseModel):
 
 
 class ChoiceIn(BaseModel):
-    guild_id: str = Field(pattern=r"^\d{5,25}$")
-    channel_id: str | None = Field(default=None, pattern=r"^\d{5,25}$")
+    guild_id: str = Field(pattern=r"^\d{1,25}$")
+    channel_id: str | None = Field(default=None, pattern=r"^\d{1,25}$")
 
 
 class VolumeIn(BaseModel):
