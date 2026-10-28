@@ -1,7 +1,7 @@
 # Melomancer: notes for an agent working on this repository
 
-A self-hosted Discord music bot with a web panel, made for tabletop RPG sessions (Python 3.12, FastAPI, SQLite,
-discord.py, ffmpeg; vanilla JS panel, no build step). It runs as one container on the maintainer's Unraid server behind
+A self-hosted music player for tabletop RPG sessions with a web panel, playing in the browser or through a Discord
+bot (Python 3.12, FastAPI, SQLite, discord.py, ffmpeg; vanilla JS panel, no build step). It runs as one container on the maintainer's Unraid server behind
 Cloudflare Tunnel and Access. What it does and how it is built is in `docs/en/` (and `docs/pl/`): start with
 `usage.md` and `architecture.md`; `development.md` has the human setup. This file only holds what the code does not
 tell you and what already cost time.

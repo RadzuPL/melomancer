@@ -30,7 +30,7 @@ COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
 RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 
 LABEL org.opencontainers.image.title="Melomancer" \
-      org.opencontainers.image.description="Discord music bot with a web panel for tabletop RPG sessions" \
+      org.opencontainers.image.description="Music player for tabletop RPG sessions with a web panel: plays in the browser or through a Discord bot" \
       org.opencontainers.image.version="${APP_VERSION}"
 
 EXPOSE 8080

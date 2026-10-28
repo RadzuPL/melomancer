@@ -2,7 +2,7 @@
 
 Languages: **English** · [Polski](../pl/installation.md)
 
-Melomancer is one container. It needs outbound internet access only (Discord over HTTPS/WebSocket and UDP for voice), no inbound ports for the bot. The web panel listens on port **8080**.
+Melomancer is one container, and a container is currently the only way to run it that this documentation describes (a plain Windows computer, or a desktop wrapper, are not ruled out for later). It needs outbound internet access only (Discord over HTTPS/WebSocket and UDP for voice), no inbound ports for the bot. The web panel listens on port **8080**.
 
 Before you start you need a **Discord bot token**. Create the bot first: [Creating the Discord bot](discord-bot.md).
 

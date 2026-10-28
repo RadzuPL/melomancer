@@ -8,7 +8,7 @@
 
 [Przejdź do wersji polskiej ↓](#polski)
 
-A self-hosted Discord music bot with a web panel, made for tabletop RPG sessions. One shared music library, private **playlists** collected in **sets** (a game system or a scenario), optionally sorted into **folders** (for example locations or kinds of scenes), one-click playback into a voice channel, live volume control, and several game masters on one server, each with playlists the others cannot see.
+A self-hosted **music player for tabletop RPG sessions**, with a web panel. It plays the music in the panel itself, on the speakers of the computer that has the page open (**Play here**), or through a **Discord bot** into a voice channel, for a session held online. One shared music library, private **playlists** collected in **sets** (a game system or a scenario), optionally sorted into **folders** (for example locations or kinds of scenes), one-click playback, live volume control, and several game masters, each with playlists the others cannot see.
 
 ![The Player tab of the panel](docs/img/player.png)
 
@@ -23,6 +23,10 @@ A self-hosted Discord music bot with a web panel, made for tabletop RPG sessions
 - Several Discord servers with one bot; per-user access to servers; one controller per server at a time.
 - Voice with Discord's end-to-end encryption (DAVE), reconnect protection, leaves empty channels.
 - One container, SQLite, no external services. Image on GitHub Container Registry, built and versioned automatically. Unraid template included.
+
+### Where it runs
+
+For now Melomancer is meant to run as a container (Docker, Docker Compose, Unraid). Running it directly on a Windows computer, or a small wrapper that starts it as a desktop application, are not ruled out: they may be described or built later, but neither exists today.
 
 ### Quick start
 
@@ -78,7 +82,7 @@ MIT, see [LICENSE](LICENSE). The software Melomancer uses and the container imag
 
 [Go to the English version ↑](#english)
 
-Własny bot muzyczny Discord z panelem webowym, stworzony na sesje RPG. Jedna wspólna biblioteka muzyki, prywatne **playlisty** zebrane w **zestawy** (system gry albo scenariusz), opcjonalnie podzielone na **foldery** (np. lokacje albo rodzaje scen), odpalanie jednym przyciskiem na kanale głosowym, regulacja głośności na żywo oraz kilku mistrzów gry na jednym serwerze, każdy z playlistami niewidocznymi dla pozostałych.
+Własny **odtwarzacz muzyki na sesje RPG** z panelem webowym. Gra w samym panelu, na głośnikach komputera, na którym strona jest otwarta (**Odtwarzaj tutaj**), albo przez **bota Discord** na kanale głosowym, przy sesji prowadzonej online. Jedna wspólna biblioteka muzyki, prywatne **playlisty** zebrane w **zestawy** (system gry albo scenariusz), opcjonalnie podzielone na **foldery** (np. lokacje albo rodzaje scen), odpalanie jednym przyciskiem, regulacja głośności na żywo oraz kilku mistrzów gry, każdy z playlistami niewidocznymi dla pozostałych.
 
 ![Zakładka Odtwarzacz w panelu](docs/img/player.png)
 
@@ -93,6 +97,10 @@ Własny bot muzyczny Discord z panelem webowym, stworzony na sesje RPG. Jedna ws
 - Kilka serwerów Discord z jednym botem; dostęp użytkowników do serwerów; jeden sterujący na serwer naraz.
 - Głos z szyfrowaniem end-to-end Discorda (DAVE), ochrona przed pętlą ponownych połączeń, opuszczanie pustych kanałów.
 - Jeden kontener, SQLite, żadnych usług zewnętrznych. Obraz w GitHub Container Registry, budowany i wersjonowany automatycznie. W zestawie szablon Unraid.
+
+### Gdzie to działa
+
+Na razie Melomancer jest przeznaczony do uruchamiania jako kontener (Docker, Docker Compose, Unraid). Uruchomienie go wprost na komputerze z Windowsem albo mała „otoczka”, która startuje go jako aplikację desktopową, nie są wykluczone: mogą zostać opisane lub zrobione później, ale na dziś żadne z nich nie istnieje.
 
 ### Szybki start
 
