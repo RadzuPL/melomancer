@@ -94,6 +94,27 @@ def test_migration_6_adds_silence_columns_and_leaves_tracks_unmeasured(tmp_path)
     conn.close()
 
 
+def test_migration_8_adds_user_prefs(tmp_path):
+    path = tmp_path / "v7.db"
+    conn = sqlite3.connect(path)
+    for script in MIGRATIONS[:7]:
+        conn.executescript(script)
+    conn.execute("PRAGMA user_version=7")
+    conn.execute("INSERT INTO users(id, username, pw_hash) VALUES (1, 'u', 'x')")
+    conn.commit()
+    conn.close()
+
+    init_db(path)
+
+    conn = sqlite3.connect(path)
+    conn.execute("PRAGMA foreign_keys=ON")
+    conn.execute("INSERT INTO user_prefs(user_id, key, value) VALUES (1, 'player.guild', '12345')")
+    assert conn.execute("SELECT value FROM user_prefs WHERE user_id=1").fetchone() == ("12345",)
+    conn.execute("DELETE FROM users WHERE id=1")
+    assert conn.execute("SELECT COUNT(*) FROM user_prefs").fetchone() == (0,), "preferences go with the user"
+    conn.close()
+
+
 def test_migration_7_adds_hand_set_trim_columns(tmp_path):
     path = tmp_path / "v6.db"
     conn = sqlite3.connect(path)

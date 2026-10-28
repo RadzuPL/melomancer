@@ -159,6 +159,16 @@ MIGRATIONS: list[str] = [
     ALTER TABLE tracks ADD COLUMN trim_start REAL;
     ALTER TABLE tracks ADD COLUMN trim_end REAL;
     """,
+    # 8: small per-user settings kept on the server, so that they follow the person to another browser (for now: the
+    # Discord server and voice channel last chosen in the player).
+    """
+    CREATE TABLE user_prefs (
+        user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        key TEXT NOT NULL,
+        value TEXT NOT NULL,
+        PRIMARY KEY (user_id, key)
+    );
+    """,
 ]
 
 

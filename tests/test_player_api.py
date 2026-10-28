@@ -162,3 +162,19 @@ def test_the_queue_carries_silence_and_hand_set_trim_points(env, wavs):
     assert env.client.post("/api/player/111/play", json={"playlist_id": playlist}).status_code == 200
     item = env.bot.played[-1]["items"][0]
     assert (item.lead, item.trail, item.trim_start, item.trim_end) == (0.4, 0.2, 0.1, None)
+
+
+def test_the_chosen_server_and_channel_are_remembered_per_person(env):
+    make_user(env, "mg2")
+    login(env, "admin")
+    assert env.client.get("/api/player/choice").json() == {"guild": None, "channels": {}}
+    assert env.client.put("/api/player/choice", json={"guild_id": "111", "channel_id": "100100"}).status_code == 200
+    assert env.client.put("/api/player/choice", json={"guild_id": "222"}).status_code == 200
+    assert env.client.put("/api/player/choice", json={"guild_id": "111", "channel_id": "100200"}).status_code == 200
+    assert env.client.get("/api/player/choice").json() == {"guild": "111", "channels": {"111": "100200"}}
+    login(env, "mg2")
+    assert env.client.get("/api/player/choice").json() == {"guild": None, "channels": {}}, "not shared between people"
+    login(env, "admin")
+    assert env.client.get("/api/player/choice").json()["guild"] == "111"
+    assert env.client.put("/api/player/choice", json={"guild_id": "x"}).status_code == 422
+    assert env.client.put("/api/player/choice", json={"guild_id": "111", "channel_id": "nope"}).status_code == 422

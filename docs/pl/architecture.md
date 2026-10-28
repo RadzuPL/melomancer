@@ -57,6 +57,7 @@ users ──< sessions
   └──< sets ──< playlists ──< playlist_items ─┘
          └──< set_groups (folder, optional) ──< playlists
 downloads (użytkownik, url, stan, utwór)
+user_prefs (użytkownik, klucz, wartość: ostatnio wybrany w odtwarzaczu serwer i kanał)
 ```
 
 - **tracks** nigdy nie są fizycznie usuwane. Usunięcie ustawia `deleted_at` i kasuje plik, więc `playlist_items` nadal wskazują wiersz ze starym tytułem (wyszarzony wpis). Częściowy indeks unikalny pilnuje unikalności `sha256` tylko wśród żywych utworów, więc ponowne wgranie identycznej zawartości przywraca stary wiersz (to samo id).
@@ -117,7 +118,7 @@ Wszystkie ścieżki są pod `/api`; żądania zmieniające stan wymagają nagł�
 | Biblioteka | `GET /tracks`, `POST /tracks/upload`, `PATCH/DELETE /tracks/{id}`, `GET /tracks/{id}/usage`, `GET /tracks/{id}/stream`, `PUT /tracks/{id}/my-tags`, `GET /tags` |
 | Pobrania | `GET/POST /downloads` (lista niesie też postęp na żywo, upłynięte sekundy i pozostałą przerwę; `POST` przyjmuje `tags` i `my_tags`), `DELETE /downloads/{id}` |
 | Playlisty | `GET/POST /sets`, `PATCH/DELETE /sets/{id}`, `POST /sets/{id}/playlists`, `PUT /sets/{id}/playlists/order`, `POST /sets/{id}/groups`, `PUT /sets/{id}/groups/order`, `PATCH/DELETE /groups/{id}`, `POST /groups/{id}/playlists`, `PUT /groups/{id}/playlists/order`, `GET/PATCH/DELETE /playlists/{id}`, `POST /playlists/{id}/copy`, `POST /playlists/{id}/items`, `PUT /playlists/{id}/order`, `PUT/DELETE /playlists/{id}/items/{item}` |
-| Odtwarzacz | `GET /player/guilds`, `GET /player/{guild}/state`, `POST /player/{guild}/connect`, `disconnect`, `play`, `pause`, `resume`, `next`, `prev`, `jump`, `seek`, `stop`, `volume`, `PATCH /player/{guild}/options` |
+| Odtwarzacz | `GET/PUT /player/choice` (ostatnio wybrany serwer i kanał, osobno dla każdego), `GET /player/guilds`, `GET /player/{guild}/state`, `POST /player/{guild}/connect`, `disconnect`, `play`, `pause`, `resume`, `next`, `prev`, `jump`, `seek`, `stop`, `volume`, `PATCH /player/{guild}/options` |
 | Osoby | `GET /people` (aktywne konta poza twoim, tylko nazwy, do wyboru odbiorcy kopii) |
 | Odtwarzanie lokalne | `POST /local/queue` (to samo ciało co `play`: `playlist_id`, `track_id` albo `tags` + `mode`), `POST /local/resolve` (`track_ids`) |
 | System | `GET /system`, `PATCH /system` (administrator: ustawienia głośności, przejść i ciszy), `GET /system/load` (administrator: CPU i pamięć), `GET /health` |

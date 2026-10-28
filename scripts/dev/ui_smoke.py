@@ -79,6 +79,7 @@ ROUTES = {
                     "download_hosts": ["youtube.com", "youtu.be"], "max_upload_mb": 300, "normalize": True, "normalize_target": -16.0, "normalize_max_boost": 6.0, "trim_silence": True, "silence_threshold": -50.0, "crossfade_seconds": 3.0, "scrub_seconds": 0.3, "volume_glide_seconds": 0.25, "settings_rev": 1, "loudness": {"total": 12, "measured": 9, "waiting": 3}},
     "/api/player/guilds": GUILDS,
     "/api/player/111/state": STATE,
+    "/api/player/choice": {"guild": "111", "channels": {"111": "1002"}},
     "/api/sets": SETS,
     "/api/tracks": TRACKS,
     "/api/tags": {"shared": [{"tag": "ambient", "count": 1}, {"tag": "rain", "count": 1}], "mine": [{"tag": "innsmouth", "count": 1}]},
@@ -497,6 +498,12 @@ with sync_playwright() as p:
     connect_btn = page.get_by_role("button", name="Połącz", exact=True)
     here_btn = page.get_by_role("button", name="Odtwarzaj tutaj")
     assert connect_btn.is_enabled() and here_btn.is_enabled(), "both ways are open while the bot is not connected"
+    # the server and channel chosen last come from the server, and a new choice is sent back
+    channel = page.locator("select[aria-label='Kanał głosowy']")
+    assert channel.input_value() == "1002", "the remembered channel is selected, not the first one"
+    channel.select_option("1001")
+    page.wait_for_timeout(200)
+    assert _k.loads(bodies["/api/player/choice"]) == {"guild_id": "111", "channel_id": "1001"}, bodies["/api/player/choice"]
     # a playlist pressed while the bot is not connected is only loaded: nothing connects, nothing plays
     assert "primary" in here_btn.get_attribute("class") and "primary" in connect_btn.get_attribute("class"), "both buttons look alike"
     mark = len(calls)

@@ -57,6 +57,7 @@ users ──< sessions
   └──< sets ──< playlists ──< playlist_items ─┘
          └──< set_groups (folder, optional) ──< playlists
 downloads (user, url, status, track)
+user_prefs (user, key, value: the server and channel last chosen in the player)
 ```
 
 - **tracks** are never physically deleted. Deleting sets `deleted_at` and removes the file, so `playlist_items` keep pointing at a row with the old title (the greyed-out entry). A partial unique index keeps `sha256` unique among live tracks only, so re-uploading identical content revives the old row (same id).
@@ -117,7 +118,7 @@ All paths are under `/api`; state-changing requests need the header `X-Melomance
 | Library | `GET /tracks`, `POST /tracks/upload`, `PATCH/DELETE /tracks/{id}`, `GET /tracks/{id}/usage`, `GET /tracks/{id}/stream`, `PUT /tracks/{id}/my-tags`, `GET /tags` |
 | Downloads | `GET/POST /downloads` (the list also carries live progress, elapsed seconds and the remaining pause; `POST` takes `tags` and `my_tags`), `DELETE /downloads/{id}` |
 | Playlists | `GET/POST /sets`, `PATCH/DELETE /sets/{id}`, `POST /sets/{id}/playlists`, `PUT /sets/{id}/playlists/order`, `POST /sets/{id}/groups`, `PUT /sets/{id}/groups/order`, `PATCH/DELETE /groups/{id}`, `POST /groups/{id}/playlists`, `PUT /groups/{id}/playlists/order`, `GET/PATCH/DELETE /playlists/{id}`, `POST /playlists/{id}/copy`, `POST /playlists/{id}/items`, `PUT /playlists/{id}/order`, `PUT/DELETE /playlists/{id}/items/{item}` |
-| Player | `GET /player/guilds`, `GET /player/{guild}/state`, `POST /player/{guild}/connect`, `disconnect`, `play`, `pause`, `resume`, `next`, `prev`, `jump`, `seek`, `stop`, `volume`, `PATCH /player/{guild}/options` |
+| Player | `GET/PUT /player/choice` (the server and channel last chosen, kept per person), `GET /player/guilds`, `GET /player/{guild}/state`, `POST /player/{guild}/connect`, `disconnect`, `play`, `pause`, `resume`, `next`, `prev`, `jump`, `seek`, `stop`, `volume`, `PATCH /player/{guild}/options` |
 | People | `GET /people` (active accounts other than yours, names only, for choosing who to copy to) |
 | Local playback | `POST /local/queue` (the same body as `play`: `playlist_id`, `track_id` or `tags` + `mode`), `POST /local/resolve` (`track_ids`) |
 | System | `GET /system`, `PATCH /system` (administrator: loudness, cross-fade and silence settings), `GET /system/load` (administrator: CPU and memory), `GET /health` |

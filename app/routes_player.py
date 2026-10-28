@@ -27,6 +27,11 @@ class PlayIn(BaseModel):
     mode: Literal["all", "any"] = "any"
 
 
+class ChoiceIn(BaseModel):
+    guild_id: str = Field(pattern=r"^\d{5,25}$")
+    channel_id: str | None = Field(default=None, pattern=r"^\d{5,25}$")
+
+
 class VolumeIn(BaseModel):
     volume: float = Field(ge=0, le=1.5)
 
@@ -146,6 +151,31 @@ def resolve_target(conn, user: dict, body: PlayIn):
         rows, meta = [single], {"id": None, "name": single["title"], "set": None}
         opts = dict(loop=False, shuffle=False, fade=0.0, volume=None)
     return rows, meta, opts
+
+
+@router.get("/choice")
+def get_choice(request: Request, user: dict = Depends(current_user)):
+    """The server and voice channel this person chose last, to be selected again in the player."""
+    with tx(get_settings(request).db_path) as conn:
+        rows = conn.execute("SELECT key, value FROM user_prefs WHERE user_id=? AND key LIKE 'player.%'",
+                            (user["id"],)).fetchall()
+    stored = {r["key"]: r["value"] for r in rows}
+    prefix = "player.channel."
+    return {"guild": stored.get("player.guild"),
+            "channels": {k[len(prefix):]: v for k, v in stored.items() if k.startswith(prefix)}}
+
+
+@router.put("/choice")
+def put_choice(body: ChoiceIn, request: Request, user: dict = Depends(current_user)):
+    """Remember the chosen server and, when given, the channel chosen on it. Choosing is not connecting."""
+    entries = {"player.guild": body.guild_id}
+    if body.channel_id:
+        entries["player.channel." + body.guild_id] = body.channel_id
+    with tx(get_settings(request).db_path) as conn:
+        for key, value in entries.items():
+            conn.execute("INSERT INTO user_prefs(user_id, key, value) VALUES (?, ?, ?) "
+                         "ON CONFLICT(user_id, key) DO UPDATE SET value=excluded.value", (user["id"], key, value))
+    return {"ok": True}
 
 
 @router.post("/{guild_id}/play")

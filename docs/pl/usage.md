@@ -66,7 +66,7 @@ Po prawej wybrana playlista.
 
 ## Odtwarzacz
 
-1. Wybierz **serwer** i **kanał głosowy**. Bot musi być na tym serwerze (zobacz [Tworzenie bota Discord](discord-bot.md)).
+1. Wybierz **serwer** i **kanał głosowy**. Bot musi być na tym serwerze (zobacz [Tworzenie bota Discord](discord-bot.md)). Panel pamięta twój ostatni wybór, kanał osobno dla każdego serwera, i proponuje go ponownie następnym razem, także w innej przeglądarce. Sam wybór nie łączy bota.
 2. Wybierz **zestaw**. Jego playlisty pojawią się jako przyciski, foldery jako nagłówki z playlistami pod spodem.
 3. Naciśnij playlistę albo użyj **Szybkiego wyboru z tagów** pod playlistami: zaznacz jeden lub kilka tagów, wybierz, czy utwór ma mieć wszystkie z nich czy dowolny, i naciśnij **Zagraj (N)**, żeby zagrać wszystkie pasujące utwory bez tworzenia playlisty (losowo, w pętli). Liczba przy tagu to liczba utworów z tym tagiem, liczba na przycisku to liczba utworów pasujących do twojego wyboru.
 4. Naciśnij playlistę. Jeśli bot jest na kanale, zaczyna grać, a aktywna playlista jest podświetlona. Panel nigdy sam nie łączy bota, więc przypadkowe kliknięcie nie sprawi, że zacznie nadawać na jakimś serwerze: gdy bot nie jest połączony, playlista jest tylko *wybrana* (przerywana ramka, „Wybrana: ...”), nic nie gra. Naciśnij **Połącz**, potem **▶** (albo ponownie playlistę).

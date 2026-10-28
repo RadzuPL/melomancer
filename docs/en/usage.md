@@ -66,7 +66,7 @@ Right side: the selected playlist.
 
 ## Player
 
-1. Choose the **server** and the **voice channel**. The bot has to be on that server (see [Creating the Discord bot](discord-bot.md)).
+1. Choose the **server** and the **voice channel**. The bot has to be on that server (see [Creating the Discord bot](discord-bot.md)). The panel remembers your last choice, the channel for each server separately, and offers it again next time, also in another browser. Choosing does not connect the bot.
 2. Choose a **set**. Its playlists appear as buttons, folders as headings with their playlists below.
 3. Press a playlist, or use **Quick pick by tags** under the playlists: tick one or more tags, choose whether tracks need all or any of them, and press **Play (N)** to play every matching track without making a playlist (shuffled, looping). The number on a tag is how many tracks carry it, the number on the button how many tracks match your choice.
 4. Press a playlist. If the bot is in a channel it starts playing and the active playlist is highlighted. The panel never connects the bot by itself, so a stray click cannot make it start transmitting on some server: with the bot not connected, the playlist is only *selected* (dashed outline, "Selected: ..."), nothing plays. Press **Connect**, then **▶** (or the playlist again).

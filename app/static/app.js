@@ -570,18 +570,20 @@ function stopPolling() { clearInterval(state.player.timer); state.player.timer =
 
 async function viewPlayer(main) {
   const ps = state.player;
-  const [guilds, , system] = await Promise.all([api("GET", "/api/player/guilds"), loadSets(), api("GET", "/api/system"), loadTracks()]);
+  const [guilds, , system, , choice] = await Promise.all([api("GET", "/api/player/guilds"), loadSets(), api("GET", "/api/system"), loadTracks(),
+    api("GET", "/api/player/choice").catch(() => ({ guild: null, channels: {} }))]);
+  ps.choice = choice;  // the server and channel this person chose last, kept on the server
   state.system = system;
   ps.guilds = guilds;
-  if (!guilds.some((g) => g.id === ps.guildId)) ps.guildId = guilds.some((g) => g.id === pref("guild")) ? pref("guild") : (guilds[0] ? guilds[0].id : "");
+  if (!guilds.some((g) => g.id === ps.guildId)) ps.guildId = guilds.some((g) => g.id === choice.guild) ? choice.guild : (guilds[0] ? guilds[0].id : "");
   LocalPlayer.applyConfig(system, true);
   if (pref("local") === "1" && !LocalPlayer.on) { LocalPlayer.on = true; LocalPlayer.volume = Number(pref("local_volume") || 40) / 100; }
   const own = state.sets;
   if (!own.some((s) => String(s.id) === ps.setId)) ps.setId = own.some((s) => String(s.id) === pref("set")) ? pref("set") : (own[0] ? String(own[0].id) : "");
   const guild = () => ps.guilds.find((g) => g.id === ps.guildId);
 
-  const guildSel = h("select", { "aria-label": tr("server"), onchange: (e) => { ps.guildId = e.target.value; pref("guild", ps.guildId); ps.channelId = ""; ps.st = null; fillChannels(); poll(); } });
-  const chanSel = h("select", { "aria-label": tr("channel"), onchange: (e) => { ps.channelId = e.target.value; pref("channel", ps.channelId); } });
+  const guildSel = h("select", { "aria-label": tr("server"), onchange: (e) => { ps.guildId = e.target.value; ps.channelId = ""; ps.st = null; fillChannels(); remember(); poll(); } });
+  const chanSel = h("select", { "aria-label": tr("channel"), onchange: (e) => { ps.channelId = e.target.value; remember(); } });
   const status = h("span", { class: "badge" });
   const connectBtn = h("button", { class: "btn primary", onclick: toggleConnect });
   const localBtn = h("button", { class: "btn primary", onclick: toggleLocal });
@@ -657,11 +659,20 @@ async function viewPlayer(main) {
     h("div", { class: "card" }, h("h2", {}, "🏷 " + tr("quick_title")), h("p", { class: "muted small" }, tr("quick_hint")),
       quickChips, h("div", { class: "row" }, quickMode, quickPlay, quickClear, quickInfo)));
 
+  /* Keep the server and channel on screen as this person's choice, so that the next visit (on any browser) starts there. */
+  function remember() {
+    if (!ps.guildId) return;
+    ps.choice.guild = ps.guildId;
+    if (ps.channelId) ps.choice.channels = { ...ps.choice.channels, [ps.guildId]: ps.channelId };
+    api("PUT", "/api/player/choice", { guild_id: ps.guildId, channel_id: ps.channelId || null }).catch(() => { /* only a convenience */ });
+  }
+
   function fillChannels() {
     guildSel.replaceChildren(...ps.guilds.map((g) => h("option", { value: g.id, selected: g.id === ps.guildId }, g.name)));
     const g = guild();
     const channels = g ? g.channels : [];
-    if (!channels.some((c) => c.id === ps.channelId)) ps.channelId = channels.some((c) => c.id === pref("channel")) ? pref("channel") : (channels[0] ? channels[0].id : "");
+    const last = (ps.choice.channels || {})[ps.guildId];
+    if (!channels.some((c) => c.id === ps.channelId)) ps.channelId = channels.some((c) => c.id === last) ? last : (channels[0] ? channels[0].id : "");
     chanSel.replaceChildren(...channels.map((c) => h("option", { value: c.id, selected: c.id === ps.channelId }, "🔊 " + c.name)));
     if (g && !ps.st) ps.st = g.state;
     applyState();
@@ -795,7 +806,7 @@ async function viewPlayer(main) {
     const s = ps.st;
     try {
       if (s && s.connected && s.channel_id === ps.channelId) applyState(await api("POST", `/api/player/${ps.guildId}/disconnect`));
-      else applyState(await api("POST", `/api/player/${ps.guildId}/connect`, { channel_id: ps.channelId }));
+      else { applyState(await api("POST", `/api/player/${ps.guildId}/connect`, { channel_id: ps.channelId })); remember(); }
     } catch (err) { fail(err); }
   }
   async function control(action) {
