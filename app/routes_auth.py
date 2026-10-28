@@ -216,6 +216,7 @@ def _system_info(request: Request) -> dict:
         "volume_glide_seconds": request.app.state.runtime.glide,
         "trim_silence": request.app.state.runtime.trim_silence,
         "silence_threshold": request.app.state.runtime.silence_db,
+        "settings_rev": request.app.state.runtime.rev,
         "loudness": loudness_counts(settings, request.app.state.runtime.silence_db),
     }
 

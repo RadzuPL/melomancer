@@ -39,6 +39,9 @@ The browser side is a static page (`app/static`): plain JavaScript, no build ste
 | `app/loudness.py` | Background analysis (loudness and silence in one ffmpeg pass), the playback gain, `RuntimeSettings` (everything the administrator changes in the panel) |
 | `app/sysload.py` | Container CPU and memory from the cgroup (v2 or v1), sampled every 2 s, for the Settings tab |
 | `app/mixer.py` | PCM mixer: layers decoded ahead by threads, equal-power cross-fades, the next track queued before the current one ends |
+| `app/playback.py` | The rule for where a track starts and ends (hand-set points, silence trimming, a seek) and the entry the browser player gets for a track. One function for the bot and for the browser |
+| `app/routes_local.py` | `/api/local/queue` and `/api/local/resolve`: what plays in the browser |
+| `app/static/local.js` | `LocalPlayer`, the browser's own player (Web Audio) |
 | `app/routes_*.py` | HTTP API |
 | `app/cli.py` | `reset-password` recovery command |
 
@@ -87,6 +90,15 @@ downloads (user, url, status, track)
 - **Idle leave.** A background task checks every 30 seconds; a channel without any human for `IDLE_LEAVE_MINUTES` is left.
 - Discord ids are always strings in the API (JavaScript cannot hold 64-bit integers).
 
+## Playing in the browser
+
+The same panel can play on the computer it is open on instead of on Discord. The division of work: the server decides, the page plays.
+
+- `POST /api/local/queue` takes the same target as the bot's `play` (a playlist, a track or a tag selection; `routes_player.resolve_target` serves both, so permissions and the rows are the same) and returns the tracks in playing order with, for each, the part of the file to play (`start`, `end`) and the loudness `gain`, worked out by `app/playback.py` with the same rules the bot applies, plus the playlist's loop, shuffle and volume. Nothing is touched on the bot, no Discord connection is needed and the controller lock does not apply.
+- `LocalPlayer` (`app/static/local.js`) is one object for the whole page, outside every view, which is why switching tabs of the panel does not interrupt the sound. Each track is an `<audio>` element fed from `/api/tracks/{id}/stream` into a Web Audio graph: track gain (loudness) → envelope (fades) → master (volume) → speakers. Cross-fades use the same equal-power curves as the mixer (`setValueCurveAtTime`), the volume glides with `setTargetAtTime` (time constant = the glide setting divided by 3), a seek is a short fade to a second element at the new position, and the next track is prepared when `crossfade + 2.5 s` are left, as on the bot. The queue logic (order, shuffle, loop wrap, skip, jump, option changes) follows `GuildPlayer`. **The two implementations must be kept in step**: when a fade, the volume rule or the queue behaviour changes in one, change it in the other.
+- `/api/system` carries `settings_rev`, a counter of the administrator's changes. The page asks every 10 seconds while playing; when the number moved it calls `POST /api/local/resolve` with the queued track ids and applies the new points and gains to what is playing (the gain glides) and plans the next track again. Cross-fade, seek-fade and glide times are read from `/api/system` too.
+- `snapshot()` has the shape of the bot's state, so the player screen paints both with the same code. Another tab of the panel starting local playback silences this one (`BroadcastChannel`). The page cannot start sound without a click (autoplay policy), and reloading it ends it.
+
 ## Downloads
 
 1. `POST /api/downloads` validates the address (https, allowed host), checks the daily limit and inserts a `queued` row.
@@ -107,6 +119,7 @@ All paths are under `/api`; state-changing requests need the header `X-Melomance
 | Playlists | `GET/POST /sets`, `PATCH/DELETE /sets/{id}`, `POST /sets/{id}/playlists`, `PUT /sets/{id}/playlists/order`, `POST /sets/{id}/groups`, `PUT /sets/{id}/groups/order`, `PATCH/DELETE /groups/{id}`, `POST /groups/{id}/playlists`, `PUT /groups/{id}/playlists/order`, `GET/PATCH/DELETE /playlists/{id}`, `POST /playlists/{id}/copy`, `POST /playlists/{id}/items`, `PUT /playlists/{id}/order`, `PUT/DELETE /playlists/{id}/items/{item}` |
 | Player | `GET /player/guilds`, `GET /player/{guild}/state`, `POST /player/{guild}/connect`, `disconnect`, `play`, `pause`, `resume`, `next`, `prev`, `jump`, `seek`, `stop`, `volume`, `PATCH /player/{guild}/options` |
 | People | `GET /people` (active accounts other than yours, names only, for choosing who to copy to) |
+| Local playback | `POST /local/queue` (the same body as `play`: `playlist_id`, `track_id` or `tags` + `mode`), `POST /local/resolve` (`track_ids`) |
 | System | `GET /system`, `PATCH /system` (administrator: loudness, cross-fade and silence settings), `GET /system/load` (administrator: CPU and memory), `GET /health` |
 
 ## Not built yet

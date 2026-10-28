@@ -76,7 +76,7 @@ GUILDS = [{"id": "111", "name": "Guild A", "channels": [{"id": "1001", "name": "
 ROUTES = {
     "/api/auth/me": {"id": 1, "username": "admin", "role": "admin", "lang": "pl"},
     "/api/system": {"version": "1.2.3", "bot_status": "ready", "downloads_enabled": True,
-                    "download_hosts": ["youtube.com", "youtu.be"], "max_upload_mb": 300, "normalize": True, "normalize_target": -16.0, "normalize_max_boost": 6.0, "trim_silence": True, "silence_threshold": -50.0, "crossfade_seconds": 3.0, "scrub_seconds": 0.3, "volume_glide_seconds": 0.25, "loudness": {"total": 12, "measured": 9, "waiting": 3}},
+                    "download_hosts": ["youtube.com", "youtu.be"], "max_upload_mb": 300, "normalize": True, "normalize_target": -16.0, "normalize_max_boost": 6.0, "trim_silence": True, "silence_threshold": -50.0, "crossfade_seconds": 3.0, "scrub_seconds": 0.3, "volume_glide_seconds": 0.25, "settings_rev": 1, "loudness": {"total": 12, "measured": 9, "waiting": 3}},
     "/api/player/guilds": GUILDS,
     "/api/player/111/state": STATE,
     "/api/sets": SETS,
@@ -96,6 +96,23 @@ ROUTES = {
     "/api/users": [{"id": 1, "username": "admin", "role": "admin", "lang": "pl", "disabled": False, "created_at": "", "guild_ids": []},
                    {"id": 2, "username": "mg1", "role": "user", "lang": "pl", "disabled": False, "created_at": "", "guild_ids": ["111"]}],
 }
+
+# What the server answers for playing in the browser: a short piece (4 s) that soon fades into a long one (24 s).
+LOCAL_ITEMS = [{"track_id": "t1", "title": "Storm over the harbour", "duration": 30.0, "start": 20.0, "end": 24.0, "cut": True, "gain": 0.5},
+               {"track_id": "t3", "title": "Second song", "duration": 30.0, "start": 5.0, "end": 29.0, "cut": True, "gain": 0.5}]
+LOCAL_QUEUE = {"playlist": {"id": 12, "name": "Walka", "set": "Zew Cthulhu: Druga"}, "settings_rev": 1,
+               "options": {"loop": True, "shuffle": False, "fade": 2.0, "volume": None}, "items": LOCAL_ITEMS}
+
+
+def until(page, expr, seconds=8.0):
+    """Wait for a JavaScript condition by asking again (wait_for_function evaluates a string, which the page's CSP forbids)."""
+    import time
+    end = time.time() + seconds
+    while time.time() < end:
+        if page.evaluate(expr):
+            return
+        page.wait_for_timeout(100)
+    raise AssertionError("timed out waiting for: " + expr)
 
 errors, calls, bodies = [], [], {}
 for _t in TRACKS:
@@ -129,6 +146,11 @@ with sync_playwright() as p:
                 return route.fulfill(status=206, content_type="audio/wav", body=WAV[start:], headers={
                     "Content-Range": f"bytes {start}-{end}/{len(WAV)}", "Accept-Ranges": "bytes"})
             return route.fulfill(status=200, content_type="audio/wav", body=WAV, headers={"Accept-Ranges": "bytes"})
+        if req.method == "POST" and path == "/api/local/queue":
+            return route.fulfill(status=200, content_type="application/json", body=json.dumps(LOCAL_QUEUE))
+        if req.method == "POST" and path == "/api/local/resolve":
+            return route.fulfill(status=200, content_type="application/json", body=json.dumps(
+                {"settings_rev": ROUTES["/api/system"]["settings_rev"], "items": [{**i, "gain": 0.25} for i in LOCAL_ITEMS]}))
         if req.method != "GET" and path.endswith("/copy"):
             return route.fulfill(status=201, content_type="application/json", body=json.dumps(
                 {"id": 99, "set_id": 7, "set_name": "Od admin", "user": "bravo", "copied": 1, "skipped": 2, "tags_copied": 1}))
@@ -467,6 +489,85 @@ with sync_playwright() as p:
     page.screenshot(path=shots + "quick_pick.png", full_page=True)
     page.click(".pad")
     page.wait_for_timeout(300)
+    # ---- playing in the browser: Discord is skipped, the page makes the sound ----
+    STATE.update(connected=False, channel_id=None, channel_name=None, state="idle", now=None, playlist=None, queue=[],
+                 controller_id=None, controller=None)
+    page.reload()
+    page.wait_for_selector(".pad")
+    connect_btn = page.get_by_role("button", name="Połącz", exact=True)
+    here_btn = page.get_by_role("button", name="Odtwarzaj tutaj")
+    assert connect_btn.is_enabled() and here_btn.is_enabled(), "both ways are open while the bot is not connected"
+    here_btn.click()
+    page.wait_for_timeout(300)
+    assert page.get_by_role("button", name="Wyłącz odtwarzanie tutaj").count() == 1
+    assert connect_btn.is_disabled(), "playing here blocks connecting to Discord"
+    assert page.locator("select[aria-label='Serwer']").is_hidden() and "Gra w tej przeglądarce" in page.inner_text("main")
+    page.screenshot(path=shots + "player_local.png", full_page=True)
+    page.locator(".pad", has_text="Walka").click()
+    until(page, "LocalPlayer.state === 'playing' && !!LocalPlayer.cur && LocalPlayer.cur.a.currentTime > 20.3")
+    assert _k.loads(bodies["/api/local/queue"]) == {"playlist_id": 12}, bodies["/api/local/queue"]
+    assert page.evaluate("LocalPlayer.ctx.state") == "running", "the audio context runs"
+    assert abs(page.evaluate("LocalPlayer.cur.trackGain.gain.value") - 0.5) < 0.01, "loudness gain of the track"
+    assert page.evaluate("LocalPlayer.cur.a.currentTime") >= 20, "plays from the start point the server gave"
+    assert "Storm over the harbour" in page.inner_text(".now .title"), page.inner_text(".now .title")
+    assert not any(c.startswith("POST /api/player/111/play") for c in calls[-6:]), "Discord is not touched"
+
+    # switching panel tabs does not stop the sound
+    before = page.evaluate("LocalPlayer.cur.a.currentTime")
+    page.click("nav.tabs button:has-text('Biblioteka')")
+    page.wait_for_timeout(600)
+    assert page.evaluate("LocalPlayer.state") == "playing" and not page.evaluate("LocalPlayer.cur.a.paused"), "still playing"
+    page.click("nav.tabs button:has-text('Odtwarzacz')")
+    page.wait_for_selector(".pad")
+    page.wait_for_timeout(300)
+    assert "Gra w tej przeglądarce" in page.inner_text("main") and page.get_by_role("button", name="Wyłącz odtwarzanie tutaj").count() == 1
+    shown = page.inner_text(".now .title")
+    assert shown in ("Storm over the harbour", "Second song"), "the player screen picks the running music up again: " + shown
+
+    # the long track fades in over the end of the short one (4 s long, 3 s cross-fade) and then plays on
+    until(page, "LocalPlayer.pos === 1")
+    assert page.evaluate("LocalPlayer.cur.item.track_id") == "t3"
+    page.wait_for_timeout(3600)
+    assert page.evaluate("LocalPlayer.dying.size") == 0 and page.evaluate("LocalPlayer.cur.env.gain.value") > 0.98, "the old layer is gone"
+    assert page.evaluate("LocalPlayer.state") == "playing", "the playlist loops"
+
+    # pause / resume, seek, volume, options
+    page.get_by_role("button", name="Pauza / wznów").click()
+    page.wait_for_timeout(300)
+    assert page.evaluate("LocalPlayer.state") == "paused" and page.evaluate("LocalPlayer.cur.a.paused")
+    page.get_by_role("button", name="Pauza / wznów").click()
+    page.wait_for_timeout(300)
+    assert page.evaluate("LocalPlayer.state") == "playing" and not page.evaluate("LocalPlayer.cur.a.paused")
+    page.locator("input.seek[aria-label='Przewiń utwór']").evaluate("el => { el.value = 21.5; el.dispatchEvent(new Event('input', {bubbles: true})); el.dispatchEvent(new Event('change', {bubbles: true})); }")
+    page.wait_for_timeout(700)
+    assert page.evaluate("LocalPlayer.cur.seeked") and page.evaluate("LocalPlayer.cur.a.currentTime") >= 21.4, "seek continues from there"
+    page.locator("input[aria-label='Głośność']").evaluate("el => { el.value = 100; el.dispatchEvent(new Event('input', {bubbles: true})); el.dispatchEvent(new Event('change', {bubbles: true})); }")
+    page.wait_for_timeout(900)
+    assert abs(page.evaluate("LocalPlayer.master.gain.value") - 1.0) < 0.05, page.evaluate("LocalPlayer.master.gain.value")
+    page.get_by_role("button", name="Pętla").click()
+    page.wait_for_timeout(200)
+    assert page.evaluate("LocalPlayer.loop") is False
+
+    # a change of the administrator's settings reaches what is playing
+    ROUTES["/api/system"]["settings_rev"] = 2
+    page.evaluate("LocalPlayer.refreshSettings()")
+    page.wait_for_timeout(900)
+    assert "POST /api/local/resolve" in calls and abs(page.evaluate("LocalPlayer.cur.trackGain.gain.value") - 0.25) < 0.02
+
+    page.get_by_role("button", name="Stop", exact=True).click()
+    page.wait_for_timeout(500)
+    assert page.evaluate("LocalPlayer.state") == "idle" and page.evaluate("LocalPlayer.dying.size") == 0
+    page.get_by_role("button", name="Wyłącz odtwarzanie tutaj").click()
+    page.wait_for_timeout(300)
+    assert connect_btn.is_enabled() and page.get_by_role("button", name="Odtwarzaj tutaj").count() == 1, "Discord is available again"
+
+    # the other way round: with the bot connected the button for playing here is blocked
+    STATE.update(connected=True, channel_id="1001", channel_name="Voice A", state="idle")
+    page.reload()
+    page.wait_for_selector(".pad")
+    assert page.get_by_role("button", name="Odtwarzaj tutaj").is_disabled(), "connected to Discord blocks playing here"
+    STATE.update(connected=False, channel_id=None, channel_name=None)
+    ROUTES["/api/system"]["settings_rev"] = 1
     assert page.locator("header.top select").count() == 0, "no language drop-down any more"
     page.click("header.top button.ghost:has-text('PL')")
     page.wait_for_timeout(300)

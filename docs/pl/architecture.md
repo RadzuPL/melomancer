@@ -39,6 +39,9 @@ Strona przeglądarkowa to statyczna strona (`app/static`): zwykły JavaScript, b
 | `app/loudness.py` | Analiza w tle (głośność i cisza jednym przebiegiem ffmpeg), wzmocnienie przy odtwarzaniu, `RuntimeSettings` (wszystko, co administrator zmienia w panelu) |
 | `app/sysload.py` | CPU i pamięć kontenera z cgroup (v2 lub v1), próbkowane co 2 s, dla zakładki Ustawienia |
 | `app/mixer.py` | Mikser PCM: warstwy dekodowane z wyprzedzeniem przez wątki, przejścia equal-power, następny utwór kolejkowany przed końcem bieżącego |
+| `app/playback.py` | Reguła, gdzie utwór się zaczyna i kończy (ręczne punkty, przycinanie ciszy, przewinięcie) i wpis, który dostaje odtwarzacz w przeglądarce. Jedna funkcja dla bota i dla przeglądarki |
+| `app/routes_local.py` | `/api/local/queue` i `/api/local/resolve`: co gra w przeglądarce |
+| `app/static/local.js` | `LocalPlayer`, własny odtwarzacz przeglądarki (Web Audio) |
 | `app/routes_*.py` | API HTTP |
 | `app/cli.py` | Polecenie ratunkowe `reset-password` |
 
@@ -87,6 +90,15 @@ downloads (użytkownik, url, stan, utwór)
 - **Wychodzenie przy bezczynności.** Zadanie w tle sprawdza co 30 sekund; kanał bez człowieka przez `IDLE_LEAVE_MINUTES` jest opuszczany.
 - Identyfikatory Discorda w API są zawsze tekstami (JavaScript nie utrzyma 64-bitowych liczb całkowitych).
 
+## Odtwarzanie w przeglądarce
+
+Ten sam panel może grać na komputerze, na którym jest otwarty, zamiast na Discordzie. Podział pracy: serwer decyduje, strona gra.
+
+- `POST /api/local/queue` przyjmuje ten sam cel co `play` bota (playlista, utwór albo wybór tagów; `routes_player.resolve_target` obsługuje oba, więc uprawnienia i wiersze są takie same) i zwraca utwory w kolejności grania, a przy każdym fragment pliku do zagrania (`start`, `end`) oraz `gain` głośności, policzone przez `app/playback.py` tymi samymi regułami co u bota, do tego pętlę, losowanie i głośność playlisty. Bot nie jest ruszany, połączenie z Discordem niepotrzebne, a blokada sterującego nie obowiązuje.
+- `LocalPlayer` (`app/static/local.js`) to jeden obiekt na całą stronę, poza każdym widokiem, dlatego przełączanie kart panelu nie przerywa dźwięku. Każdy utwór to element `<audio>` zasilany z `/api/tracks/{id}/stream` do grafu Web Audio: wzmocnienie utworu (głośność) → obwiednia (przejścia) → master (głośność) → głośniki. Przejścia używają tych samych krzywych equal-power co mikser (`setValueCurveAtTime`), głośność płynie przez `setTargetAtTime` (stała czasowa = ustawienie płynności podzielone przez 3), przewinięcie to krótkie przejście do drugiego elementu w nowym miejscu, a następny utwór jest przygotowywany, gdy zostaje `crossfade + 2,5 s`, jak u bota. Logika kolejki (kolejność, losowanie, zawijanie pętli, pomijanie, skok, zmiany opcji) idzie za `GuildPlayer`. **Obie implementacje trzeba utrzymywać razem**: gdy zmienia się przejście, reguła głośności albo zachowanie kolejki w jednej, zmień je w drugiej.
+- `/api/system` niesie `settings_rev`, licznik zmian administratora. Strona pyta co 10 sekund podczas grania; gdy liczba się zmieniła, woła `POST /api/local/resolve` z id utworów z kolejki i stosuje nowe punkty i wzmocnienia do tego, co gra (wzmocnienie płynie), a następny utwór planuje od nowa. Czasy przejścia, przewinięcia i płynności też są czytane z `/api/system`.
+- `snapshot()` ma kształt stanu bota, więc ekran odtwarzacza maluje oba tą samą ścieżką. Inna karta panelu, która zaczyna grać lokalnie, wycisza tę (`BroadcastChannel`). Strona nie może zacząć dźwięku bez kliknięcia (polityka autoplay), a odświeżenie kończy granie.
+
 ## Pobieranie
 
 1. `POST /api/downloads` waliduje adres (https, dozwolony host), sprawdza dzienny limit i dodaje wiersz `queued`.
@@ -107,6 +119,7 @@ Wszystkie ścieżki są pod `/api`; żądania zmieniające stan wymagają nagł�
 | Playlisty | `GET/POST /sets`, `PATCH/DELETE /sets/{id}`, `POST /sets/{id}/playlists`, `PUT /sets/{id}/playlists/order`, `POST /sets/{id}/groups`, `PUT /sets/{id}/groups/order`, `PATCH/DELETE /groups/{id}`, `POST /groups/{id}/playlists`, `PUT /groups/{id}/playlists/order`, `GET/PATCH/DELETE /playlists/{id}`, `POST /playlists/{id}/copy`, `POST /playlists/{id}/items`, `PUT /playlists/{id}/order`, `PUT/DELETE /playlists/{id}/items/{item}` |
 | Odtwarzacz | `GET /player/guilds`, `GET /player/{guild}/state`, `POST /player/{guild}/connect`, `disconnect`, `play`, `pause`, `resume`, `next`, `prev`, `jump`, `seek`, `stop`, `volume`, `PATCH /player/{guild}/options` |
 | Osoby | `GET /people` (aktywne konta poza twoim, tylko nazwy, do wyboru odbiorcy kopii) |
+| Odtwarzanie lokalne | `POST /local/queue` (to samo ciało co `play`: `playlist_id`, `track_id` albo `tags` + `mode`), `POST /local/resolve` (`track_ids`) |
 | System | `GET /system`, `PATCH /system` (administrator: ustawienia głośności, przejść i ciszy), `GET /system/load` (administrator: CPU i pamięć), `GET /health` |
 
 ## Jeszcze nie zrobione

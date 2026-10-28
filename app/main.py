@@ -11,7 +11,7 @@ from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from starlette.requests import Request
 
-from . import routes_auth, routes_library, routes_player, routes_playlists
+from . import routes_auth, routes_library, routes_local, routes_player, routes_playlists
 from .config import Settings
 from .db import init_db, tx
 from .deps import csrf_guard
@@ -94,7 +94,7 @@ def create_app(settings: Settings | None = None, bot=None, downloader: Downloade
     app.state.throttle = LoginThrottle(settings.login_max_failures, settings.login_window_seconds)
 
     guard = [Depends(csrf_guard)]
-    for module in (routes_auth, routes_library, routes_playlists, routes_player):
+    for module in (routes_auth, routes_library, routes_playlists, routes_player, routes_local):
         app.include_router(module.router, dependencies=guard)
 
     @app.middleware("http")

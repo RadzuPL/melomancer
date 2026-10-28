@@ -14,6 +14,7 @@ import discord
 from .config import Settings
 from .loudness import RuntimeSettings, linear_gain
 from .mixer import Layer, Mixer
+from .playback import span
 
 log = logging.getLogger("melomancer.player")
 
@@ -129,24 +130,9 @@ class GuildPlayer:
         return options
 
     def _span(self, item: QueueItem, offset: float = 0.0) -> tuple[float, float | None, bool]:
-        """Where in the file the audio starts and ends, and whether the end is a cut.
-
-        A start or end set by hand wins over the silence analysis (each side on its own, and whatever the
-        administrator's switch says); without one, the analysis applies while the switch is on.
-        """
-        automatic = self.manager.trim_silence()
-        duration = item.duration
-        first = item.trim_start if item.trim_start is not None else (item.lead if automatic else 0.0)
-        end = duration
-        if duration:
-            if item.trim_end is not None:
-                end = min(item.trim_end, duration)
-            elif automatic and item.trail:
-                end = duration - item.trail
-        start = offset if offset > 0 else first
-        if duration and end - start < 1.0:  # a trim that would leave next to nothing is ignored
-            return offset, duration, False
-        return start, end, bool(duration and end < duration - 0.01)
+        """Where in the file the audio starts and ends, and whether the end is a cut (see `playback.span`)."""
+        return span(item.duration, item.lead, item.trail, item.trim_start, item.trim_end,
+                    self.manager.trim_silence(), offset)
 
     def _new_layer(self, item: QueueItem, offset: float = 0.0) -> Layer:
         start, end, cut = self._span(item, offset)

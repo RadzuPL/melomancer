@@ -67,6 +67,7 @@ UI changes are checked: extend its mock data and assertions with every UI change
 - Settings that change what is heard apply at once, without a restart or a reconnect, and volume or gain changes
   glide instead of jumping.
 - Everything user-facing exists in Polish and English (panel and docs).
+- The panel can also play in the browser (`app/static/local.js`, `app/playback.py`, `app/routes_local.py`). The server decides what plays and where it starts and ends; the page does the playing. There are two implementations of the player: change a fade, the volume rule or the queue behaviour in `app/player.py` / `app/mixer.py` and in `local.js` together. Playing here and on Discord exclude each other on purpose.
 - Not built yet, by choice for now: ambient layers and a sound-effects board. The mixer (`app/mixer.py`) is where
   they belong.
 

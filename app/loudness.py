@@ -136,6 +136,7 @@ class RuntimeSettings:
         self.trim_silence = True
         self.silence_db = DEFAULT_SILENCE_DB
         self.glide = DEFAULT_GLIDE
+        self.rev = 0  # counts the changes, so that a browser playing on its own knows to ask again
 
     def load(self) -> None:
         with tx(self._settings.db_path) as conn:
@@ -182,6 +183,7 @@ class RuntimeSettings:
         if glide is not None:
             self.glide = min(max(float(glide), GLIDE_RANGE[0]), GLIDE_RANGE[1])
             changes[SETTING_GLIDE] = f"{self.glide:g}"
+        self.rev += 1
         with tx(self._settings.db_path) as conn:
             for key, value in changes.items():
                 conn.execute("INSERT INTO app_settings(key, value) VALUES (?, ?) "

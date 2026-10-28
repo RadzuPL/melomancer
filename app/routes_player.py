@@ -122,34 +122,39 @@ async def disconnect(guild_id: str, request: Request, user: dict = Depends(curre
     return bot.state(gid)
 
 
+def resolve_target(conn, user: dict, body: PlayIn):
+    """What a play request means: (track rows in playing order, playlist info, the playlist's own options)."""
+    if sum(bool(x) for x in (body.playlist_id, body.track_id, body.tags)) != 1:
+        raise HTTPException(400, "bad_request")
+    if body.playlist_id:
+        row = playlist_for(conn, user, body.playlist_id)
+        rows = playlist_tracks(conn, row)
+        meta = {"id": row["id"], "name": row["name"], "set": row["set_name"]}
+        opts = dict(loop=bool(row["loop"]), shuffle=bool(row["shuffle"]), fade=float(row["fade"]),
+                    volume=row["volume"])
+    elif body.tags:
+        wanted = library.norm_tags(body.tags)
+        rows = library.tracks_for_tags(conn, user["id"], wanted, body.mode)
+        meta = {"id": None, "name": ("# " + (" + " if body.mode == "all" else " | ").join(wanted)), "set": None}
+        opts = dict(loop=True, shuffle=True, fade=2.0, volume=None)
+    else:
+        single = conn.execute("SELECT id, title, ext, duration, loudness, peak, silence_lead, silence_trail, "
+                              "trim_start, trim_end FROM tracks WHERE id=? AND deleted_at IS NULL",
+                              (body.track_id,)).fetchone()
+        if not single:
+            raise HTTPException(404, "not_found")
+        rows, meta = [single], {"id": None, "name": single["title"], "set": None}
+        opts = dict(loop=False, shuffle=False, fade=0.0, volume=None)
+    return rows, meta, opts
+
+
 @router.post("/{guild_id}/play")
 async def play(guild_id: str, body: PlayIn, request: Request, user: dict = Depends(current_user)):
     gid = _check(request, user, guild_id)
-    if sum(bool(x) for x in (body.playlist_id, body.track_id, body.tags)) != 1:
-        raise HTTPException(400, "bad_request")
     settings = get_settings(request)
     bot = _bot(request)
     with tx(settings.db_path) as conn:
-        if body.playlist_id:
-            row = playlist_for(conn, user, body.playlist_id)
-            rows = playlist_tracks(conn, row)
-            meta = {"id": row["id"], "name": row["name"], "set": row["set_name"]}
-            opts = dict(loop=bool(row["loop"]), shuffle=bool(row["shuffle"]), fade=float(row["fade"]),
-                        volume=row["volume"])
-        elif body.tags:
-            wanted = library.norm_tags(body.tags)
-            rows = library.tracks_for_tags(conn, user["id"], wanted, body.mode)
-            meta = {"id": None, "name": ("# " + (" + " if body.mode == "all" else " | ").join(wanted)), "set": None}
-            opts = dict(loop=True, shuffle=True, fade=2.0, volume=None)
-        else:
-            single = conn.execute("SELECT id, title, ext, duration, loudness, peak, silence_lead, silence_trail, trim_start, trim_end "
-                                  "FROM tracks "
-                                  "WHERE id=? AND deleted_at IS NULL",
-                                  (body.track_id,)).fetchone()
-            if not single:
-                raise HTTPException(404, "not_found")
-            rows, meta = [single], {"id": None, "name": single["title"], "set": None}
-            opts = dict(loop=False, shuffle=False, fade=0.0, volume=None)
+        rows, meta, opts = resolve_target(conn, user, body)
     items = [QueueItem(r["id"], r["title"], str(library.track_path(settings, r["id"], r["ext"])), r["duration"],
                        r["loudness"], r["peak"], r["silence_lead"] or 0.0, r["silence_trail"] or 0.0,
                        r["trim_start"], r["trim_end"])

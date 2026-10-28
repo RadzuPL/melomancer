@@ -517,6 +517,7 @@ async function setLang(lang) {
 }
 
 async function logout() {
+  LocalPlayer.disable();  // the sound belongs to the person who logged in
   try { await api("POST", "/api/auth/logout"); } catch (_) { /* already gone */ }
   state.user = null;
   stopPolling();
@@ -573,6 +574,8 @@ async function viewPlayer(main) {
   state.system = system;
   ps.guilds = guilds;
   if (!guilds.some((g) => g.id === ps.guildId)) ps.guildId = guilds.some((g) => g.id === pref("guild")) ? pref("guild") : (guilds[0] ? guilds[0].id : "");
+  LocalPlayer.applyConfig(system, true);
+  if (pref("local") === "1" && !LocalPlayer.on) { LocalPlayer.on = true; LocalPlayer.volume = Number(pref("local_volume") || 40) / 100; }
   const own = state.sets;
   if (!own.some((s) => String(s.id) === ps.setId)) ps.setId = own.some((s) => String(s.id) === pref("set")) ? pref("set") : (own[0] ? String(own[0].id) : "");
   const guild = () => ps.guilds.find((g) => g.id === ps.guildId);
@@ -581,13 +584,19 @@ async function viewPlayer(main) {
   const chanSel = h("select", { "aria-label": tr("channel"), onchange: (e) => { ps.channelId = e.target.value; pref("channel", ps.channelId); } });
   const status = h("span", { class: "badge" });
   const connectBtn = h("button", { class: "btn primary", onclick: toggleConnect });
+  const localBtn = h("button", { class: "btn", onclick: toggleLocal });
+  const localHint = h("p", { class: "muted small hidden" }, tr("local_hint"));
+  const notice = system.bot_status !== "ready" ? h("div", { class: "notice" }, tr("bot." + system.bot_status)) : null;
   const titleEl = h("div", { class: "title" });
   const subEl = h("div", { class: "muted small" });
   let seeking = false;
   const seekBar = h("input", { type: "range", class: "seek", min: 0, max: 0, step: 1, value: 0, disabled: true, "aria-label": tr("seek"),
     oninput: (e) => { seeking = true; timeEl.textContent = fmtTime(Number(e.target.value)) + " / " + fmtTime(Number(e.target.max)); },
     onchange: async (e) => {
-      try { applyState(await api("POST", `/api/player/${ps.guildId}/seek`, { seconds: Number(e.target.value) })); } catch (err) { fail(err); }
+      try {
+        if (LocalPlayer.on) { await LocalPlayer.seek(Number(e.target.value)); applyState(LocalPlayer.snapshot()); }
+        else applyState(await api("POST", `/api/player/${ps.guildId}/seek`, { seconds: Number(e.target.value) }));
+      } catch (err) { fail(err); }
       seeking = false;
     },
     onpointerup: () => setTimeout(() => { seeking = false; }, 300) });
@@ -604,7 +613,11 @@ async function viewPlayer(main) {
   // The bot follows the slider while it is dragged (the server glides between the values, so it sounds smooth).
   // Requests go out one after another, so that an older value can never arrive after a newer one.
   let volumeChain = Promise.resolve();
-  const postVolume = (v) => { volumeChain = volumeChain.then(() => api("POST", `/api/player/${ps.guildId}/volume`, { volume: v / 100 })); return volumeChain; };
+  const postVolume = (v) => {
+    if (LocalPlayer.on) { LocalPlayer.setVolume(v / 100); pref("local_volume", String(v)); return Promise.resolve(LocalPlayer.snapshot()); }
+    volumeChain = volumeChain.then(() => api("POST", `/api/player/${ps.guildId}/volume`, { volume: v / 100 }));
+    return volumeChain;
+  };
   const sendVolume = throttle((v) => { postVolume(v).catch(fail); }, 80);
   const vol = h("input", { type: "range", min: 0, max: 150, step: 1, value: 40, "aria-label": tr("volume"),
     onpointerdown: () => { dragging = true; }, onpointerup: () => { dragging = false; },
@@ -629,10 +642,10 @@ async function viewPlayer(main) {
     : null;
 
   put(main, 
-    system.bot_status !== "ready" ? h("div", { class: "notice" }, tr("bot." + system.bot_status)) : null,
+    notice,
     h("div", { class: "card" }, h("div", { class: "row" },
-      guildSel, chanSel, connectBtn, status, h("span", { class: "grow" }),
-      guilds.length === 0 && system.bot_status === "ready" ? h("span", { class: "muted small" }, tr("no_servers")) : null)),
+      guildSel, chanSel, connectBtn, localBtn, status, h("span", { class: "grow" }),
+      guilds.length === 0 && system.bot_status === "ready" ? h("span", { class: "muted small" }, tr("no_servers")) : null), localHint),
     h("div", { class: "card now" }, titleEl, subEl, seekBar, timeEl,
       h("div", { class: "controls" }, prevB, toggleB, nextB, stopB, loopB, shuffleB,
         h("div", { class: "volume" }, "🔈", volUi.el, volLabel)),
@@ -670,9 +683,21 @@ async function viewPlayer(main) {
     if (st) { ps.st = st; ps.stAt = Date.now(); }
     const s = ps.st;
     const connected = !!(s && s.connected);
-    status.className = "badge " + (connected ? "ok" : "");
-    status.textContent = connected ? tr("connected_to", { name: s.channel_name }) : tr("disconnected");
+    const here = LocalPlayer.on;
+    status.className = "badge " + (connected || here ? "ok" : "");
+    status.textContent = here ? tr("local_badge") : (connected ? tr("connected_to", { name: s.channel_name }) : tr("disconnected"));
     connectBtn.textContent = connected && s.channel_id === ps.channelId ? tr("disconnect") : (connected ? tr("move") : tr("connect"));
+    // Playing here and playing on Discord exclude each other: one button blocks the other.
+    const busyElsewhere = connected && !here && !!s.controller_id && s.controller_id !== state.user.id && s.state !== "idle";
+    connectBtn.disabled = here;
+    connectBtn.title = here ? tr("local_blocks_connect") : "";
+    localBtn.textContent = "🖥 " + (here ? tr("stop_here") : tr("play_here"));
+    localBtn.classList.toggle("on", here);
+    localBtn.disabled = !here && connected && !busyElsewhere;
+    localBtn.title = localBtn.disabled ? tr("connect_blocks_local") : "";
+    for (const el of [guildSel, chanSel]) el.classList.toggle("hidden", here);
+    localHint.classList.toggle("hidden", !here);
+    if (notice) notice.classList.toggle("hidden", here);
     const playing = s && s.state !== "idle";
     titleEl.textContent = playing && s.now ? s.now.title : tr("nothing_playing");
     subEl.textContent = playing && s.playlist ? s.playlist.name + (s.playlist.set ? " · " + s.playlist.set : "") + (s.controller ? " · " + s.controller : "") : "";
@@ -712,6 +737,7 @@ async function viewPlayer(main) {
   }
 
   async function playQuick() {
+    if (LocalPlayer.on) return playHere({ tags: [...state.quick.tags], mode: state.quick.mode });
     if (!ps.guildId) return toast(tr("pick_server"), "err");
     try {
       if (!(ps.st && ps.st.connected)) {
@@ -735,9 +761,15 @@ async function viewPlayer(main) {
     for (const row of queueBox.children) row.classList.toggle("current", Number(row.dataset.index) === current);
   }
 
-  async function jump(index) { try { applyState(await api("POST", `/api/player/${ps.guildId}/jump`, { index })); } catch (err) { fail(err); } }
+  async function jump(index) {
+    try {
+      if (LocalPlayer.on) { await LocalPlayer.jump(index); applyState(LocalPlayer.snapshot()); }
+      else applyState(await api("POST", `/api/player/${ps.guildId}/jump`, { index }));
+    } catch (err) { fail(err); }
+  }
 
   function tickBar() {
+    if (LocalPlayer.on) { ps.st = LocalPlayer.snapshot(); ps.stAt = Date.now(); }
     const s = ps.st;
     if (seeking) return;  // the person is dragging the handle: do not fight them
     if (!s || !s.now) {
@@ -754,7 +786,7 @@ async function viewPlayer(main) {
   }
 
   async function poll() {
-    if (!ps.guildId || document.hidden || state.tab !== "player") return;
+    if (!ps.guildId || document.hidden || state.tab !== "player" || LocalPlayer.on) return;
     try { applyState(await api("GET", `/api/player/${ps.guildId}/state`)); } catch (_) { /* transient */ }
   }
   async function toggleConnect() {
@@ -765,9 +797,48 @@ async function viewPlayer(main) {
       else applyState(await api("POST", `/api/player/${ps.guildId}/connect`, { channel_id: ps.channelId }));
     } catch (err) { fail(err); }
   }
-  async function control(action) { try { applyState(await api("POST", `/api/player/${ps.guildId}/${action}`)); } catch (err) { fail(err); } }
-  async function options(body) { try { applyState(await api("PATCH", `/api/player/${ps.guildId}/options`, body)); } catch (err) { fail(err); } }
+  async function control(action) {
+    try {
+      if (LocalPlayer.on) {
+        const run = { pause: () => LocalPlayer.pause(), resume: () => LocalPlayer.resume(), next: () => LocalPlayer.skip(1),
+          prev: () => LocalPlayer.skip(-1), stop: () => LocalPlayer.stop() }[action];
+        await run();
+        applyState(LocalPlayer.snapshot());
+      } else applyState(await api("POST", `/api/player/${ps.guildId}/${action}`));
+    } catch (err) { fail(err); }
+  }
+  async function options(body) {
+    try {
+      if (LocalPlayer.on) { LocalPlayer.setOptions(body); applyState(LocalPlayer.snapshot()); }
+      else applyState(await api("PATCH", `/api/player/${ps.guildId}/options`, body));
+    } catch (err) { fail(err); }
+  }
+  async function playHere(target) {
+    try {
+      if (Preview.track) Preview.stop();  // what was being auditioned would play over the music
+      await LocalPlayer.play(target);
+      applyState(LocalPlayer.snapshot());
+    } catch (err) { fail(err); }
+  }
+  async function toggleLocal() {
+    try {
+      if (LocalPlayer.on) {
+        LocalPlayer.disable();
+        pref("local", "0");
+        ps.st = null;
+        fillChannels();
+        poll();
+      } else {
+        if (Preview.track) Preview.stop();
+        await LocalPlayer.enable();
+        pref("local", "1");
+        LocalPlayer.setVolume(Number(pref("local_volume") || 40) / 100);
+        applyState(LocalPlayer.snapshot());
+      }
+    } catch (err) { fail(err); }
+  }
   async function playPad(p) {
+    if (LocalPlayer.on) return playHere({ playlist_id: p.id });
     if (!ps.guildId) return toast(tr("pick_server"), "err");
     try {
       if (!(ps.st && ps.st.connected)) {
@@ -781,6 +852,13 @@ async function viewPlayer(main) {
   fillChannels();
   fillPads();
   paintQuick();
+  if (LocalPlayer.on) applyState(LocalPlayer.snapshot());
+  // The engine outlives this screen: it tells whichever player screen is on display what it is doing.
+  LocalPlayer.subscribe((snap) => {
+    if (!document.body.contains(seekBar)) return false;
+    if (LocalPlayer.on) applyState(snap);
+    return true;
+  });
   stopPolling();
   ps.timer = setInterval(() => { poll(); }, 2500);
   const tickId = setInterval(() => { if (state.tab !== "player" || !document.body.contains(seekBar)) clearInterval(tickId); else tickBar(); }, 1000);
@@ -1433,5 +1511,6 @@ async function boot() {
   } catch (_) { state.user = null; }
   render();
 }
+LocalPlayer.onerror = () => toast(tr("local_load_failed"), "err");
 document.addEventListener("visibilitychange", () => { /* polling resumes on the next tick */ });
 boot();
