@@ -72,7 +72,7 @@ class Svg:
                 '<defs>'
                 '<marker id="head" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto">'
                 '<path d="M0 0 L10 5 L0 10 z" fill="context-stroke"/></marker>'
-                '<marker id="head-rev" viewBox="0 0 10 10" refX="1" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">'
+                '<marker id="head-rev" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">'
                 '<path d="M0 0 L10 5 L0 10 z" fill="context-stroke"/></marker>'
                 '</defs>' + "".join(self.parts) + "</svg>\n")
 
@@ -175,7 +175,7 @@ def overview(lang: str, theme: str) -> str:
     s.arrow([(545, 205), (545, 270)], t["queue"], at=(553, 243), anchor="start", color="blue")
     s.arrow([(790, 205), (790, 270)], t["state"], at=(798, 243), anchor="start")
     s.arrow([(678, 205), (678, 490)], color="green", both=True)
-    s.text(663, 349, t["sql"], size=12, color="green", weight=600, rotate=-90)
+    s.text(671, 349, t["sql"], size=12, color="green", weight=600, rotate=-90)
     s.arrow([(545, 440), (545, 505)], t["measures"], at=(553, 475), anchor="start", color="green")
     s.arrow([(790, 505), (790, 440)], t["reads"], at=(798, 473), anchor="start", color="green")
     s.arrow([(880, 355), (985, 355)], t["voice"], at=(932, 346))
