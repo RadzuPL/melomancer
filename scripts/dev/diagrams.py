@@ -167,9 +167,9 @@ def overview(lang: str, theme: str) -> str:
     # Discord, on the right
     s.box(985, 270, 200, 170, t["discord"], t["discord_sub"], fill="disc_bg", stroke="disc", color="disc_ink")
     # the browser talks to the API through the (optional) Cloudflare tunnel: the panel, and the audio of "Play here"
-    s.arrow([(235, 120), (450, 120)], color="blue", both=True)
+    s.arrow([(223, 120), (450, 120)], color="blue", both=True)
     s.text(320, 111, t["https"], size=12, color="blue", weight=600)
-    s.arrow([(450, 195), (235, 195)], color="blue")
+    s.arrow([(450, 195), (223, 195)], color="blue")
     s.text(320, 212, t["audio"], size=12, color="blue", weight=600)
     # inside the container
     s.arrow([(545, 205), (545, 270)], t["queue"], at=(553, 243), anchor="start", color="blue")
