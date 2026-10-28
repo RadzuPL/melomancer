@@ -24,7 +24,10 @@ Panel ma cztery zakładki dla wszystkich, **Odtwarzacz**, **Biblioteka**, **Play
 
 ## Biblioteka
 
-![Zakładka Biblioteka](../img/library.png)
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="../img/library-pl-dark.png">
+  <img alt="Zakładka Biblioteka" src="../img/library-pl.png">
+</picture>
 
 **Dodawanie muzyki.** Naciśnij **Wybierz pliki** albo **Wybierz folder**, albo przeciągnij pliki audio na przerywane pole. Wiele plików naraz to nie problem, wysyłane są jeden po drugim (po dwa równocześnie) z linijką stanu dla każdego. Obsługiwane typy: mp3, ogg, opus, flac, wav, m4a, aac, webm. Wgrywanie folderu może zamienić nazwy folderów na **tagi wspólne** (pole wyboru obok przycisków).
 
@@ -51,7 +54,10 @@ Plik, który już jest w bibliotece (ta sama zawartość), nie zostanie dodany d
 
 ## Playlisty
 
-![Zakładka Playlisty](../img/playlists.png)
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="../img/playlists-pl-dark.png">
+  <img alt="Zakładka Playlisty" src="../img/playlists-pl.png">
+</picture>
 
 Po lewej twoje drzewo. Użyj **+ Zestaw**, potem przycisku **♪+** przy zestawie (nowa playlista wprost w zestawie) albo **📁+** (nowy folder). Folder ma własny **♪+** na playlisty w środku. Ołówek zmienia nazwę, krzyżyk usuwa, strzałki zmieniają kolejność. Usunięcie zestawu, grupy lub playlisty nigdy nie usuwa muzyki z biblioteki.
 
@@ -70,7 +76,10 @@ Po prawej wybrana playlista.
 
 ## Odtwarzacz
 
-![Zakładka Odtwarzacz](../img/player.png)
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="../img/player-pl-dark.png">
+  <img alt="Zakładka Odtwarzacz" src="../img/player-pl.png">
+</picture>
 
 1. Wybierz **serwer** i **kanał głosowy**. Bot musi być na tym serwerze (zobacz [Tworzenie bota Discord](discord-bot.md)). Panel pamięta twój ostatni wybór, kanał osobno dla każdego serwera, i proponuje go ponownie następnym razem, także w innej przeglądarce. Sam wybór nie łączy bota.
 2. Wybierz **zestaw**. Jego playlisty pojawią się jako przyciski, foldery jako nagłówki z playlistami pod spodem.
@@ -111,6 +120,11 @@ Zakładka **Użytkownicy** (tylko dla administratorów):
 Twoja nazwa w górnym pasku otwiera okno konta: zmiana hasła. Zmiana hasła wylogowuje cię wszędzie indziej.
 
 ## Ustawienia
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="../img/settings-pl-dark.png">
+  <img alt="Zakładka Ustawienia" src="../img/settings-pl.png">
+</picture>
 
 Zakładka **Ustawienia** (tylko dla administratorów) zaczyna się od trzech kafelków: **bot** (działa albo nie, wersja i, gdy ustawiono `DISCORD_CLIENT_ID`, link **Dodaj bota do serwera**), **CPU** kontenera (wartość bieżąca, średnia z 60 sekund i szczyt z ostatnich 10 minut; 100 % to jeden rdzeń, tak jak w `docker stats`) i jego **pamięć**. Dwa wykresy pokazują ostatnie trzy minuty, odświeżane co 3 sekundy. Pod nimi są ustawienia, w trzech grupach: Głośność, Przejścia i Cisza.
 

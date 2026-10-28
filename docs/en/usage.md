@@ -24,7 +24,10 @@ The panel has four tabs for everyone, **Player**, **Library**, **Playlists** and
 
 ## Library
 
-![The Library tab](../img/library.png)
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="../img/library-en-dark.png">
+  <img alt="The Library tab" src="../img/library-en.png">
+</picture>
 
 **Adding music.** Press **Choose files** or **Choose folder**, or drag audio files onto the dashed area. Many files at once are fine, they are sent one after another (two at a time) with a status line for each. Accepted types: mp3, ogg, opus, flac, wav, m4a, aac, webm. Folder upload can turn folder names into **shared tags** (the checkbox next to the buttons).
 
@@ -51,7 +54,10 @@ A file that is already in the library (same content) is not added twice: you see
 
 ## Playlists
 
-![The Playlists tab](../img/playlists.png)
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="../img/playlists-en-dark.png">
+  <img alt="The Playlists tab" src="../img/playlists-en.png">
+</picture>
 
 Left side: your tree. Use **+ Set**, then the **♪+** button on a set (new playlist directly in the set) or the **📁+** button (new folder). A folder has its own **♪+** for playlists inside it. The pencil renames, the cross deletes, the arrows change the order. Deleting a set, group or playlist never deletes music from the library.
 
@@ -70,7 +76,10 @@ Right side: the selected playlist.
 
 ## Player
 
-![The Player tab](../img/player.png)
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="../img/player-en-dark.png">
+  <img alt="The Player tab" src="../img/player-en.png">
+</picture>
 
 1. Choose the **server** and the **voice channel**. The bot has to be on that server (see [Creating the Discord bot](discord-bot.md)). The panel remembers your last choice, the channel for each server separately, and offers it again next time, also in another browser. Choosing does not connect the bot.
 2. Choose a **set**. Its playlists appear as buttons, folders as headings with their playlists below.
@@ -111,6 +120,11 @@ The **Users** tab (administrators only):
 Your own name in the top bar opens the account dialog: change your password. Changing a password logs you out everywhere else.
 
 ## Settings
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="../img/settings-en-dark.png">
+  <img alt="The Settings tab" src="../img/settings-en.png">
+</picture>
 
 The **Settings** tab (administrators only) starts with three tiles: the **bot** (running or not, the version, and, when `DISCORD_CLIENT_ID` is set, an **Add the bot to a server** link), the **CPU** of the container (the current value, the average over 60 seconds and the peak of the last 10 minutes; 100 % is one core, as in `docker stats`) and its **memory**. The two charts show the last three minutes, refreshed every 3 seconds. Below them are the settings, in three groups: Loudness, Cross-fades and Silence.
 

@@ -5,9 +5,8 @@
 
 Edit the drawing or the texts here and run it again; do not edit the SVG files by hand. Every diagram is written
 twice, `name-lang.svg` for a light page and `name-lang-dark.svg` for a dark one, both on a transparent background;
-the Markdown picks one with a `<picture>` element, which GitHub switches by its own theme. It also writes the
-placeholder screenshots (docs/img/*.png) that stand in until a real screenshot is saved under the same name; an
-existing screenshot is never overwritten.
+the Markdown picks one with a `<picture>` element, which GitHub switches by its own theme.
+The screenshots are made by scripts/dev/screenshots.py.
 """
 from __future__ import annotations
 
@@ -199,39 +198,12 @@ def playback(lang: str, theme: str) -> str:
     return s.render()
 
 
-def placeholder(name: str, what: str) -> bytes:
-    from PIL import Image, ImageDraw, ImageFont
-    img = Image.new("RGB", (1280, 720), "#2a2733")
-    draw = ImageDraw.Draw(img)
-    try:
-        font = ImageFont.truetype("DejaVuSans-Bold.ttf", 34)
-        small = ImageFont.truetype("DejaVuSans.ttf", 24)
-    except OSError:
-        font = small = ImageFont.load_default()
-    draw.rectangle((24, 24, 1255, 695), outline="#6a43c2", width=4)
-    for text, y, f, fill in ((f"docs/img/{name}", 280, font, "#ffffff"),
-                             ("placeholder, replace this file with a screenshot of", 345, small, "#c9c4d8"),
-                             (what, 385, small, "#c9c4d8")):
-        w = draw.textlength(text, font=f)
-        draw.text(((1280 - w) / 2, y), text, font=f, fill=fill)
-    import io
-    buf = io.BytesIO()
-    img.save(buf, "PNG", optimize=True)
-    return buf.getvalue()
-
-
 def main() -> None:
     OUT.mkdir(parents=True, exist_ok=True)
     for lang in ("en", "pl"):
         for theme, suffix in (("light", ""), ("dark", "-dark")):
             (OUT / f"overview-{lang}{suffix}.svg").write_text(overview(lang, theme), encoding="utf-8")
             (OUT / f"playback-{lang}{suffix}.svg").write_text(playback(lang, theme), encoding="utf-8")
-    for name, what in (("player.png", "the Player tab, ideally while a playlist plays"),
-                       ("library.png", "the Library tab"),
-                       ("playlists.png", "the Playlists tab with a set open")):
-        target = OUT / name
-        if not target.exists():
-            target.write_bytes(placeholder(name, what))
     print("written to", OUT)
 
 

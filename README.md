@@ -10,7 +10,10 @@
 
 A self-hosted **music player for tabletop RPG sessions**, with a web panel. It plays the music in the panel itself, on the speakers of the computer that has the page open (**Play here**), or through a **Discord bot** into a voice channel, for a session held online. One shared music library, private **playlists** collected in **sets** (a game system or a scenario), optionally sorted into **folders** (for example locations or kinds of scenes), one-click playback, live volume control, and several game masters, each with playlists the others cannot see.
 
-![The Player tab of the panel](docs/img/player.png)
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/img/player-en-dark.png">
+  <img alt="The Player tab of the panel" src="docs/img/player-en.png">
+</picture>
 
 ### Features
 
@@ -84,7 +87,10 @@ MIT, see [LICENSE](LICENSE). The software Melomancer uses and the container imag
 
 Własny **odtwarzacz muzyki na sesje RPG** z panelem webowym. Gra w samym panelu, na głośnikach komputera, na którym strona jest otwarta (**Odtwarzaj tutaj**), albo przez **bota Discord** na kanale głosowym, przy sesji prowadzonej online. Jedna wspólna biblioteka muzyki, prywatne **playlisty** zebrane w **zestawy** (system gry albo scenariusz), opcjonalnie podzielone na **foldery** (np. lokacje albo rodzaje scen), odpalanie jednym przyciskiem, regulacja głośności na żywo oraz kilku mistrzów gry, każdy z playlistami niewidocznymi dla pozostałych.
 
-![Zakładka Odtwarzacz w panelu](docs/img/player.png)
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/img/player-pl-dark.png">
+  <img alt="Zakładka Odtwarzacz w panelu" src="docs/img/player-pl.png">
+</picture>
 
 ### Funkcje
 

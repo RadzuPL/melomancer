@@ -8,42 +8,18 @@ and drives the panel like a person would. Screenshots land in $SHOTS (a temporar
 
 Exit code 0 means no assertion failed and the page logged no errors or warnings. Keep the mock data in step with the API.
 """
-import functools
-import http.server
 import json
 import os
 import pathlib
 import sys
 import tempfile
-import threading
 
 from playwright.sync_api import sync_playwright
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 PORT = 8099
 SHOTS = os.environ.get("SHOTS") or tempfile.mkdtemp(prefix="melomancer-shots-")
-# Same as SECURITY_HEADERS in app/main.py: keep in sync, the point is to catch inline scripts and styles.
-CSP = ("default-src 'self'; img-src 'self' data:; media-src 'self'; style-src 'self'; "
-       "script-src 'self'; frame-ancestors 'none'")
-
-
-def start_server():
-    site = pathlib.Path(tempfile.mkdtemp(prefix="melomancer-ui-"))
-    (site / "static").symlink_to(ROOT / "app" / "static")
-    (site / "index.html").write_text((ROOT / "app/static/index.html").read_text(encoding="utf-8").replace("__VERSION__", "test"),
-                                     encoding="utf-8")
-
-    class Handler(http.server.SimpleHTTPRequestHandler):
-        def end_headers(self):
-            self.send_header("Content-Security-Policy", CSP)
-            super().end_headers()
-
-        def log_message(self, *args):
-            pass
-
-    server = http.server.ThreadingHTTPServer(("127.0.0.1", PORT), functools.partial(Handler, directory=str(site)))
-    threading.Thread(target=server.serve_forever, daemon=True).start()
-    return server
+from static_site import start_server  # noqa: E402
 
 
 TRACKS = [
@@ -126,7 +102,7 @@ with wave.open(_buf, "wb") as _w:
     _w.setnchannels(1); _w.setsampwidth(2); _w.setframerate(8000); _w.writeframes(b"\x00\x00" * 8000 * 30)
 WAV = _buf.getvalue()
 
-SERVER = start_server()
+SERVER = start_server(PORT)
 
 with sync_playwright() as p:
     browser = p.chromium.launch()
