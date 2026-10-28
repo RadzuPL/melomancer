@@ -50,9 +50,10 @@ class Svg:
             self.parts.append(f'<text x="{x + w / 2}" y="{top + i * 18:.0f}" text-anchor="middle" font-size="12.5" '
                               f'fill="{self.col("muted")}">{escape(line)}</text>')
 
-    def text(self, x, y, value, *, size=13, color="ink", weight=400, anchor="middle"):
+    def text(self, x, y, value, *, size=13, color="ink", weight=400, anchor="middle", rotate=0):
+        turn = f' transform="rotate({rotate} {x} {y})"' if rotate else ""
         self.parts.append(f'<text x="{x}" y="{y}" text-anchor="{anchor}" font-size="{size}" font-weight="{weight}" '
-                          f'fill="{self.col(color)}">{escape(value)}</text>')
+                          f'fill="{self.col(color)}"{turn}>{escape(value)}</text>')
 
     def arrow(self, points, label="", *, color="accent", both=False, at=None, anchor="middle"):
         path = "M" + " L".join(f"{px} {py}" for px, py in points)
@@ -79,7 +80,7 @@ class Svg:
 TEXT = {
     "en": {
         "browser": "Browser", "panel": "Panel", "panel_sub": "plain JavaScript, PL / EN",
-        "local": "LocalPlayer", "local_sub": "Web Audio, \"Play here\"", "speakers": "speakers of this computer",
+        "local": "Local player", "local_sub": "Web Audio, \"Play here\"", "speakers": "speakers of this computer",
         "cf": "Cloudflare", "cf_sub": ("Tunnel + Access", "(optional)"),
         "container": "One container: melomancer", "loop": "one Python process, one asyncio loop",
         "api": "FastAPI", "api_sub": "login · library · playlists · player · local playback",
@@ -109,7 +110,7 @@ TEXT = {
     },
     "pl": {
         "browser": "Przeglądarka", "panel": "Panel", "panel_sub": "czysty JavaScript, PL / EN",
-        "local": "LocalPlayer", "local_sub": "Web Audio, „Odtwarzaj tutaj”", "speakers": "głośniki tego komputera",
+        "local": "Odtwarzacz lokalny", "local_sub": "Web Audio, „Odtwarzaj tutaj”", "speakers": "głośniki tego komputera",
         "cf": "Cloudflare", "cf_sub": ("Tunnel + Access", "(opcjonalnie)"),
         "container": "Jeden kontener: melomancer", "loop": "jeden proces Pythona, jedna pętla asyncio",
         "api": "FastAPI", "api_sub": "logowanie · biblioteka · playlisty · odtwarzacz · odtwarzanie lokalne",
@@ -154,8 +155,8 @@ def overview(lang: str, theme: str) -> str:
     s.box(420, 30, 490, 650, "", fill="none", stroke="accent")
     s.text(665, 55, t["container"], size=15, weight=700, color="accent")
     s.box(450, 70, 430, 135, t["api"], t["api_sub"], fill="accent_bg", stroke="accent")
-    s.box(450, 270, 200, 80, t["dl"], t["dl_sub"])
-    s.box(450, 365, 200, 75, t["ld"], t["ld_sub"])
+    s.box(450, 270, 190, 80, t["dl"], t["dl_sub"])
+    s.box(450, 365, 190, 75, t["ld"], t["ld_sub"])
     s.box(700, 270, 180, 170, t["bot"], t["bot_sub"], fill="accent_bg", stroke="accent")
     # the data volume: the database and the music files
     s.box(440, 490, 450, 130, "", fill="none", stroke="green", dash=True)
@@ -166,16 +167,16 @@ def overview(lang: str, theme: str) -> str:
     # Discord, on the right
     s.box(985, 270, 200, 170, t["discord"], t["discord_sub"], fill="disc_bg", stroke="disc", color="disc_ink")
     # the browser talks to the API through the (optional) Cloudflare tunnel: the panel, and the audio of "Play here"
-    s.arrow([(223, 120), (450, 120)], color="blue", both=True)
+    s.arrow([(235, 120), (450, 120)], color="blue", both=True)
     s.text(320, 111, t["https"], size=12, color="blue", weight=600)
-    s.arrow([(450, 195), (223, 195)], color="blue")
+    s.arrow([(450, 195), (235, 195)], color="blue")
     s.text(320, 212, t["audio"], size=12, color="blue", weight=600)
     # inside the container
-    s.arrow([(550, 205), (550, 270)], t["queue"], at=(558, 243), anchor="start", color="blue")
+    s.arrow([(545, 205), (545, 270)], t["queue"], at=(553, 243), anchor="start", color="blue")
     s.arrow([(790, 205), (790, 270)], t["state"], at=(798, 243), anchor="start")
-    s.arrow([(675, 205), (675, 490)], color="green", both=True)
-    s.text(675, 349, t["sql"], size=12, color="green", weight=600)
-    s.arrow([(550, 440), (550, 505)], t["measures"], at=(558, 475), anchor="start", color="green")
+    s.arrow([(678, 205), (678, 490)], color="green", both=True)
+    s.text(663, 349, t["sql"], size=12, color="green", weight=600, rotate=-90)
+    s.arrow([(545, 440), (545, 505)], t["measures"], at=(553, 475), anchor="start", color="green")
     s.arrow([(790, 505), (790, 440)], t["reads"], at=(798, 473), anchor="start", color="green")
     s.arrow([(880, 355), (985, 355)], t["voice"], at=(932, 346))
     # downloads come in from the Internet, in a straight line
