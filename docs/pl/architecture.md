@@ -4,7 +4,10 @@ Języki: [English](../en/architecture.md) · **Polski**
 
 ## Przegląd
 
-![Melomancer: przeglądarka, kontener, Discord](../img/overview-pl.svg)
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="../img/overview-pl-dark.svg">
+  <img alt="Melomancer: przeglądarka, kontener, Discord" src="../img/overview-pl.svg">
+</picture>
 
 Jeden proces Pythona, jeden kontener:
 
@@ -84,7 +87,10 @@ user_prefs (użytkownik, klucz, wartość: ostatnio wybrany w odtwarzaczu serwer
 
 ## Odtwarzanie
 
-![Dwa sposoby grania tej samej playlisty: na Discordzie i w przeglądarce](../img/playback-pl.svg)
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="../img/playback-pl-dark.svg">
+  <img alt="Dwa sposoby grania tej samej playlisty: na Discordzie i w przeglądarce" src="../img/playback-pl.svg">
+</picture>
 
 - Jeden `GuildPlayer` na serwer Discord trzyma kolejkę (id utworów, tytuły, ścieżki), kolejność (losową lub nie), flagi pętli i losowania, głośność i sterującego użytkownika.
 - Każdy utwór gra przez `FFmpegPCMAudio` owinięte w `PCMVolumeTransformer`. Zmiana głośności ustawia głośność transformera, więc działa w obrębie jednej ramki (20 ms).

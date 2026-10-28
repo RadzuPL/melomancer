@@ -50,7 +50,10 @@ services:
 
 ### How it fits together
 
-![Melomancer: browser, container, Discord](docs/img/overview-en.svg)
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/img/overview-en-dark.svg">
+  <img alt="Melomancer: browser, container, Discord" src="docs/img/overview-en.svg">
+</picture>
 
 ### Documentation
 
@@ -117,7 +120,10 @@ services:
 
 ### Jak to jest zbudowane
 
-![Melomancer: przeglądarka, kontener, Discord](docs/img/overview-pl.svg)
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/img/overview-pl-dark.svg">
+  <img alt="Melomancer: przeglądarka, kontener, Discord" src="docs/img/overview-pl.svg">
+</picture>
 
 ### Dokumentacja
 
