@@ -123,3 +123,56 @@ def test_people_lists_active_accounts_without_yourself(env):
     assert [p["username"] for p in env.client.get("/api/people").json()] == ["admin"]
     env.client.cookies.clear()
     assert env.client.get("/api/people").status_code == 401
+
+
+def _all_playlists(env):
+    return {pl["name"]: (s["name"], pl) for s in env.client.get("/api/sets").json()
+            for pl in [*s["playlists"], *[p for g in s["groups"] for p in g["playlists"]]]}
+
+
+def test_copy_into_another_set_or_folder_of_your_own(env, wavs):
+    ids, playlist = _scenario(env, wavs)
+    other = env.client.post("/api/sets", json={"name": "Inna"}).json()["id"]
+    group = env.client.post(f"/api/sets/{other}/groups", json={"name": "Sceny"}).json()["id"]
+
+    res = env.client.post(f"/api/playlists/{playlist}/copy", json={"set_id": other})
+    assert res.status_code == 201, res.text
+    assert (res.json()["set_name"], res.json()["user"], res.json()["copied"], res.json()["skipped"]) == ("Inna", "admin", 2, 1)
+    res = env.client.post(f"/api/playlists/{playlist}/copy", json={"group_id": group})
+    assert res.status_code == 201 and res.json()["set_id"] == other
+
+    sets = {s["name"]: s for s in env.client.get("/api/sets").json()}
+    assert [p["name"] for p in sets["Inna"]["playlists"]] == ["Walka"]
+    assert [p["name"] for p in sets["Inna"]["groups"][0]["playlists"]] == ["Walka"]
+    copy = sets["Inna"]["playlists"][0]
+    assert (copy["loop"], copy["shuffle"], copy["fade"], copy["volume"]) == (False, True, 4, 0.7)
+    detail = env.client.get(f"/api/playlists/{copy['id']}").json()
+    assert [i["track_id"] for i in detail["items"]] == [ids[0], ids[2]]
+
+
+def test_a_copy_next_to_the_original_gets_a_different_name(env, wavs):
+    _, playlist = _scenario(env, wavs)
+    set_id = env.client.get("/api/sets").json()[0]["id"]
+    assert env.client.post(f"/api/playlists/{playlist}/copy", json={"set_id": set_id}).status_code == 201
+    names = sorted(p["name"] for p in env.client.get("/api/sets").json()[0]["playlists"])
+    assert len(names) == 2 and "Walka" in names and any(n.startswith("Walka (") for n in names), names
+
+
+def test_copy_needs_exactly_one_target_and_your_own_set(env, wavs):
+    bob = make_user(env, "bob")
+    _, playlist = _scenario(env, wavs)
+    set_id = env.client.get("/api/sets").json()[0]["id"]
+    assert env.client.post(f"/api/playlists/{playlist}/copy", json={}).status_code == 400
+    assert env.client.post(f"/api/playlists/{playlist}/copy", json={"user_id": bob, "set_id": set_id}).status_code == 400
+    login(env, "bob")
+    bobs = env.client.post("/api/sets", json={"name": "Bobowy"}).json()["id"]
+    login(env, "admin")
+    admin_set = env.client.post("/api/sets", json={"name": "Moj"}).json()["id"]
+    login(env, "bob")
+    # someone else's playlist, and someone else's set, answer 404 for a user who does not own them
+    assert env.client.post(f"/api/playlists/{playlist}/copy", json={"set_id": bobs}).status_code == 404
+    login(env, "admin")
+    assert env.client.post(f"/api/playlists/{playlist}/copy", json={"user_id": bob}).status_code == 201
+    login(env, "bob")
+    own = _all_playlists(env)["Walka"][1]["id"]
+    assert env.client.post(f"/api/playlists/{own}/copy", json={"set_id": admin_set}).status_code == 404

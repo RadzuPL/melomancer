@@ -330,14 +330,24 @@ with sync_playwright() as p:
     # copy the playlist to another person
     page.click("button:has-text('Kopiuj do…')")
     page.wait_for_selector(".dialog select")
-    assert page.locator(".dialog select option").all_inner_texts() == ["bravo", "alpha"]
-    page.locator(".dialog select").select_option(label="bravo")
+    assert page.locator(".dialog select[aria-label='Kopiuj do…'] option").all_inner_texts() == ["Do mojego zestawu lub folderu", "Do innej osoby"]
+    page.locator(".dialog select[aria-label='Kopiuj do…']").select_option(label="Do innej osoby")
+    assert page.locator(".dialog select[aria-label='Osoba'] option").all_inner_texts() == ["bravo", "alpha"]
+    page.locator(".dialog select[aria-label='Osoba']").select_option(label="bravo")
     page.locator(".dialog input[type=checkbox]").check()
     page.click(".dialog button:has-text('Kopiuj')")
     page.wait_for_timeout(300)
     assert _k.loads(bodies["/api/playlists/12/copy"]) == {"user_id": 2, "with_my_tags": True}, bodies.get("/api/playlists/12/copy")
     toast_text = page.inner_text("#toasts")
     assert "bravo" in toast_text and "Od admin" in toast_text and "pominięto usunięte: 2" in toast_text, toast_text
+    # copy it to a folder of my own: the first choice of the dialog, no other person involved
+    page.click("button:has-text('Kopiuj do…')")
+    page.wait_for_selector(".dialog select")
+    assert page.locator(".dialog select[aria-label='Zestaw lub folder']").is_visible() and page.locator(".dialog select[aria-label='Osoba']").is_hidden()
+    page.locator(".dialog select[aria-label='Zestaw lub folder']").select_option(label="Zew Cthulhu: Druga › 📁 Lokacje")
+    page.click(".dialog button:has-text('Kopiuj')")
+    page.wait_for_timeout(300)
+    assert _k.loads(bodies["/api/playlists/12/copy"]) == {"group_id": 5}, bodies.get("/api/playlists/12/copy")
     page.locator(".tree .set .head button[title='Nowa playlista']").first.click()
     page.wait_for_selector(".dialog select")
     page.locator(".dialog input").first.fill("Karczma")
@@ -364,6 +374,7 @@ with sync_playwright() as p:
     page.wait_for_selector(".picker-list label")
     assert page.locator(".picker-list label").count() == 1, "tracks already on the playlist are hidden"
     assert "Tavern" in page.inner_text(".picker-list")
+    assert page.locator(".picker-list label .chip").all_inner_texts() == ["tavern"], "the tags are shown to tell tracks apart"
     page.locator(".picker-list label button").first.click()
     page.wait_for_timeout(600)
     assert page.locator(".picker-list .previewslot").count() == 1, "the picker has a seek bar too"
@@ -512,6 +523,8 @@ with sync_playwright() as p:
     assert not [c for c in calls[mark:] if c.startswith("POST")], calls[mark:]
     assert "Wybrana: Walka" in page.inner_text(".now .title") and page.locator(".pad.armed").count() == 1
     assert page.get_by_role("button", name="Pauza / wznów").is_disabled(), "cannot start before connecting"
+    assert page.locator(".qrow").count() == 1 and page.locator(".qrow").first.is_disabled(), "the selected playlist shows its tracks, stopped"
+    assert "Storm over the harbour" in page.inner_text(".queue")
     STATE.update(connected=True, channel_id="1001", channel_name="Voice A")
     connect_btn.click()
     page.wait_for_timeout(300)
@@ -524,6 +537,20 @@ with sync_playwright() as p:
     STATE.update(connected=False, channel_id=None, channel_name=None, state="idle")
     page.reload()
     page.wait_for_selector(".pad")
+    # a selected playlist survives turning "Play here" on, and the play button then plays it in the browser
+    page.locator(".pad", has_text="Walka").click()
+    page.wait_for_timeout(300)
+    here_btn.click()
+    page.wait_for_timeout(300)
+    assert "Wybrana: Walka" in page.inner_text(".now .title") and page.locator(".qrow").count() == 1, "still selected, with its list"
+    assert page.get_by_role("button", name="Pauza / wznów").is_enabled()
+    page.get_by_role("button", name="Pauza / wznów").click()
+    until(page, "LocalPlayer.state === 'playing' && !!LocalPlayer.cur")
+    assert _k.loads(bodies["/api/local/queue"]) == {"playlist_id": 12} and page.locator(".qrow:not([disabled])").count() == 2
+    page.get_by_role("button", name="Stop", exact=True).click()
+    page.wait_for_timeout(400)
+    page.get_by_role("button", name="Wyłącz odtwarzanie tutaj").click()
+    page.wait_for_timeout(300)
     here_btn.click()
     page.wait_for_timeout(300)
     assert page.get_by_role("button", name="Wyłącz odtwarzanie tutaj").count() == 1

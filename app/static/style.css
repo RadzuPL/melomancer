@@ -125,6 +125,8 @@ tr.selected { background: rgba(122, 82, 214, .18); }
 .qrow { display: flex; gap: .6rem; align-items: center; width: 100%; background: none; border: 0; border-bottom: 1px solid var(--line); color: var(--text); padding: .4rem .6rem; text-align: left; cursor: pointer; font: inherit; }
 .qrow:last-child { border-bottom: 0; }
 .qrow:hover { background: var(--panel-2); }
+.qrow:disabled { cursor: default; opacity: .8; }
+.qrow:disabled:hover { background: none; }
 .qrow.current { background: rgba(122, 82, 214, .3); font-weight: 600; }
 .qrow .t { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .qrow .qnum { min-width: 1.6rem; text-align: right; }
@@ -171,6 +173,8 @@ tr.selected { background: rgba(122, 82, 214, .18); }
 .picker-list { max-height: 45vh; overflow: auto; border: 1px solid var(--line); border-radius: 8px; margin-top: .6rem; }
 .picker-list label { display: flex; gap: .6rem; padding: .35rem .6rem; border-bottom: 1px solid var(--line); cursor: pointer; align-items: center; }
 .picker-list label:hover { background: var(--panel-2); }
+.picker-list .ptags { margin-top: .15rem; }
+.picker-list .chip { cursor: inherit; }
 #toasts { position: fixed; right: 1rem; bottom: 1rem; display: flex; flex-direction: column; gap: .5rem; z-index: 30; max-width: min(420px, 90vw); }
 .toast { background: var(--panel-2); border: 1px solid var(--line); border-left: 4px solid var(--accent); padding: .6rem .8rem; border-radius: 8px; }
 .toast.err { border-left-color: var(--bad); }

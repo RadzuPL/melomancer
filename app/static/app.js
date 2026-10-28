@@ -638,7 +638,8 @@ async function viewPlayer(main) {
   const quickPlay = h("button", { class: "btn primary", onclick: () => playQuick() });
   const quickClear = h("button", { class: "btn", onclick: () => { state.quick.tags.clear(); paintQuick(); } }, tr("clear"));
   const queueBox = h("div", { class: "queue" });
-  const queueWrap = h("div", { class: "hidden" }, h("div", { class: "muted small" }, tr("queue_hint")), queueBox);
+  const queueHint = h("div", { class: "muted small" }, tr("queue_hint"));
+  const queueWrap = h("div", { class: "hidden" }, queueHint, queueBox);
   let queueKey = "";
   const setSel = h("select", { "aria-label": tr("set"), onchange: (e) => { ps.setId = e.target.value; pref("set", ps.setId); fillPads(); } },
     own.map((s) => h("option", { value: s.id, selected: String(s.id) === ps.setId }, s.name + (state.showAllSets ? " (" + s.owner + ")" : ""))));
@@ -713,10 +714,10 @@ async function viewPlayer(main) {
     localHint.classList.toggle("hidden", !here);
     if (notice) notice.classList.toggle("hidden", here);
     const playing = s && s.state !== "idle";
-    const armed = !playing && !here && ps.armed;
+    const armed = !playing && ps.armed;
     titleEl.textContent = playing && s.now ? s.now.title : (armed ? tr("armed_title", { name: ps.armed.name }) : tr("nothing_playing"));
     subEl.textContent = playing && s.playlist ? s.playlist.name + (s.playlist.set ? " · " + s.playlist.set : "") + (s.controller ? " · " + s.controller : "")
-      : (armed ? tr(connected ? "armed_ready" : "armed_connect") : "");
+      : (armed ? tr(connected || here ? "armed_ready" : "armed_connect") : "");
     for (const b of [prevB, toggleB, nextB, stopB]) b.disabled = !playing;
     toggleB.disabled = !playing && !armedReady();
     toggleB.textContent = (s && s.state === "paused") || (!playing && armed) ? "▶" : "⏸";
@@ -761,12 +762,15 @@ async function viewPlayer(main) {
   }
 
   function paintQueue(s, playing) {
-    const queue = playing && s.queue ? s.queue : [];
+    // Nothing plays but a playlist is selected: its tracks are listed, stopped, so you can see what will play.
+    const stopped = !playing && !!ps.armed;
+    const queue = playing && s.queue ? s.queue : (stopped ? ps.armed.queue : []);
     queueWrap.classList.toggle("hidden", queue.length === 0);
-    const key = queue.map((q) => q.track_id).join(",");
+    queueHint.textContent = tr(stopped ? "queue_stopped_hint" : "queue_hint");
+    const key = (stopped ? "stopped:" : "") + queue.map((q) => q.track_id).join(",");
     if (key !== queueKey) {
       queueKey = key;
-      queueBox.replaceChildren(...queue.map((q, i) => h("button", { class: "qrow", "data-index": i, title: q.title, onclick: () => jump(i) },
+      queueBox.replaceChildren(...queue.map((q, i) => h("button", { class: "qrow", "data-index": i, title: q.title, disabled: stopped, onclick: () => jump(i) },
         h("span", { class: "muted small qnum" }, i + 1), h("span", { class: "t" }, q.title), h("span", { class: "muted small" }, fmtTime(q.duration)))));
     }
     const current = playing && s.now ? s.now.index : -1;
@@ -828,6 +832,7 @@ async function viewPlayer(main) {
   async function playHere(target) {
     try {
       if (Preview.track) Preview.stop();  // what was being auditioned would play over the music
+      ps.armed = null;
       await LocalPlayer.play(target);
       applyState(LocalPlayer.snapshot());
     } catch (err) { fail(err); }
@@ -842,7 +847,6 @@ async function viewPlayer(main) {
         poll();
       } else {
         if (Preview.track) Preview.stop();
-        ps.armed = null;
         await LocalPlayer.enable();
         pref("local", "1");
         LocalPlayer.setVolume(Number(pref("local_volume") || 40) / 100);
@@ -858,16 +862,31 @@ async function viewPlayer(main) {
      The person connects on purpose, and then starts it with ▶ or by pressing the playlist again. */
   async function playOnDiscord(target, name) {
     if (!ps.guildId) return toast(tr("pick_server"), "err");
-    if (!(ps.st && ps.st.connected)) { ps.armed = { target, name }; applyState(); return; }
+    if (!(ps.st && ps.st.connected)) return arm(target, name);
     try {
       ps.armed = null;
       applyState(await api("POST", `/api/player/${ps.guildId}/play`, target));
     } catch (err) { fail(err); }
   }
-  const armedReady = () => !LocalPlayer.on && !!ps.armed && !!(ps.st && ps.st.connected) && ps.st.state === "idle";
+  /* Select a playlist without playing it: it shows its tracks, stopped, and waits for ▶ (and for a connection or "Play here"). */
+  async function arm(target, name) {
+    const armed = { target, name, queue: [] };
+    ps.armed = armed;
+    applyState();
+    try {
+      if (target.playlist_id !== undefined) {
+        const detail = await api("GET", `/api/playlists/${target.playlist_id}`);
+        armed.queue = detail.items.filter((i) => !i.deleted).map((i) => ({ track_id: i.track_id, title: i.title, duration: i.duration }));
+      } else {
+        armed.queue = quickMatches().map((t) => ({ track_id: t.id, title: t.title, duration: t.duration }));
+      }
+    } catch (_) { /* the list is only a preview */ }
+    if (ps.armed === armed) applyState();
+  }
+  const armedReady = () => !!ps.armed && !!ps.st && ps.st.state === "idle" && (LocalPlayer.on || !!ps.st.connected);
   async function playArmed() {
     const { target, name } = ps.armed;
-    await playOnDiscord(target, name);
+    if (LocalPlayer.on) await playHere(target); else await playOnDiscord(target, name);
   }
 
   fillChannels();
@@ -1155,7 +1174,10 @@ async function pickTracks(title, multi, exclude) {
       h("input", { type: multi ? "checkbox" : "radio", name: "pick", checked: chosen.has(x.id), onchange: (e) => {
         if (!multi) chosen.clear();
         e.target.checked ? chosen.add(x.id) : chosen.delete(x.id);
-      } }), previewButton(x), h("span", { class: "grow" }, x.title), h("span", { class: "muted small" }, fmtTime(x.duration)))));
+      } }), previewButton(x),
+      h("span", { class: "grow" }, x.title, x.tags.length || x.my_tags.length ? h("div", { class: "ptags" },
+        x.tags.map((t) => h("span", { class: "chip" }, t)), x.my_tags.map((t) => h("span", { class: "chip mine", title: tr("my_tag") }, t))) : null),
+      h("span", { class: "muted small" }, fmtTime(x.duration)))));
     placePreview();
   }
   const placePreview = previewSlot(listBox);
@@ -1218,12 +1240,18 @@ async function viewPlaylists(main) {
       }));
   }
 
-  async function movePlaylist(p) {
+  /* Every set and folder of the list, as "s:<id>" and "g:<id>" choices. */
+  function placeOptions() {
     const options = [];
     for (const s of state.sets) {
       options.push({ value: "s:" + s.id, label: s.name + " › " + tr("no_folder") });
       for (const g of s.groups) options.push({ value: "g:" + g.id, label: s.name + " › 📁 " + g.name });
     }
+    return options;
+  }
+
+  async function movePlaylist(p) {
+    const options = placeOptions();
     const here = p.group_id ? "g:" + p.group_id : "s:" + p.set_id;
     const sel = h("select", { "aria-label": tr("move_playlist") },
       options.map((o) => h("option", { value: o.value, selected: o.value === here }, o.label)));
@@ -1237,21 +1265,39 @@ async function viewPlaylists(main) {
   }
 
   async function copyPlaylist(p) {
-    let people;
+    let people = [];
     try { people = await api("GET", "/api/people"); } catch (err) { fail(err); return; }
-    if (!people.length) { toast(tr("no_people"), "err"); return; }
-    const who = h("select", { "aria-label": tr("copy_to") }, people.map((u) => h("option", { value: u.id }, u.username)));
+    // Two kinds of target: a set or folder of your own, or another person (who gets a copy in a set named after you).
+    const kind = h("select", { "aria-label": tr("copy_to"), onchange: paint },
+      h("option", { value: "mine" }, tr("copy_mine")), people.length ? h("option", { value: "user" }, tr("copy_person")) : null);
+    const here = p.group_id ? "g:" + p.group_id : "s:" + p.set_id;
+    const places = placeOptions();
+    const firstElse = places.find((o) => o.value !== here) || places[0];
+    const where = h("select", { "aria-label": tr("copy_where") },
+      places.map((o) => h("option", { value: o.value, selected: o.value === firstElse.value }, o.label)));
+    const who = h("select", { "aria-label": tr("copy_who") }, people.map((u) => h("option", { value: u.id }, u.username)));
     const mine = h("input", { type: "checkbox" });
-    const choice = await modal(tr("copy_title", { name: p.name }), h("div", { class: "stack" },
-      who, h("label", { class: "row" }, mine, tr("copy_with_tags")), h("p", { class: "muted small" }, tr("copy_hint"))), [
+    const personBox = h("div", { class: "stack hidden" }, who, h("label", { class: "row" }, mine, tr("copy_with_tags")),
+      h("p", { class: "muted small" }, tr("copy_hint")));
+    function paint() {
+      where.classList.toggle("hidden", kind.value !== "mine");
+      personBox.classList.toggle("hidden", kind.value !== "user");
+    }
+    paint();
+    const choice = await modal(tr("copy_title", { name: p.name }), h("div", { class: "stack" }, kind, where, personBox), [
       { label: tr("cancel"), value: null },
-      { label: tr("copy_do"), class: "primary", run: () => ({ user_id: Number(who.value), with_my_tags: mine.checked }) },
+      { label: tr("copy_do"), class: "primary", run: () => {
+        if (kind.value === "user") return { user_id: Number(who.value), with_my_tags: mine.checked };
+        return where.value.startsWith("g:") ? { group_id: Number(where.value.slice(2)) } : { set_id: Number(where.value.slice(2)) };
+      } },
     ]);
     if (!choice) return;
     try {
       const r = await api("POST", `/api/playlists/${p.id}/copy`, choice);
-      toast(tr("copied_to", { user: r.user, set: r.set_name, n: r.copied }) + (r.skipped ? " · " + tr("copied_skipped", { n: r.skipped }) : ""), "ok");
-      if (p.kind === "tags" && r.copied === 0) toast(tr("copied_empty"), "err");
+      const text = choice.user_id === undefined ? tr("copied_here", { set: r.set_name, n: r.copied }) : tr("copied_to", { user: r.user, set: r.set_name, n: r.copied });
+      toast(text + (r.skipped ? " · " + tr("copied_skipped", { n: r.skipped }) : ""), "ok");
+      if (p.kind === "tags" && r.copied === 0 && choice.user_id !== undefined) toast(tr("copied_empty"), "err");
+      if (choice.user_id === undefined) { await loadSets(); paintTree(); }
     } catch (err) { fail(err); }
   }
 
