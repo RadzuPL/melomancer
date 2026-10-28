@@ -178,3 +178,17 @@ def test_the_chosen_server_and_channel_are_remembered_per_person(env):
     assert env.client.get("/api/player/choice").json()["guild"] == "111"
     assert env.client.put("/api/player/choice", json={"guild_id": "x"}).status_code == 422
     assert env.client.put("/api/player/choice", json={"guild_id": "111", "channel_id": "nope"}).status_code == 422
+
+
+def test_the_invite_link_appears_only_with_an_application_id(env):
+    from dataclasses import replace
+
+    from app.config import _client_id
+
+    login(env, "admin")
+    assert env.client.get("/api/system").json()["invite_url"] is None
+    env.app.state.settings = replace(env.settings, discord_client_id="123456789012345678")
+    assert env.client.get("/api/system").json()["invite_url"] == (
+        "https://discord.com/oauth2/authorize?client_id=123456789012345678&scope=bot&permissions=3146752")
+    assert _client_id(" 12345678901 ") == "12345678901"
+    assert _client_id("not-a-number") == "" and _client_id("") == ""

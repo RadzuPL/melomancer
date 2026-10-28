@@ -42,7 +42,7 @@ The browser side is a static page (`app/static`): plain JavaScript, no build ste
 | `app/downloader.py` | URL validation, daily limit, queue worker around yt-dlp |
 | `app/player.py` | `GuildPlayer` (queue, volume, reconnect cool-down) and `BotManager` |
 | `app/loudness.py` | Background analysis (loudness and silence in one ffmpeg pass), the playback gain, `RuntimeSettings` (everything the administrator changes in the panel) |
-| `app/sysload.py` | Container CPU and memory from the cgroup (v2 or v1), sampled every 2 s, for the Settings tab |
+| `app/sysload.py` | Container CPU and memory from the cgroup (v2 or v1), sampled every 2 s, the last ten minutes kept (three minutes of them go to the charts), for the Settings tab |
 | `app/mixer.py` | PCM mixer: layers decoded ahead by threads, equal-power cross-fades, the next track queued before the current one ends |
 | `app/playback.py` | The rule for where a track starts and ends (hand-set points, silence trimming, a seek) and the entry the browser player gets for a track. One function for the bot and for the browser |
 | `app/routes_local.py` | `/api/local/queue` and `/api/local/resolve`: what plays in the browser |

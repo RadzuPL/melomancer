@@ -76,7 +76,7 @@ GUILDS = [{"id": "111", "name": "Guild A", "channels": [{"id": "1001", "name": "
 ROUTES = {
     "/api/auth/me": {"id": 1, "username": "admin", "role": "admin", "lang": "pl"},
     "/api/system": {"version": "1.2.3", "bot_status": "ready", "downloads_enabled": True,
-                    "download_hosts": ["youtube.com", "youtu.be"], "max_upload_mb": 300, "normalize": True, "normalize_target": -16.0, "normalize_max_boost": 6.0, "trim_silence": True, "silence_threshold": -50.0, "crossfade_seconds": 3.0, "scrub_seconds": 0.3, "volume_glide_seconds": 0.25, "settings_rev": 1, "loudness": {"total": 12, "measured": 9, "waiting": 3}},
+                    "download_hosts": ["youtube.com", "youtu.be"], "max_upload_mb": 300, "normalize": True, "normalize_target": -16.0, "normalize_max_boost": 6.0, "trim_silence": True, "silence_threshold": -50.0, "crossfade_seconds": 3.0, "scrub_seconds": 0.3, "volume_glide_seconds": 0.25, "settings_rev": 1, "invite_url": "https://discord.com/oauth2/authorize?client_id=123456789012345678&scope=bot&permissions=3146752", "loudness": {"total": 12, "measured": 9, "waiting": 3}},
     "/api/player/guilds": GUILDS,
     "/api/player/111/state": STATE,
     "/api/player/choice": {"guild": "111", "channels": {"111": "1002"}},
@@ -92,7 +92,8 @@ ROUTES = {
         {"id": 2, "url": "https://youtu.be/b", "status": "running", "error": None, "title": "Rain on a tin roof", "track_id": None, "user": "admin", "created_at": "", "stage": "downloading", "percent": 43.4, "speed": 1258291, "eta": 12, "elapsed": 20},
         {"id": 1, "url": "https://youtu.be/a", "status": "running", "error": None, "title": None, "track_id": None, "user": "admin", "created_at": "", "stage": "preparing", "percent": None, "speed": None, "eta": None, "elapsed": 37},
         {"id": 0, "url": "https://youtu.be/x", "status": "error", "error": "Sign in to confirm", "title": None, "track_id": None, "user": "admin", "created_at": "", "stage": None, "percent": None, "speed": None, "eta": None}]},
-    "/api/system/load": {"source": "cgroup2", "cpu": 4.2, "cpu_average": 3.1, "cpu_peak": 17.8, "memory_mb": 187, "cores": 4},
+    "/api/system/load": {"source": "cgroup2", "cpu": 4.2, "cpu_average": 3.1, "cpu_peak": 17.8, "memory_mb": 187, "cores": 4,
+                         "history": {"cpu": [round(2 + (i * 7) % 15 + (i % 5), 1) for i in range(90)], "memory_mb": [150 + i // 3 for i in range(90)]}},
     "/api/people": [{"id": 2, "username": "bravo"}, {"id": 3, "username": "alpha"}],
     "/api/users": [{"id": 1, "username": "admin", "role": "admin", "lang": "pl", "disabled": False, "created_at": "", "guild_ids": []},
                    {"id": 2, "username": "mg1", "role": "user", "lang": "pl", "disabled": False, "created_at": "", "guild_ids": ["111"]}],
@@ -180,7 +181,12 @@ with sync_playwright() as p:
             text = page.inner_text("main")
             assert "Zmierzono 9 z 12 utworów" in text and "czeka na pomiar: 3" in text, text
             text = page.inner_text("main")
-            assert "CPU 4.2 %" in text and "szczyt z 10 min: 17.8 %" in text and "pamięć 187 MB" in text, text
+            assert "4.2 %" in text and "szczyt z 10 min: 17.8 %" in text and "187 MB" in text and "średnio z 60 s: 3.1 %" in text, text
+            assert page.locator(".tile").count() == 3 and page.locator(".tile .spark polyline").first.get_attribute("points"), "tiles with a chart"
+            link = page.locator(".tile a.btn")
+            assert link.get_attribute("href").endswith("client_id=123456789012345678&scope=bot&permissions=3146752")
+            assert link.get_attribute("target") == "_blank" and "noopener" in link.get_attribute("rel") and "Dodaj bota do serwera" in link.inner_text()
+            assert "Działa" in page.locator(".tile.ok").inner_text()
             trim = page.locator("label:has-text('Przycinanie ciszy') input")
             thr = page.locator("input[aria-label='Próg ciszy (dB)']")
             assert trim.is_checked() and thr.input_value() == "-50" and thr.is_enabled()

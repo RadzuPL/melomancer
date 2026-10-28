@@ -16,6 +16,8 @@ Melomancer potrzebuje własnego konta bota. To około pięciu minut pracy, robis
 2. Kliknij **Reset Token** i potwierdź. Skopiuj token, który się pojawi, Discord pokazuje go tylko raz.
 3. Wpisz go do kontenera jako `DISCORD_TOKEN` (zobacz [Instalacja](installation.md)).
 
+Opcjonalnie wpisz też Application ID z kroku 1 do kontenera jako `DISCORD_CLIENT_ID`. Wtedy zakładka **Ustawienia** pokazuje gotowy link zaproszenia z kroku 4, obok stanu bota.
+
 Token to hasło bota. Nigdzie go nie publikuj i nie wrzucaj do repozytorium. Jeśli wycieknie, kliknij **Reset Token** ponownie, co unieważni stary, i zaktualizuj `DISCORD_TOKEN`.
 
 ## 3. Sprawdź ustawienia bota
@@ -33,10 +35,10 @@ Na serwerze, na który zapraszasz, musisz mieć uprawnienie **Zarządzanie serwe
 Użyj tego linku, podmieniając `YOUR_APPLICATION_ID` na Application ID z kroku 1:
 
 ```
-https://discord.com/oauth2/authorize?client_id=YOUR_APPLICATION_ID&scope=bot&permissions=3147776
+https://discord.com/oauth2/authorize?client_id=YOUR_APPLICATION_ID&scope=bot&permissions=3146752
 ```
 
-Otwórz go w przeglądarce, wybierz serwer, kliknij **Continue** i **Authorize**. Liczba `3147776` to zestaw uprawnień potrzebnych botowi: **View Channels** (wyświetlanie kanałów), **Connect** (łączenie) i **Speak** (mówienie). Nic więcej.
+Otwórz go w przeglądarce, wybierz serwer, kliknij **Continue** i **Authorize**. Liczba `3146752` to zestaw uprawnień potrzebnych botowi: **View Channels** (wyświetlanie kanałów), **Connect** (łączenie) i **Speak** (mówienie). Nic więcej.
 
 Alternatywa bez wpisywania linku: w Developer Portal otwórz **OAuth2**, potem **URL Generator**, zaznacz scope `bot`, zaznacz uprawnienia **View Channels**, **Connect** i **Speak**, a **Generated URL** skopiuj z dołu strony.
 

@@ -205,6 +205,7 @@ def _system_info(request: Request) -> dict:
     return {
         "version": settings.version,
         "bot_status": request.app.state.bot.status,
+        "invite_url": settings.invite_url,
         "downloads_enabled": settings.ytdlp_enabled,
         "download_hosts": list(settings.ytdlp_allowed_hosts),
         "max_upload_mb": settings.max_upload_mb,

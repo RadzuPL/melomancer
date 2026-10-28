@@ -1464,6 +1464,33 @@ async function viewDownloads(main) {
 
 /* ---------- admin ---------- */
 
+const SPARK_SLOTS = 90;
+
+/* A small line chart of recent values as SVG (no library; the colours come from the stylesheet). The scale goes up to the
+   largest value seen, but never below `floor`, so that a quiet idle does not fill the whole chart. */
+function sparkline(floor) {
+  const NS = "http://www.w3.org/2000/svg";
+  const svg = document.createElementNS(NS, "svg");
+  svg.setAttribute("viewBox", "0 0 100 40");
+  svg.setAttribute("preserveAspectRatio", "none");
+  svg.setAttribute("class", "spark");
+  svg.setAttribute("aria-hidden", "true");
+  const area = document.createElementNS(NS, "polygon");
+  area.setAttribute("class", "area");
+  const line = document.createElementNS(NS, "polyline");
+  line.setAttribute("class", "line");
+  svg.append(area, line);
+  const paint = (values) => {
+    if (!values.length) { line.setAttribute("points", ""); area.setAttribute("points", ""); return; }
+    const top = Math.max(floor, ...values);
+    const points = values.map((v, i) => [((SPARK_SLOTS - values.length + i) / (SPARK_SLOTS - 1)) * 100, 37 - (v / top) * 33]);
+    const text = points.map(([x, y]) => x.toFixed(1) + "," + y.toFixed(1)).join(" ");
+    line.setAttribute("points", text);
+    area.setAttribute("points", text + " 100,40 " + points[0][0].toFixed(1) + ",40");
+  };
+  return { el: svg, paint };
+}
+
 async function viewSettings(main) {
   const system = await api("GET", "/api/system");
   state.system = system;
@@ -1482,22 +1509,42 @@ async function viewSettings(main) {
     h("input", { type: "number", min: 0, max, step, value: system[key], "aria-label": label,
       onchange: (e) => saveNormalize({ [key]: Math.min(max, Math.max(0, Number(e.target.value))) }) }));
   const loud = system.loudness;
-  const loadEl = h("div", { class: "muted small" }, tr("load_waiting"));
+  // Bot, CPU and memory as tiles; the charts show the last three minutes, as the server remembers them.
+  const cpuVal = h("div", { class: "value" }, "–");
+  const cpuSub = h("div", { class: "sub" });
+  const cpuSpark = sparkline(10);
+  const cpuTile = h("div", { class: "tile" }, h("div", { class: "label" }, tr("tile_cpu")), cpuVal, cpuSub, cpuSpark.el);
+  const memVal = h("div", { class: "value" }, "–");
+  const memSpark = sparkline(1);
+  const memTile = h("div", { class: "tile" }, h("div", { class: "label" }, tr("tile_mem")), memVal,
+    h("div", { class: "sub" }, tr("tile_mem_sub")), memSpark.el);
+  const loadHint = h("p", { class: "muted small" }, tr("load_waiting"));
+  const running = system.bot_status === "ready";
+  const botTile = h("div", { class: "tile" + (running ? " ok" : " bad") },
+    h("div", { class: "label" }, tr("tile_bot")),
+    h("div", { class: "value" }, tr(running ? "tile_bot_ok" : "tile_bot_down")),
+    h("div", { class: "sub" }, running ? "Melomancer " + system.version : tr("bot." + system.bot_status)),
+    running ? null : h("div", { class: "sub" }, "Melomancer " + system.version),
+    system.invite_url ? h("a", { class: "btn small", href: system.invite_url, target: "_blank", rel: "noopener noreferrer", title: tr("invite_hint") }, "➕ " + tr("invite_bot")) : null);
   const tickLoad = async () => {
     try {
       const l = await api("GET", "/api/system/load");
       const pct = (v) => (v === null || v === undefined ? "–" : v.toFixed(1));
-      loadEl.textContent = tr("load_label") + ": " + tr("load_line", { cpu: pct(l.cpu), avg: pct(l.cpu_average), peak: pct(l.cpu_peak), mem: l.memory_mb });
-      loadEl.title = tr("load_hint", { source: l.source, cores: l.cores });
+      cpuVal.replaceChildren(pct(l.cpu), h("small", {}, " %"));
+      cpuSub.replaceChildren(tr("load_avg") + " ", h("b", {}, pct(l.cpu_average) + " %"), " · " + tr("load_peak") + " ", h("b", {}, pct(l.cpu_peak) + " %"));
+      cpuTile.classList.toggle("hot", l.cpu !== null && l.cpu >= 80);
+      memVal.replaceChildren(String(l.memory_mb), h("small", {}, " MB"));
+      loadHint.textContent = tr("load_hint", { source: l.source, cores: l.cores });
+      cpuSpark.paint(l.history.cpu);
+      memSpark.paint(l.history.memory_mb);
     } catch (err) { /* keep the last value: the next tick tries again */ }
   };
   tickLoad();
-  const loadTimer = setInterval(() => { if (!document.body.contains(loadEl)) clearInterval(loadTimer); else tickLoad(); }, 3000);
+  const loadTimer = setInterval(() => { if (!document.body.contains(cpuVal)) clearInterval(loadTimer); else tickLoad(); }, 3000);
 
   put(main, 
     h("div", { class: "card" }, h("h2", {}, tr("system")),
-      h("div", {}, "Melomancer " + system.version), h("div", {}, tr("bot_status") + ": " + tr("bot." + system.bot_status)),
-      loadEl,
+      h("div", { class: "tiles" }, botTile, cpuTile, memTile), loadHint,
       h("h3", {}, tr("section_loudness")),
       h("label", { class: "row" }, normBox, tr("normalize_label")),
       h("div", { class: "row" },

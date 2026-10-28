@@ -9,6 +9,7 @@ Everything is configured with environment variables. Only `DISCORD_TOKEN` and th
 | Variable | Default | Meaning |
 |---|---|---|
 | `DISCORD_TOKEN` | (empty) | Bot token ([how to get it](discord-bot.md)). Without it the panel runs but the bot stays offline. |
+| `DISCORD_CLIENT_ID` | (empty) | Optional. The Application ID of the bot ([where to find it](discord-bot.md)). With it the **Settings** tab shows a link that adds the bot to a server; empty means no link. |
 | `ADMIN_USERNAME` | `admin` | Name of the first administrator. Used only when the database has no users. |
 | `ADMIN_PASSWORD` | (empty) | Password of the first administrator, minimum 10 characters. Used only when the database has no users. If empty or too short, a random password is generated and written once to the container log. |
 | `PUID` / `PGID` | `99` / `100` | Owner of the files in the data folder. The container starts as root only to fix ownership and then drops to this user. Use `1000` / `1000` on typical Linux hosts. |

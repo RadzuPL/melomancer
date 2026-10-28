@@ -20,6 +20,7 @@ def test_cgroup_v2_cpu_and_memory_without_the_droppable_cache(tmp_path):
     snap = monitor.snapshot()
     assert 45 <= snap["cpu"] <= 55 and snap["cpu_peak"] == snap["cpu"] and snap["memory_mb"] == 200
     assert snap["source"] == "cgroup2"
+    assert snap["history"] == {"cpu": [snap["cpu"]], "memory_mb": [200]}
 
 
 def test_cgroup_v1_layout(tmp_path):

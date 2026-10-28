@@ -9,6 +9,7 @@ Wszystko konfiguruje się zmiennymi środowiskowymi. Uwagi wymagają tylko `DISC
 | Zmienna | Domyślnie | Znaczenie |
 |---|---|---|
 | `DISCORD_TOKEN` | (puste) | Token bota ([jak go zdobyć](discord-bot.md)). Bez niego panel działa, ale bot pozostaje offline. |
+| `DISCORD_CLIENT_ID` | (puste) | Opcjonalne. Application ID bota ([gdzie je znaleźć](discord-bot.md)). Z nim zakładka **Ustawienia** pokazuje link dodający bota do serwera; puste znaczy brak linku. |
 | `ADMIN_USERNAME` | `admin` | Nazwa pierwszego administratora. Używana tylko wtedy, gdy baza nie ma użytkowników. |
 | `ADMIN_PASSWORD` | (puste) | Hasło pierwszego administratora, minimum 10 znaków. Używane tylko wtedy, gdy baza nie ma użytkowników. Jeśli puste lub za krótkie, generowane jest losowe hasło wypisane raz w logu kontenera. |
 | `PUID` / `PGID` | `99` / `100` | Właściciel plików w folderze danych. Kontener startuje jako root tylko po to, żeby poprawić właściciela, i od razu przechodzi na tego użytkownika. Na typowym Linuksie użyj `1000` / `1000`. |

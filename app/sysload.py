@@ -19,6 +19,7 @@ log = logging.getLogger("melomancer.sysload")
 INTERVAL_SECONDS = 2.0
 WINDOW_SECONDS = 600       # how far back the peak looks
 AVERAGE_SECONDS = 60
+HISTORY_POINTS = 90        # three minutes at one sample every two seconds
 
 
 def _read(path: Path) -> str | None:
@@ -82,7 +83,7 @@ class LoadMonitor:
     def __init__(self, root: Path = Path("/sys/fs/cgroup"), interval: float = INTERVAL_SECONDS) -> None:
         self._source = _Source(root)
         self._interval = interval
-        self._samples: deque[tuple[float, float]] = deque()  # (monotonic time, percent of one core)
+        self._samples: deque[tuple[float, float, int]] = deque()  # (monotonic time, percent of one core, memory in MB)
         self._lock = threading.Lock()
         self._stop = threading.Event()
         self._thread: threading.Thread | None = None
@@ -96,7 +97,7 @@ class LoadMonitor:
             return
         percent = max(0.0, (cpu - before) / (now - then) * 100)
         with self._lock:
-            self._samples.append((now, percent))
+            self._samples.append((now, percent, round(self._source.memory_bytes() / 1048576)))
             while self._samples and now - self._samples[0][0] > WINDOW_SECONDS:
                 self._samples.popleft()
 
@@ -104,14 +105,17 @@ class LoadMonitor:
         now = time.monotonic()
         with self._lock:
             samples = list(self._samples)
-        recent = [p for t, p in samples if now - t <= AVERAGE_SECONDS]
+        recent = [p for t, p, _ in samples if now - t <= AVERAGE_SECONDS]
         return {
             "source": self._source.kind,
             "cpu": round(samples[-1][1], 1) if samples else None,
             "cpu_average": round(sum(recent) / len(recent), 1) if recent else None,
-            "cpu_peak": round(max(p for _, p in samples), 1) if samples else None,
+            "cpu_peak": round(max(p for _, p, _ in samples), 1) if samples else None,
             "memory_mb": round(self._source.memory_bytes() / 1048576),
             "cores": os.cpu_count(),
+            # the last few minutes, for the charts in the panel
+            "history": {"cpu": [round(p, 1) for _, p, _ in samples[-HISTORY_POINTS:]],
+                        "memory_mb": [m for _, _, m in samples[-HISTORY_POINTS:]]},
         }
 
     def start(self) -> None:

@@ -1,9 +1,13 @@
 """Runtime configuration, read from environment variables only."""
 from __future__ import annotations
 
+import logging
 import os
 from dataclasses import dataclass
 from pathlib import Path
+
+# View Channels + Connect + Speak: all that the bot needs in a server.
+BOT_PERMISSIONS = 1024 + (1 << 20) + (1 << 21)
 
 
 def _env_bool(name: str, default: bool) -> bool:
@@ -33,11 +37,20 @@ def _env_float(name: str, default: float, minimum: float, maximum: float) -> flo
         raise SystemExit(f"{name} must be a number, got {raw!r}") from None
 
 
+def _client_id(raw: str) -> str:
+    value = raw.strip()
+    if value and not (value.isdigit() and 5 <= len(value) <= 25):
+        logging.getLogger("melomancer").warning("DISCORD_CLIENT_ID is not a number (the Application ID); no invite link is shown.")
+        return ""
+    return value
+
+
 @dataclass(frozen=True)
 class Settings:
     data_dir: Path
     music_dir_override: str
     discord_token: str
+    discord_client_id: str  # the Application ID; only used to show an invite link in the panel
     admin_username: str
     admin_password: str
     max_upload_mb: int
@@ -55,6 +68,14 @@ class Settings:
     log_level: str
     version: str
 
+    @property
+    def invite_url(self) -> str | None:
+        """The link that adds the bot to a server, or None when DISCORD_CLIENT_ID is not set."""
+        if not self.discord_client_id:
+            return None
+        return (f"https://discord.com/oauth2/authorize?client_id={self.discord_client_id}"
+                f"&scope=bot&permissions={BOT_PERMISSIONS}")
+
     @classmethod
     def from_env(cls) -> "Settings":
         hosts = os.getenv(
@@ -68,6 +89,7 @@ class Settings:
             data_dir=Path(os.getenv("DATA_DIR", "/data")),
             music_dir_override=os.getenv("MUSIC_DIR", "").strip(),
             discord_token=os.getenv("DISCORD_TOKEN", "").strip(),
+            discord_client_id=_client_id(os.getenv("DISCORD_CLIENT_ID", "")),
             admin_username=os.getenv("ADMIN_USERNAME", "admin").strip() or "admin",
             admin_password=os.getenv("ADMIN_PASSWORD", ""),
             max_upload_mb=_env_int("MAX_UPLOAD_MB", 300, 1),

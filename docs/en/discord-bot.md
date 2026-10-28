@@ -16,6 +16,8 @@ Melomancer needs its own bot account. This takes about five minutes and you do i
 2. Click **Reset Token** and confirm. Copy the token that appears, Discord shows it only once.
 3. Put it into the container as `DISCORD_TOKEN` (see [Installation](installation.md)).
 
+Optionally put the Application ID from step 1 into the container as `DISCORD_CLIENT_ID` as well. The **Settings** tab then shows the invite link of step 4 ready made, next to the bot status.
+
 The token is the password of the bot. Never post it, never commit it to a repository. If it leaks, click **Reset Token** again, which invalidates the old one, and update `DISCORD_TOKEN`.
 
 ## 3. Check the bot settings
@@ -33,10 +35,10 @@ You need the **Manage Server** permission on the server you invite it to.
 Use this link, replacing `YOUR_APPLICATION_ID` with the Application ID from step 1:
 
 ```
-https://discord.com/oauth2/authorize?client_id=YOUR_APPLICATION_ID&scope=bot&permissions=3147776
+https://discord.com/oauth2/authorize?client_id=YOUR_APPLICATION_ID&scope=bot&permissions=3146752
 ```
 
-Open it in a browser, choose the server, click **Continue** and **Authorize**. The number `3147776` is the permission set the bot needs: **View Channels**, **Connect** and **Speak**. Nothing else.
+Open it in a browser, choose the server, click **Continue** and **Authorize**. The number `3146752` is the permission set the bot needs: **View Channels**, **Connect** and **Speak**. Nothing else.
 
 Alternative without typing the link: in the Developer Portal open **OAuth2**, then **URL Generator**, tick the scope `bot`, tick the permissions **View Channels**, **Connect** and **Speak**, and copy the **Generated URL** from the bottom of the page.
 
