@@ -162,3 +162,17 @@ def test_a_bom_is_ignored_and_a_wrong_encoding_gives_a_message(tmp_path):
         assert "UTF-8" in str(exc)
     else:
         raise AssertionError("a file in the wrong encoding must give a message")
+
+
+def test_the_line_endings_of_the_persons_file_are_kept(tmp_path):
+    crlf = tmp_path / "crlf.toml"
+    crlf.write_bytes(b"# my notes\r\nport = 9000\r\n")                     # what Notepad writes
+    assert winmain.sync_config(crlf, "1.0")
+    data = crlf.read_bytes()
+    assert data.startswith(b"# my notes\r\nport = 9000\r\n\r\n# --- Dodane")
+    assert b"\r\r" not in data and data.count(b"\n") == data.count(b"\r\n")   # every line ends the same way, none doubled
+    assert winmain.read_config(crlf) == {"port": 9000} and winmain.sync_config(crlf, "1.0") == []
+    lf = tmp_path / "lf.toml"
+    lf.write_bytes(b"# my notes\nport = 9000\n")
+    winmain.sync_config(lf, "1.0")
+    assert b"\r" not in lf.read_bytes()

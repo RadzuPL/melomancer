@@ -156,7 +156,9 @@ def sync_config(path: Path, version: str = "") -> list[str]:
     """
     if not path.is_file():
         return []
-    text = path.read_bytes().decode("utf-8-sig", errors="replace")
+    raw = path.read_bytes().decode("utf-8-sig", errors="replace")
+    newline = "\r\n" if "\r\n" in raw else "\n"      # Notepad writes CRLF; keep whatever the person's file uses
+    text = raw.replace("\r\n", "\n")
     added, chunks = [], []
     for names, chunk in template_blocks():
         missing = [n for n in names if not re.search(rf"^\s*#?\s*{n}\s*=", text, re.MULTILINE)]
@@ -166,7 +168,8 @@ def sync_config(path: Path, version: str = "") -> list[str]:
     if not chunks:
         return []
     mark = f"# --- Dodane przez Melomancera {version} / Added by Melomancer {version} ---".replace("  ", " ")
-    path.write_text(text.rstrip("\n") + "\n\n" + mark + "\n\n" + "\n\n".join(chunks) + "\n", encoding="utf-8")
+    new_text = text.rstrip("\n") + "\n\n" + mark + "\n\n" + "\n\n".join(chunks) + "\n"
+    path.write_bytes(new_text.replace("\n", newline).encode("utf-8"))   # bytes: no second newline translation on Windows
     return added
 
 
