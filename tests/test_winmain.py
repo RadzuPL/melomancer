@@ -105,3 +105,15 @@ def test_only_the_harmless_windows_connection_reset_is_hidden():
     assert quiet.filter(record(other)) is True                    # a reset with another code is not this noise
     assert quiet.filter(record(RuntimeError("boom"))) is True
     assert quiet.filter(record(None)) is True
+
+
+def test_the_build_marker_is_read_when_there_is_one(tmp_path):
+    assert winmain.read_build(tmp_path) == ""
+    (tmp_path / "BUILD").write_text("build 12, 3f2a1c9\n", encoding="utf-8")
+    assert winmain.read_build(tmp_path) == "build 12, 3f2a1c9"
+
+
+def test_the_template_has_the_client_id_and_both_languages():
+    text = winmain.TEMPLATE
+    assert "# discord_client_id = ''" in text and "# discord_token = ''" in text
+    assert "Ustawienia Melomancera" in text and "Melomancer settings" in text

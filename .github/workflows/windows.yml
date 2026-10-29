@@ -73,17 +73,21 @@ jobs:
         shell: bash
         run: |
           version=$(bash scripts/next_version.sh)
+          # Builds of one version (every push to a pull request) differ by the run number, so that the files do not get mixed up on disk.
+          name="Melomancer-win64-${version}-build${{ github.run_number }}"
           echo "value=$version" >> "$GITHUB_OUTPUT"
-          echo "Version: $version"
+          echo "name=$name" >> "$GITHUB_OUTPUT"
+          echo "commit=$(echo '${{ github.event.pull_request.head.sha || github.sha }}' | cut -c1-7)" >> "$GITHUB_OUTPUT"
+          echo "Version: $version, package: $name"
 
       - name: Build the package
         if: ${{ !cancelled() }}
-        run: python scripts/windows/build_package.py package --version "${{ steps.version.outputs.value }}" --tools build/bin --out dist
+        run: python scripts/windows/build_package.py package --version "${{ steps.version.outputs.value }}" --build "${{ github.run_number }}" --commit "${{ steps.version.outputs.commit }}" --tools build/bin --out dist
 
       - uses: actions/upload-artifact@v4
         if: ${{ !cancelled() }}
         with:
-          name: Melomancer-win64-${{ steps.version.outputs.value }}
+          name: ${{ steps.version.outputs.name }}
           path: build/Melomancer   # the folder itself: the artifact is already a zip, no zip inside a zip
           if-no-files-found: ignore
           retention-days: 14
@@ -93,7 +97,7 @@ jobs:
         shell: bash
         run: |
           set -o pipefail
-          python -u scripts/windows/smoke_test.py "dist/Melomancer-win64-${{ steps.version.outputs.value }}.zip" "${{ steps.version.outputs.value }}" 2>&1 | tee smoke.log
+          python -u scripts/windows/smoke_test.py "dist/${{ steps.version.outputs.name }}.zip" "${{ steps.version.outputs.value }}" 2>&1 | tee smoke.log
 
       # The job log is not always reachable from outside GitHub, annotations are.
       - name: Show a smoke test failure as annotations

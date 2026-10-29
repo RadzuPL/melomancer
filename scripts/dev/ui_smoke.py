@@ -225,6 +225,15 @@ with sync_playwright() as p:
             ROUTES["/api/system/load"]["source"] = "cgroup2"
             ROUTES["/api/system/update"]["host"] = "container"
 
+    # the bot is still logging in when the page opens: the notice goes away by itself, and the servers appear
+    ROUTES["/api/system"]["bot_status"] = "starting"
+    page.click("nav.tabs button:has-text('Ustawienia')")
+    page.click("nav.tabs button:has-text('Odtwarzacz')")
+    page.wait_for_selector(".notice")
+    assert "uruchamia" in page.inner_text(".notice"), page.inner_text("main")
+    ROUTES["/api/system"]["bot_status"] = "ready"
+    page.wait_for_selector(".notice", state="detached", timeout=6000)
+
     # interactions
     page.click("nav.tabs button:has-text('Pobieranie')")
     page.wait_for_timeout(600)

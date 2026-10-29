@@ -900,7 +900,16 @@ async function viewPlayer(main) {
     return true;
   });
   stopPolling();
-  ps.timer = setInterval(() => { poll(); }, 2500);
+  // The bot logs in a moment after the server is up, and the browser may open in between: while the page says
+  // "starting", look again until that changes, then draw the page anew (the server list is empty until then).
+  async function watchBot() {
+    if (system.bot_status !== "starting" || document.hidden || state.tab !== "player" || !document.body.contains(titleEl)) return;
+    try {
+      const now = await api("GET", "/api/system");
+      if (now.bot_status !== "starting") { state.system = now; render(); }
+    } catch (_) { /* transient */ }
+  }
+  ps.timer = setInterval(() => { poll(); watchBot(); }, 2500);
   const tickId = setInterval(() => { if (state.tab !== "player" || !document.body.contains(seekBar)) clearInterval(tickId); else tickBar(); }, 1000);
   poll();
 }

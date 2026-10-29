@@ -145,7 +145,7 @@ def pth_text(major: int, minor: int) -> str:
     return f"python{major}{minor}.zip\n.\n..\nLib\\site-packages\nimport site\n"
 
 
-def package(version: str, tools: Path, out: Path) -> Path:
+def package(version: str, tools: Path, out: Path, build: str = "", commit: str = "") -> Path:
     import subprocess
     major, minor, micro = sys.version_info[:3]
     full = f"{major}.{minor}.{micro}"
@@ -174,11 +174,13 @@ def package(version: str, tools: Path, out: Path) -> Path:
     shutil.copy(ROOT / "LICENSE", licenses / "Melomancer-LICENSE.txt")
     shutil.copy(ROOT / "THIRD_PARTY.md", root / "THIRD_PARTY.md")
     (root / "VERSION").write_text(version + "\n", encoding="utf-8")
+    if build:   # which build of the same version this is, shown in the console window (the version itself stays X.Y.Z)
+        (root / "BUILD").write_text(f"build {build}" + (f", {commit}" if commit else "") + "\n", encoding="utf-8")
     (root / "Melomancer.cmd").write_text(CMD_FILE.replace("\n", "\r\n"), encoding="utf-8")
     (root / "README-WINDOWS.txt").write_text(READ_ME.replace("\n", "\r\n"), encoding="utf-8")
 
     out.mkdir(parents=True, exist_ok=True)
-    target = out / f"Melomancer-win64-{version}.zip"
+    target = out / f"Melomancer-win64-{version}{f'-build{build}' if build else ''}.zip"
     with zipfile.ZipFile(target, "w", zipfile.ZIP_DEFLATED, compresslevel=6) as archive:
         for path in sorted(root.rglob("*")):
             if path.is_file():
@@ -196,11 +198,13 @@ def main() -> int:
     pack.add_argument("--version", required=True)
     pack.add_argument("--tools", type=Path, required=True)
     pack.add_argument("--out", type=Path, default=ROOT / "dist")
+    pack.add_argument("--build", default="", help="build number (CI run number): two builds of one version differ by it")
+    pack.add_argument("--commit", default="", help="short commit id, shown next to the build number")
     args = parser.parse_args()
     if args.command == "tools":
         fetch_tools(args.out)
     else:
-        package(args.version, args.tools, args.out)
+        package(args.version, args.tools, args.out, args.build, args.commit)
     return 0
 
 
