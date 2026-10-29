@@ -6,7 +6,7 @@ Melomancer działa też na komputerze z Windows 10 lub 11 bez Dockera: ta sama a
 
 ## Skąd ją wziąć i jak uruchomić
 
-Paczkę buduje workflow **Windows package (experimental)** (`.github/workflows/windows.yml`) i jest ona artefaktem jego uruchomień, a nie wydaniem: otwórz uruchomienie w zakładce **Actions** na https://github.com/RadzuPL/melomancer/actions, pobierz `Melomancer-win64-<wersja>` z dołu strony (potrzebne konto GitHub). Kliknij pobranego zipa prawym przyciskiem, wybierz **Właściwości**, zaznacz **Odblokuj** i zatwierdź, potem rozpakuj (**Wyodrębnij wszystko**) gdzie chcesz, na przykład do `C:\Melomancer` (nie do Program Files). W zipie jest od razu folder z programem; jako wydanie będzie to docelowo jeden zip.
+Paczkę buduje workflow **Windows package (experimental)** (`.github/workflows/windows.yml`) i jest ona artefaktem jego uruchomień, a nie wydaniem: otwórz uruchomienie w zakładce **Actions** na https://github.com/RadzuPL/melomancer/actions, pobierz `Melomancer-win64-<wersja>-build<numer>` (numer builda odróżnia dwa buildy tej samej wersji; jest też wypisany w oknie konsoli) z dołu strony (potrzebne konto GitHub). Kliknij pobranego zipa prawym przyciskiem, wybierz **Właściwości**, zaznacz **Odblokuj** i zatwierdź, potem rozpakuj (**Wyodrębnij wszystko**) gdzie chcesz, na przykład do `C:\Melomancer` (nie do Program Files). W zipie jest od razu folder z programem; jako wydanie będzie to docelowo jeden zip.
 
 Uruchom `Melomancer.cmd`. Otworzy się okno, a gdy serwer wstanie, przeglądarka pokaże panel pod adresem http://127.0.0.1:8080/. Zamknięcie okna zatrzymuje Melomancera.
 
@@ -14,7 +14,7 @@ Plik nie jest podpisany, więc po uruchomieniu `Melomancer.cmd` Windows pokaże 
 
 ## Ustawienia
 
-Pierwsze uruchomienie tworzy `%LOCALAPPDATA%\Melomancer\config.toml`, pełny zakomentowanych przykładów, i wypisuje, gdzie leży. Usuń `#` przed wybraną linią, zapisz i uruchom Melomancera ponownie. Wpisz tam token bota (`discord_token`, zob. [Bot Discord](discord-bot.md)); bez niego panel działa, a bot zostaje offline.
+Pierwsze uruchomienie tworzy `%LOCALAPPDATA%\Melomancer\config.toml`, pełny zakomentowanych przykładów, i wypisuje, gdzie leży. Usuń `#` przed wybraną linią, zapisz i uruchom Melomancera ponownie. Wpisz tam token bota (`discord_token`, zob. [Bot Discord](discord-bot.md)); bez niego panel działa, a bot zostaje offline. Opcjonalnie dodaj Application ID bota jako `discord_client_id`: zakładka **Ustawienia** pokaże wtedy link **Dodaj bota do serwera**. Szablon jest dwujęzyczny i zawiera najczęstsze ustawienia; plik utworzony przez starszy build zachowuje to, co ma, dopisz potrzebne linie.
 
 Każdy klucz to nazwa zmiennej środowiskowej z [Konfiguracji](configuration.md) małymi literami, plus `host` i `port` dla launchera. Zmienna środowiskowa, która jest już ustawiona, ma pierwszeństwo przed plikiem. Ścieżki pisz w pojedynczych cudzysłowach: `music_dir = 'D:\Music\Melomancer'`.
 

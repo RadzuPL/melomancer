@@ -6,7 +6,7 @@ Melomancer also runs on a Windows 10 or 11 computer without Docker: the same app
 
 ## Get it and start it
 
-The package is built by the workflow **Windows package (experimental)** (`.github/workflows/windows.yml`) and is an artifact of its runs, not a release: open the run in the **Actions** tab of https://github.com/RadzuPL/melomancer/actions, download `Melomancer-win64-<version>` at the bottom of the page (a GitHub account is needed). Right-click the downloaded zip, choose **Properties**, tick **Unblock** and confirm, then unpack it (**Extract all**) where you like, for example into `C:\Melomancer` (not Program Files). The zip holds the program folder directly; later, as a release, it will be a single zip.
+The package is built by the workflow **Windows package (experimental)** (`.github/workflows/windows.yml`) and is an artifact of its runs, not a release: open the run in the **Actions** tab of https://github.com/RadzuPL/melomancer/actions, download `Melomancer-win64-<version>-build<number>` (the build number tells two builds of one version apart; it is also printed in the console window) at the bottom of the page (a GitHub account is needed). Right-click the downloaded zip, choose **Properties**, tick **Unblock** and confirm, then unpack it (**Extract all**) where you like, for example into `C:\Melomancer` (not Program Files). The zip holds the program folder directly; later, as a release, it will be a single zip.
 
 Start `Melomancer.cmd`. A window opens and, when the server is up, the browser opens the panel at http://127.0.0.1:8080/. Closing the window stops Melomancer.
 
@@ -14,7 +14,7 @@ Because the file is not signed, Windows shows "Unable to verify the publisher" (
 
 ## Settings
 
-The first start creates `%LOCALAPPDATA%\Melomancer\config.toml`, full of commented examples, and prints where it is. Remove the `#` in front of a line, save, start Melomancer again. Put your bot token there (`discord_token`, see [Discord bot](discord-bot.md)); without it the panel works and the bot stays offline.
+The first start creates `%LOCALAPPDATA%\Melomancer\config.toml`, full of commented examples, and prints where it is. Remove the `#` in front of a line, save, start Melomancer again. Put your bot token there (`discord_token`, see [Discord bot](discord-bot.md)); without it the panel works and the bot stays offline. Optionally add the bot's Application ID as `discord_client_id`: the **Settings** tab then shows the **Add the bot to a server** link. The template is bilingual and lists the common settings; a file created by an older build keeps what it has, add the lines you need.
 
 Every key is the lower-case name of an environment variable from [Configuration](configuration.md), plus `host` and `port` for the launcher. An environment variable that is already set wins over the file. Use single quotes for paths: `music_dir = 'D:\Music\Melomancer'`.
 

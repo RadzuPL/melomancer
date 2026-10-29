@@ -51,7 +51,8 @@ READ_ME = """Melomancer dla Windows (wersja eksperymentalna)
    http://127.0.0.1:8080/. Zamknięcie okna zatrzymuje Melomancera.
 3. Pierwsze uruchomienie zapisuje plik ustawień i wypisuje, gdzie leży (%LOCALAPPDATA%\\Melomancer\\config.toml).
    Wpisz tam token bota Discorda (instrukcja: https://github.com/RadzuPL/melomancer/blob/main/docs/pl/discord-bot.md),
-   zapisz plik i uruchom Melomancera ponownie. Bez tokena panel działa, a bot zostaje offline.
+   zapisz plik i uruchom Melomancera ponownie. Bez tokena panel działa, a bot zostaje offline. Opcjonalnie dopisz
+   discord_client_id (Application ID bota): Ustawienia pokażą wtedy link "Dodaj bota do serwera".
 4. Bez hasła administratora w tym pliku Melomancer generuje losowe i pokazuje je raz w oknie.
 5. Twoje dane (baza i muzyka) są w %LOCALAPPDATA%\\Melomancer\\data.
 
@@ -69,7 +70,8 @@ Melomancer for Windows (experimental build)
    http://127.0.0.1:8080/. Closing the window stops Melomancer.
 3. The first start writes the settings file and tells you where it is (%LOCALAPPDATA%\\Melomancer\\config.toml).
    Put your Discord bot token there (docs: https://github.com/RadzuPL/melomancer/blob/main/docs/en/discord-bot.md),
-   save, then start Melomancer again. Without a token the panel works and the bot stays offline.
+   save, then start Melomancer again. Without a token the panel works and the bot stays offline. Optionally add
+   discord_client_id (the bot's Application ID): Settings then shows an "Add the bot to a server" link.
 4. Without an administrator password in that file a random one is generated and shown once in the window.
 5. Your data (database and music) is in %LOCALAPPDATA%\\Melomancer\\data.
 
