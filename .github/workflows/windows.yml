@@ -107,3 +107,14 @@ jobs:
               chunk = chunk.replace("%", "%25").replace("\r", "%0D").replace("\n", "%0A")
               print(f"::error title=Windows package smoke test::{chunk}")
           PY
+
+      - name: Show what the smoke test checked
+        if: success()
+        shell: bash
+        run: |
+          python - <<'PY'
+          lines = [l for l in open("smoke.log", encoding="utf-8", errors="replace").read().splitlines()
+                   if l.startswith(("ok   ", "python ", "discord ", "yt-dlp ", "opus ", "ffmpeg version", "ffprobe version", "deno ", "package:"))]
+          text = "\n".join(lines).replace("%", "%25").replace("\r", "%0D").replace("\n", "%0A")
+          print(f"::notice title=Windows package smoke test passed::{text}")
+          PY
