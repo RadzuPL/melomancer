@@ -42,6 +42,7 @@ The browser side is a static page (`app/static`): plain JavaScript, no build ste
 | `app/downloader.py` | URL validation, daily limit, queue worker around yt-dlp |
 | `app/player.py` | `GuildPlayer` (queue, volume, reconnect cool-down) and `BotManager` |
 | `app/loudness.py` | Background analysis (loudness and silence in one ffmpeg pass), the playback gain, `RuntimeSettings` (everything the administrator changes in the panel) |
+| `app/updates.py` | The look at the newest GitHub release for the Settings tab: version parsing and comparison, a cache with ETag, a background thread (see Update notice) |
 | `app/sysload.py` | Container CPU and memory from the cgroup (v2 or v1), sampled every 2 s, the last ten minutes kept (three minutes of them go to the charts), for the Settings tab |
 | `app/mixer.py` | PCM mixer: layers decoded ahead by threads, equal-power cross-fades, the next track queued before the current one ends |
 | `app/playback.py` | The rule for where a track starts and ends (hand-set points, silence trimming, a seek) and the entry the browser player gets for a track. One function for the bot and for the browser |
@@ -131,7 +132,13 @@ All paths are under `/api`; state-changing requests need the header `X-Melomance
 | Player | `GET/PUT /player/choice` (the server and channel last chosen, kept per person), `GET /player/guilds`, `GET /player/{guild}/state`, `POST /player/{guild}/connect`, `disconnect`, `play`, `pause`, `resume`, `next`, `prev`, `jump`, `seek`, `stop`, `volume`, `PATCH /player/{guild}/options` |
 | People | `GET /people` (active accounts other than yours, names only, for choosing who to copy to) |
 | Local playback | `POST /local/queue` (the same body as `play`: `playlist_id`, `track_id` or `tags` + `mode`), `POST /local/resolve` (`track_ids`) |
-| System | `GET /system`, `PATCH /system` (administrator: loudness, cross-fade and silence settings), `GET /system/load` (administrator: CPU and memory), `GET /health` |
+| System | `GET /system`, `PATCH /system` (administrator: loudness, cross-fade and silence settings), `GET /system/load` (administrator: CPU and memory), `GET /system/update` and `POST /system/update/check` (administrator: newest release, asking now), `GET /health` |
+
+## Update notice
+
+`UpdateChecker` (`app/updates.py`) asks `https://api.github.com/repos/RadzuPL/melomancer/releases/latest` with one anonymous GET: 8 s timeout, the answer limited to 256 KB, an `If-None-Match` header with the last ETag so that an unchanged release costs a 304. The server asks, not the browser, because the panel's content security policy allows no outside requests. A daemon thread (started in the lifespan like the other workers) looks 30 s after the start and then every 6 hours, but only while the `update_check` setting is on; a rate limit from GitHub (403 or 429) pauses it for an hour. `POST /system/update/check` asks at once, at most once in 10 seconds, whatever the switch says. Nothing is persisted: after a restart the first check refills the cache.
+
+The tag (`vX.Y.Z`) is parsed into three numbers and compared as numbers, so 0.6.10 is above 0.6.9. Drafts, pre-releases and odd tags are ignored. The link to the release notes is built from the tag, never taken from the answer. A running version that is not three numbers (`dev`) is never compared and the thread does not start. Failures are short codes (`unreachable`, `rate_limited`, `bad_response`) that the panel translates under `update_err_*`, and the last good answer is kept. The Monday rebuild creates a release like any other, so it counts as an update.
 
 ## Not built yet
 

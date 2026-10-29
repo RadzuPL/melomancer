@@ -43,6 +43,7 @@ SETTING_GLIDE = "volume_glide_seconds"
 DEFAULT_GLIDE = 0.25                 # seconds: how slowly the volume follows the slider (0 = at once)
 GLIDE_RANGE = (0.0, 2.0)
 SETTING_TRIM = "trim_silence"
+SETTING_UPDATE_CHECK = "update_check"
 SETTING_SILENCE_DB = "silence_threshold"
 DEFAULT_SILENCE_DB = -50.0           # dB: quieter than this counts as silence
 SILENCE_RANGE = (-70.0, -30.0)
@@ -136,6 +137,7 @@ class RuntimeSettings:
         self.trim_silence = True
         self.silence_db = DEFAULT_SILENCE_DB
         self.glide = DEFAULT_GLIDE
+        self.update_check = True    # ask GitHub now and then whether a newer release exists (app/updates.py)
         self.rev = 0  # counts the changes, so that a browser playing on its own knows to ask again
 
     def load(self) -> None:
@@ -145,6 +147,8 @@ class RuntimeSettings:
             self.normalize = stored[SETTING_NORMALIZE] == "1"
         if SETTING_TRIM in stored:
             self.trim_silence = stored[SETTING_TRIM] == "1"
+        if SETTING_UPDATE_CHECK in stored:
+            self.update_check = stored[SETTING_UPDATE_CHECK] == "1"
         for key, attr, (low, high) in ((SETTING_TARGET, "target", TARGET_RANGE), (SETTING_BOOST, "max_boost", BOOST_RANGE),
                                        (SETTING_CROSSFADE, "crossfade", CROSSFADE_RANGE),
                                        (SETTING_SCRUB, "scrub", SCRUB_RANGE),
@@ -157,7 +161,8 @@ class RuntimeSettings:
 
     def update(self, *, normalize: bool | None = None, target: float | None = None,
                max_boost: float | None = None, crossfade: float | None = None, scrub: float | None = None,
-               trim_silence: bool | None = None, silence_db: float | None = None, glide: float | None = None) -> None:
+               trim_silence: bool | None = None, silence_db: float | None = None, glide: float | None = None,
+               update_check: bool | None = None) -> None:
         changes: dict[str, str] = {}
         if normalize is not None:
             self.normalize = normalize
@@ -183,6 +188,9 @@ class RuntimeSettings:
         if glide is not None:
             self.glide = min(max(float(glide), GLIDE_RANGE[0]), GLIDE_RANGE[1])
             changes[SETTING_GLIDE] = f"{self.glide:g}"
+        if update_check is not None:
+            self.update_check = update_check
+            changes[SETTING_UPDATE_CHECK] = "1" if update_check else "0"
         self.rev += 1
         with tx(self._settings.db_path) as conn:
             for key, value in changes.items():

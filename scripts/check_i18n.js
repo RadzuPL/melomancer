@@ -16,6 +16,7 @@ const dynamic = [
   "dl.preparing", "dl.downloading", "dl.converting", "dl.importing",
   "role.user", "role.admin",
   "theme_auto", "theme_light", "theme_dark",
+  "update_err_unreachable", "update_err_rate_limited", "update_err_bad_response",
   "bot.disabled", "bot.starting", "bot.ready", "bot.login_failed", "bot.error",
 ];
 const used = new Set([...app.matchAll(/\btr\(\s*"([^"]+)"/g)].map((m) => m[1]).filter((k) => !k.endsWith(".") && !k.endsWith("_")));
