@@ -135,7 +135,11 @@ class UpdateChecker:
     # ---- checking ---------------------------------------------------------
 
     def check(self, force: bool = False) -> dict:
-        """Asks GitHub (blocking, so call it from a thread or a plain `def` route) and returns the new status."""
+        """Asks GitHub (blocking, so call it from a thread or a plain `def` route) and returns the new status.
+
+        Without `force` an answer younger than CHECK_EVERY_SECONDS is reused. `force` skips that long window, but never
+        asks more than once in MIN_MANUAL_GAP_SECONDS. The background thread forces: it sets its own pace (6 hours, an
+        hour after a rate limit, at once when the switch is turned on), so the cache must not veto it."""
         now = self._clock()
         with self._lock:
             recent = self._checked_at is not None and now - self._checked_at < (MIN_MANUAL_GAP_SECONDS if force else CHECK_EVERY_SECONDS)
@@ -193,7 +197,7 @@ class UpdateChecker:
             if not self._runtime.update_check:
                 continue
             try:
-                if self.check()["error"] == "rate_limited":
+                if self.check(force=True)["error"] == "rate_limited":
                     delay = RATE_LIMIT_PAUSE_SECONDS
             except Exception:  # noqa: BLE001
                 log.debug("Update check crashed", exc_info=True)

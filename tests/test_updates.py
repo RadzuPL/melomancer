@@ -4,6 +4,7 @@ Only the standard library is needed, so these also run with scripts/dev/run_test
 """
 from __future__ import annotations
 
+import threading
 from dataclasses import replace
 from types import SimpleNamespace
 
@@ -117,6 +118,33 @@ def test_checking_by_hand_is_not_cached_but_not_a_hammer_either():
     clock.now += 2
     status = checker.check(force=True)
     assert len(calls) == 2 and status["latest"] == "0.6.31"
+
+
+def test_the_background_thread_is_not_held_back_by_the_long_cache_window():
+    """After a rate limit the thread tries again an hour later, and turning the switch on checks soon (wake)."""
+    clock = Clock()
+    checker, calls = make("0.6.28", [FetchError("rate_limited"), release("v0.6.30")], clock)
+    assert checker.check(force=True)["error"] == "rate_limited"
+    clock.now += updates.RATE_LIMIT_PAUSE_SECONDS           # an hour: inside the 6 h window of an ordinary check
+    assert updates.RATE_LIMIT_PAUSE_SECONDS < updates.CHECK_EVERY_SECONDS
+    status = checker.check(force=True)
+    assert len(calls) == 2 and status["error"] is None and status["latest"] == "0.6.30"
+
+
+def test_the_thread_asks_with_force(monkeypatch):
+    checker, _ = make("0.6.28", [])
+    seen = []
+    monkeypatch.setattr(checker, "check", lambda force=False: seen.append(force) or {"error": None})
+    checker._wake.set()                    # as when the switch is turned on: no waiting for the first delay
+    thread = threading.Thread(target=checker._run, daemon=True)
+    thread.start()
+    for _ in range(100):
+        if seen:
+            break
+        threading.Event().wait(0.05)
+    checker.stop()
+    thread.join(2)
+    assert seen and seen[0] is True
 
 
 def test_status_shows_the_switch():
