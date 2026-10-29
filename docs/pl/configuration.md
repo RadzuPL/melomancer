@@ -28,6 +28,7 @@ Wszystko konfiguruje się zmiennymi środowiskowymi. Uwagi wymagają tylko `DISC
 | `COOKIE_SECURE` | `auto` | `auto` oznacza ciasteczko logowania jako Secure, gdy panel otwarto przez https. `true` / `false` wymuszają wartość. |
 | `LOGIN_MAX_FAILURES` | `5` | Liczba nieudanych logowań na nazwę użytkownika lub adres przed czasową blokadą. |
 | `LOGIN_WINDOW_SECONDS` | `300` | Długość tego okna i blokady. |
+| `AUTO_LOGIN` | `false` | Wpuszcza administratora bez hasła, wyłącznie dla żądań z tego samego komputera (adres pętli zwrotnej, `Host` z pętli zwrotnej, bez nagłówków proxy). [Paczka dla Windows](windows.md) włącza go sama; w kontenerze zostaw wyłączony, tam i tak nie miałby zastosowania. Zob. [Bezpieczeństwo](security.md). |
 | `LOG_LEVEL` | `INFO` | `DEBUG`, `INFO`, `WARNING` lub `ERROR`. |
 
 ## Folder danych

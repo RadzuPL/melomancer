@@ -34,6 +34,12 @@ Uwagi:
 - Jeśli na swoich nazwach hostów stosujesz już reguły regionów, botów lub podejrzanego ruchu, panel z nimi działa. Bot Discord łączy się na zewnątrz i nie jest nimi dotknięty.
 - Zostaw `COOKIE_SECURE=auto` (domyślnie), wtedy ciasteczko samo staje się `Secure` przez https.
 
+## Logowanie bez hasła (paczka dla Windows)
+
+[Paczka dla Windows](windows.md) domyślnie loguje administratora bez hasła, dla żądań z tego samego komputera. Serwer decyduje na podstawie trzech rzeczy naraz (`app/localaccess.py`): uczestnik połączenia TCP to adres pętli zwrotnej, nagłówek `Host` to `127.0.0.1`, `localhost` lub `::1`, a żądanie nie ma nagłówków `Forwarded`, `X-Forwarded-*`, `X-Real-IP` ani nagłówków Cloudflare. Tunel Cloudflare albo reverse proxy na tym samym komputerze też łączy się z 127.0.0.1, ale dokłada te nagłówki i niesie publiczną nazwę w `Host`, więc dostaje odmowę. Strona z innego serwisu też z tego nie skorzysta. Jej żądanie wysłane prosto na http://127.0.0.1:8080/ przychodzi z adresu pętli zwrotnej z `Host` z pętli zwrotnej, ale endpoint logowania (`POST /api/auth/local`) wymaga własnego nagłówka `X-Melomancer`, a przeglądarka wysyła taki nagłówek między serwisami dopiero po sprawdzeniu zgody, której serwer nigdy nie daje. Strona, która najpierw skieruje własną nazwę na 127.0.0.1 (DNS rebinding), przechodzi to sprawdzenie, ale wtedy w nagłówku `Host` jest jej własna nazwa, która jest odrzucana. Launcher wyłącza też tryb, gdy każesz panelowi nasłuchiwać na czymkolwiek poza adresem pętli zwrotnej.
+
+Czego to nie zatrzyma: każdy program uruchomiony na tym komputerze i każde inne konto Windows na nim może wywołać endpoint i dostać sesję administratora. To to samo zaufanie co do folderu z danymi, który i tak mogą odczytać, ale na komputerze współdzielonym ustaw `auto_login = false`. W kontenerze zostaw `AUTO_LOGIN` nieustawione: żądania przychodzą z sieci kontenera, nie z adresu pętli zwrotnej, więc i tak dostałyby odmowę.
+
 ## Sekrety
 
 - `DISCORD_TOKEN` to hasło bota. Trzymaj go w ustawieniach kontenera albo w pliku `.env`, którego nie wrzucasz do repozytorium. Jeśli wycieknie, użyj **Reset Token** w Developer Portal i zaktualizuj kontener.

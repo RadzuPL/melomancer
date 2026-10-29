@@ -53,7 +53,8 @@ READ_ME = """Melomancer dla Windows (wersja eksperymentalna)
    Wpisz tam token bota Discorda (instrukcja: https://github.com/RadzuPL/melomancer/blob/main/docs/pl/discord-bot.md),
    zapisz plik i uruchom Melomancera ponownie. Bez tokena panel działa, a bot zostaje offline. Opcjonalnie dopisz
    discord_client_id (Application ID bota): Ustawienia pokażą wtedy link "Dodaj bota do serwera".
-4. Bez hasła administratora w tym pliku Melomancer generuje losowe i pokazuje je raz w oknie.
+4. Panel domyślnie wpuszcza ten komputer jako administratora bez hasła (auto_login = false w pliku włącza hasło;
+   wtedy bez hasła w pliku powstaje losowe, pokazane raz w oknie).
 5. Twoje dane (baza i muzyka) są w %LOCALAPPDATA%\\Melomancer\\data.
 
 Plik nie jest podpisany cyfrowo, więc Windows pokaże ostrzeżenie "Nie można zweryfikować wydawcy" (albo "System
@@ -72,7 +73,8 @@ Melomancer for Windows (experimental build)
    Put your Discord bot token there (docs: https://github.com/RadzuPL/melomancer/blob/main/docs/en/discord-bot.md),
    save, then start Melomancer again. Without a token the panel works and the bot stays offline. Optionally add
    discord_client_id (the bot's Application ID): Settings then shows an "Add the bot to a server" link.
-4. Without an administrator password in that file a random one is generated and shown once in the window.
+4. By default the panel lets this computer in as the administrator without a password (auto_login = false in the file
+   brings the password back; without a password in the file a random one is then generated and shown once in the window).
 5. Your data (database and music) is in %LOCALAPPDATA%\\Melomancer\\data.
 
 The file is not signed, so Windows shows "Unable to verify the publisher" (or "Windows protected your PC"). Choose

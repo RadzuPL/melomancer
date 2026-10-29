@@ -22,8 +22,14 @@ Każdy klucz to nazwa zmiennej środowiskowej z [Konfiguracji](configuration.md)
 |---|---|
 | Plik ustawień | `%LOCALAPPDATA%\Melomancer\config.toml` |
 | Baza danych (i muzyka, o ile nie ustawiono `music_dir`) | `%LOCALAPPDATA%\Melomancer\data` |
-| Pierwszy administrator | `admin_username` i `admin_password` w pliku; bez hasła jest generowane losowe i pokazane raz w oknie |
+| Pierwszy administrator | `admin_username` i `admin_password` w pliku; bez hasła jest generowane losowe i pokazane raz w oknie (potrzebne dopiero, gdy wyłączysz `auto_login` albo wejdziesz na panel z innego komputera) |
 | Adres | `127.0.0.1` (tylko ten komputer, więc Windows nie pyta o zaporę); `host = '0.0.0.0'` otwiera panel dla sieci |
+
+## Logowanie
+
+Domyślnie panel wpuszcza **ten komputer** jako administratora bez hasła (`auto_login = true`): przeglądarka otwarta przez Melomancera jest od razu zalogowana, nie ma strony logowania ani pozycji **Wyloguj**. Ustaw `auto_login = false` w `config.toml`, żeby panel pytał o hasło jak w kontenerze.
+
+Odmowa następuje niezależnie od pliku, chyba że spełnione jest wszystko naraz: panel nasłuchuje tylko na `127.0.0.1` (`host = '0.0.0.0'` wyłącza tryb, a okno o tym informuje), żądanie przychodzi z adresu pętli zwrotnej, jego nagłówek `Host` to `127.0.0.1` lub `localhost` (strona z innego serwisu, która kieruje własną nazwę na Twój komputer, jest odrzucana) i nie ma na nim nagłówków proxy ani tunelu. Tunel Cloudflare albo reverse proxy na tym samym komputerze nie wejdzie więc bez hasła. Czego to nie zatrzyma: każdy program i każde inne konto Windows na tym komputerze może otworzyć panel jako administrator. Na komputerze, z którego korzysta kilka osób, ustaw `auto_login = false`. Szczegóły: [Bezpieczeństwo](security.md).
 
 ## Czym różni się od kontenera
 

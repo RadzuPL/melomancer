@@ -25,6 +25,7 @@ from typing import Any, MutableMapping
 from .hostenv import default_config_path
 
 DEFAULT_HOST = "127.0.0.1"
+LOOPBACK_HOSTS = ("127.0.0.1", "localhost", "::1")
 DEFAULT_PORT = 8080
 LAUNCHER_KEYS = ("host", "port")   # read by the launcher itself, not passed on as environment variables
 
@@ -55,6 +56,11 @@ TEMPLATE = """\
 # Where the panel listens. 127.0.0.1 is this computer only. 0.0.0.0 opens it to your network (Windows will ask about the firewall).
 # host = '127.0.0.1'
 # port = 8080
+
+# Logowanie bez hasła: panel wpuszcza ten komputer jako administratora (tylko przy host 127.0.0.1, nigdy przez tunel ani
+# proxy). Wpisz false, żeby wymagać hasła. / Signing in without a password: the panel lets this computer in as the
+# administrator (only with host 127.0.0.1, never through a tunnel or a proxy). Set false to require the password.
+# auto_login = true
 
 # Foldery. Domyślny folder danych to %LOCALAPPDATA%\\Melomancer\\data (baza i, o ile nie ustawiono music_dir, muzyka).
 # Folders. The default data folder is %LOCALAPPDATA%\\Melomancer\\data (database and, unless music_dir is set, the music).
@@ -144,6 +150,23 @@ def read_build(home: Path) -> str:
     return marker.read_text(encoding="utf-8").strip() if marker.is_file() else ""
 
 
+def decide_auto_login(host: str, environ: MutableMapping[str, str]) -> str:
+    """Sets AUTO_LOGIN for this run and returns what to tell the person ("" for nothing).
+
+    On by default for a desktop run on the loopback address: the panel opens as the administrator without a password.
+    Never when the panel listens for other computers, whatever the settings say.
+    """
+    loopback = host in LOOPBACK_HOSTS
+    wanted = environ.get("AUTO_LOGIN", "").strip().lower()
+    if wanted == "":
+        environ["AUTO_LOGIN"] = "true" if loopback else "false"
+    elif wanted in ("1", "true", "yes", "on") and not loopback:
+        environ["AUTO_LOGIN"] = "false"
+        return (f"auto_login is ignored because the panel listens on {host}, not only on this computer: "
+                "everyone who can reach it must sign in with a password.")
+    return ""
+
+
 def parse_port(value: Any) -> int:
     try:
         port = int(value)
@@ -190,12 +213,18 @@ def main(argv: list[str] | None = None) -> int:
     host = args.host or str(values.get("host") or DEFAULT_HOST)
     port = parse_port(args.port or values.get("port") or DEFAULT_PORT)
     apply_config(values, os.environ)
+    auto_login_note = decide_auto_login(host, os.environ)
 
     url = f"http://{'127.0.0.1' if host in ('0.0.0.0', '::') else host}:{port}/"
     build = read_build(home)
     print(f"Melomancer {os.environ.get('APP_VERSION', 'dev')}" + (f" ({build})" if build else ""))
     print(f"Settings file: {config}" + ("  (created now, edit it to add your Discord bot token)" if created else ""))
     print(f"Panel: {url}   (Ctrl+C or closing this window stops it)")
+    if auto_login_note:
+        print("Note: " + auto_login_note)
+    elif os.environ.get("AUTO_LOGIN") == "true":
+        print("The panel lets this computer in as the administrator without a password (auto_login = false in the "
+              "settings file turns that off).")
 
     if not args.no_browser:
         threading.Thread(target=open_browser_when_ready, args=(url,), daemon=True).start()

@@ -34,6 +34,12 @@ Notes:
 - If you already apply region, bot or suspicious-traffic rules to your hostnames, the panel works with them. The Discord bot connects outwards and is not affected.
 - Keep `COOKIE_SECURE=auto` (default) so the cookie becomes `Secure` over https automatically.
 
+## Signing in without a password (Windows package)
+
+The [Windows package](windows.md) signs the administrator in without a password by default, for requests from the same computer. The server decides on three things at once (`app/localaccess.py`): the TCP peer is the loopback address, the `Host` header is `127.0.0.1`, `localhost` or `::1`, and the request has no `Forwarded`, `X-Forwarded-*`, `X-Real-IP` or Cloudflare header. A Cloudflare Tunnel or a reverse proxy on the same computer connects from 127.0.0.1 too, but it adds those headers and carries the public name in `Host`, so it is refused. A web page on another site cannot use it either. A request it sends straight to http://127.0.0.1:8080/ arrives from the loopback address with a loopback `Host`, but the sign-in endpoint (`POST /api/auth/local`) needs the custom `X-Melomancer` header, and a browser sends such a header across sites only after a permission check that the server never grants. A page that first points its own name at 127.0.0.1 (DNS rebinding) gets past that check, but then its own name is in the `Host` header, which is refused. The launcher also switches the mode off when the panel is told to listen on anything but the loopback address.
+
+What it does not stop: any program running on that computer, and any other Windows account on it, can call the endpoint and get an administrator session. That is the same trust as the data folder, which they can read anyway, but on a shared computer set `auto_login = false`. In a container leave `AUTO_LOGIN` unset: requests arrive from the container network, not from the loopback address, so it would be refused anyway.
+
 ## Secrets
 
 - `DISCORD_TOKEN` is the bot's password. Keep it in the container settings or an `.env` file that is not committed. If it leaks, use **Reset Token** in the Developer Portal and update the container.

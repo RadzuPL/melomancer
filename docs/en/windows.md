@@ -22,8 +22,14 @@ Every key is the lower-case name of an environment variable from [Configuration]
 |---|---|
 | Settings file | `%LOCALAPPDATA%\Melomancer\config.toml` |
 | Database (and the music, unless `music_dir` is set) | `%LOCALAPPDATA%\Melomancer\data` |
-| First administrator | `admin_username` and `admin_password` in the file; without a password a random one is shown once in the window |
+| First administrator | `admin_username` and `admin_password` in the file; without a password a random one is shown once in the window (you only need it when you switch `auto_login` off or open the panel from another computer) |
 | Address | `127.0.0.1` (this computer only, so Windows has no firewall question); `host = '0.0.0.0'` opens it to your network |
+
+## Signing in
+
+By default the panel lets **this computer** in as the administrator without a password (`auto_login = true`): the browser that Melomancer opens is already signed in, there is no login page and no **Log out** item. Set `auto_login = false` in `config.toml` to ask for the password as in the container.
+
+It is refused, whatever the file says, unless all of this holds: the panel listens on `127.0.0.1` only (`host = '0.0.0.0'` switches it off and the window says so), the request comes from the loopback address, its `Host` header is `127.0.0.1` or `localhost` (a web page on another site that points its own name at your computer is refused), and there is no proxy or tunnel header on it. A Cloudflare Tunnel or a reverse proxy on the same computer therefore never gets in without a password. What it does not stop: any program, or any other Windows account, on this computer can open the panel as the administrator. On a computer that several people use, set `auto_login = false`. Details: [Security](security.md).
 
 ## What is different from the container
 
