@@ -87,7 +87,8 @@ Na Unraidzie kontenery zwykle dodaje się z szablonu w zakładce Docker. Szablon
 | Pole | Co wpisać |
 |---|---|
 | Web panel port | `8080` albo inny wolny port hosta |
-| Data (database + music library) | Folder na prawdziwym dysku lub puli, np. `/mnt/nvme/appdata/melomancer`. Jeśli możesz, unikaj `/mnt/user/...` dla bazy; SQLite zachowuje się lepiej na bezpośredniej ścieżce puli niż na udziale FUSE |
+| Data (database) | Folder na prawdziwym dysku lub puli, np. `/mnt/nvme/appdata/melomancer`. Jeśli możesz, unikaj `/mnt/user/...` dla bazy; SQLite zachowuje się lepiej na bezpośredniej ścieżce puli niż na udziale FUSE |
+| Music library | Folder na pliki audio, które mogą zajmować dużo miejsca: zostaw domyślny albo wskaż udział na arrayu, np. `/mnt/user/rpg/melomancer`. Zmienną *Music folder in the container* (zaawansowane) zostaw na `/music`. Zobacz [Muzyka na innym dysku](configuration.md#muzyka-na-innym-dysku) |
 | Discord bot token | Token z instrukcji [Tworzenie bota Discord](discord-bot.md) |
 | Admin username / Admin password | Pierwszy administrator (hasło co najmniej 10 znaków) |
 | PUID / PGID (advanced) | `99` i `100` na Unraidzie |
@@ -143,7 +144,7 @@ Kopia zapasowa: wszystko jest w folderze danych. Żeby skopiować bez zatrzymywa
 docker exec melomancer python -c "import sqlite3; s=sqlite3.connect('/data/melomancer.db'); d=sqlite3.connect('/data/backup.db'); s.backup(d); d.close(); s.close()"
 ```
 
-Potem skopiuj cały folder danych (`backup.db`, `melomancer.db` i folder `music`) swoim zwykłym narzędziem do kopii.
+Potem skopiuj cały folder danych (`backup.db`, `melomancer.db` i, o ile `MUSIC_DIR` nie wskazuje gdzie indziej, folder `music`) swoim zwykłym narzędziem do kopii. Jeśli muzyka leży we własnym folderze (`MUSIC_DIR`), skopiuj też ten folder.
 
 Zapomniane hasło administratora:
 

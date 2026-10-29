@@ -87,7 +87,8 @@ Unraid users normally add containers from a template in the Docker tab. The temp
 | Field | What to enter |
 |---|---|
 | Web panel port | `8080`, or another free host port |
-| Data (database + music library) | A folder on a real disk or pool, for example `/mnt/nvme/appdata/melomancer`. Avoid `/mnt/user/...` for the database if you can; SQLite behaves better on a direct pool path than on the FUSE user share |
+| Data (database) | A folder on a real disk or pool, for example `/mnt/nvme/appdata/melomancer`. Avoid `/mnt/user/...` for the database if you can; SQLite behaves better on a direct pool path than on the FUSE user share |
+| Music library | The folder for the audio files, which can be large: leave the default or point it at a share on the array, for example `/mnt/user/rpg/melomancer`. Leave the variable *Music folder in the container* (advanced) at `/music`. See [Music on another disk](configuration.md#music-on-another-disk) |
 | Discord bot token | The token from [Creating the Discord bot](discord-bot.md) |
 | Admin username / Admin password | The first administrator (password at least 10 characters) |
 | PUID / PGID (advanced) | `99` and `100` on Unraid |
@@ -143,7 +144,7 @@ Backup: everything is in the data folder. For a copy without stopping the bot, f
 docker exec melomancer python -c "import sqlite3; s=sqlite3.connect('/data/melomancer.db'); d=sqlite3.connect('/data/backup.db'); s.backup(d); d.close(); s.close()"
 ```
 
-Then copy the whole data folder (`backup.db`, `melomancer.db` and the `music` folder) with your usual backup tool.
+Then copy the whole data folder (`backup.db`, `melomancer.db` and, unless `MUSIC_DIR` points elsewhere, the `music` folder) with your usual backup tool. If the music lives in its own folder (`MUSIC_DIR`), back that folder up too.
 
 Forgot the administrator password:
 

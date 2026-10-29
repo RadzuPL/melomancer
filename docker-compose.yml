@@ -17,3 +17,6 @@ services:
       - "8080:8080"
     volumes:
       - ./data:/data
+      # Optional: keep the audio files on another disk (see docs/en/configuration.md, "Music on another disk").
+      # - /path/on/the/host:/music
+      # and add  MUSIC_DIR: /music  to the environment above.
