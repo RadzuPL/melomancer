@@ -54,6 +54,8 @@ jobs:
       - name: Show a failure as annotations
         if: failure()
         shell: bash
+        env:
+          PYTHONUTF8: "1"   # the annotation text has Polish letters; the runner's code page has none
         run: |
           python - <<'PY'
           import os
@@ -97,6 +99,8 @@ jobs:
       - name: Show a smoke test failure as annotations
         if: failure()
         shell: bash
+        env:
+          PYTHONUTF8: "1"   # the annotation text has Polish letters; the runner's code page has none
         run: |
           python - <<'PY'
           import os
@@ -111,6 +115,8 @@ jobs:
       - name: Show what the smoke test checked
         if: success()
         shell: bash
+        env:
+          PYTHONUTF8: "1"   # the annotation text has Polish letters; the runner's code page has none
         run: |
           python - <<'PY'
           lines = [l for l in open("smoke.log", encoding="utf-8", errors="replace").read().splitlines()
