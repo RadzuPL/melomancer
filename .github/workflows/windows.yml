@@ -66,6 +66,7 @@ jobs:
           PY
 
       - name: Work out the version
+        if: ${{ !cancelled() }}
         id: version
         shell: bash
         run: |
@@ -74,10 +75,11 @@ jobs:
           echo "Version: $version"
 
       - name: Build the package
+        if: ${{ !cancelled() }}
         run: python scripts/windows/build_package.py package --version "${{ steps.version.outputs.value }}" --tools build/bin --out dist
 
       - uses: actions/upload-artifact@v4
-        if: always()
+        if: ${{ !cancelled() }}
         with:
           name: Melomancer-win64-${{ steps.version.outputs.value }}
           path: dist/*.zip
@@ -85,6 +87,7 @@ jobs:
           retention-days: 14
 
       - name: Start the package and check it
+        if: ${{ !cancelled() }}
         shell: bash
         run: |
           set -o pipefail
