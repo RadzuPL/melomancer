@@ -13,6 +13,8 @@ from __future__ import annotations
 import argparse
 import logging
 import os
+import re
+import subprocess
 import sys
 import threading
 import time
@@ -93,10 +95,12 @@ class QuietConnectionResets(logging.Filter):
 
 def read_config(path: Path) -> dict[str, Any]:
     try:
-        with open(path, "rb") as handle:
-            return tomllib.load(handle)
+        text = path.read_bytes().decode("utf-8-sig")   # Notepad may save a BOM; it is not part of the text
+        return tomllib.loads(text)
     except FileNotFoundError:
         return {}
+    except UnicodeDecodeError:
+        raise SystemExit(f"{path} is not saved as UTF-8 (in Notepad: Save As, Encoding: UTF-8).") from None
     except tomllib.TOMLDecodeError as exc:
         raise SystemExit(f"{path} is not valid TOML: {exc}\nFix the file or delete it to get a fresh one.") from None
 
@@ -129,6 +133,48 @@ def ensure_config(path: Path) -> bool:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(TEMPLATE, encoding="utf-8")
     return True
+
+
+_KEY_LINE = re.compile(r"^#\s*([a-z_][a-z0-9_]*)\s*=")
+
+
+def template_blocks(template: str = TEMPLATE) -> list[tuple[list[str], str]]:
+    """The template cut into its paragraphs, each with the setting names it shows: ([names], text)."""
+    blocks = []
+    for chunk in template.strip("\n").split("\n\n"):
+        names = [m.group(1) for line in chunk.splitlines() if (m := _KEY_LINE.match(line))]
+        if names:
+            blocks.append((names, chunk))
+    return blocks
+
+
+def sync_config(path: Path, version: str = "") -> list[str]:
+    """Appends, as comments, the settings that the file does not mention yet (a file made by an older version).
+
+    A name counts as mentioned when a line starts with it, active or commented out, so nothing is added twice and
+    nothing the person wrote is touched. Returns the names that were added.
+    """
+    if not path.is_file():
+        return []
+    text = path.read_bytes().decode("utf-8-sig", errors="replace")
+    added, chunks = [], []
+    for names, chunk in template_blocks():
+        missing = [n for n in names if not re.search(rf"^\s*#?\s*{n}\s*=", text, re.MULTILINE)]
+        if missing:
+            added += missing
+            chunks.append(chunk)
+    if not chunks:
+        return []
+    mark = f"# --- Dodane przez Melomancera {version} / Added by Melomancer {version} ---".replace("  ", " ")
+    path.write_text(text.rstrip("\n") + "\n\n" + mark + "\n\n" + "\n\n".join(chunks) + "\n", encoding="utf-8")
+    return added
+
+
+def open_in_editor(path: Path) -> None:
+    if hasattr(os, "startfile"):   # Windows: Notepad on purpose, a .toml has no program of its own
+        subprocess.Popen(["notepad.exe", str(path)])
+    else:
+        print(path)
 
 
 def prepare_path(home: Path, environ: MutableMapping[str, str]) -> None:
@@ -194,6 +240,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--host", help=f"address to listen on (default {DEFAULT_HOST})")
     parser.add_argument("--port", help=f"port (default {DEFAULT_PORT})")
     parser.add_argument("--no-browser", action="store_true", help="do not open the panel in the browser")
+    parser.add_argument("--edit-config", action="store_true", help="open the settings file in Notepad and exit")
     args = parser.parse_args(argv)
 
     # A path or a title with a letter the console's code page lacks must never stop the program, only print as "?".
@@ -209,6 +256,11 @@ def main(argv: list[str] | None = None) -> int:
 
     config = Path(args.config or os.environ.get("MELOMANCER_CONFIG") or default_config_path())
     created = ensure_config(config)
+    added = sync_config(config, os.environ.get("APP_VERSION", ""))
+    if args.edit_config:
+        print(f"Settings file: {config}")
+        open_in_editor(config)
+        return 0
     values = read_config(config)
     host = args.host or str(values.get("host") or DEFAULT_HOST)
     port = parse_port(args.port or values.get("port") or DEFAULT_PORT)
@@ -219,6 +271,8 @@ def main(argv: list[str] | None = None) -> int:
     build = read_build(home)
     print(f"Melomancer {os.environ.get('APP_VERSION', 'dev')}" + (f" ({build})" if build else ""))
     print(f"Settings file: {config}" + ("  (created now, edit it to add your Discord bot token)" if created else ""))
+    if added:
+        print("New settings were added to it as comments: " + ", ".join(added) + ".")
     print(f"Panel: {url}   (Ctrl+C or closing this window stops it)")
     if auto_login_note:
         print("Note: " + auto_login_note)

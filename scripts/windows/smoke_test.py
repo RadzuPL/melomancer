@@ -88,6 +88,24 @@ def main(archive: Path, version: str) -> int:
     py, ffmpeg = root / "runtime" / "python.exe", root / "bin" / "ffmpeg.exe"
     check(py.is_file() and ffmpeg.is_file(), f"package unpacked under {work}")
 
+    # ---- what a person finds in the folder ----
+    for name in ("Melomancer.cmd", "Ustawienia - Settings.cmd", "README-WINDOWS.txt", "config.example.toml", "THIRD_PARTY.md"):
+        check((root / name).is_file(), f"{name} is in the package")
+    readme = (root / "README-WINDOWS.txt").read_text(encoding="utf-8")
+    check("Zawsze pytaj przed otwarciem" in readme and "Odblokuj" not in readme and "Unblock" not in readme,
+          "the README describes the security window of the .cmd file, in Polish and English")
+    check("discord_client_id" in (root / "config.example.toml").read_text(encoding="utf-8"), "config.example.toml lists discord_client_id")
+
+    # ---- an older settings file is brought up to date, in a folder with Polish letters ----
+    older = work / "stary config Zażółć.toml"
+    older.write_text("# discord_token = ''\nport = 9000\n", encoding="utf-8")
+    code = ("import sys; from pathlib import Path; from app import winmain; "
+            "print('added:' + ','.join(winmain.sync_config(Path(sys.argv[1]), '1.0')))")
+    added = run([root / "runtime" / "python.exe", "-c", code, str(older)], cwd=root).stdout
+    check("discord_client_id" in added and "auto_login" in added and "discord_token" not in added and "port" not in added.split("added:")[1].split(","),
+          f"missing settings are appended, existing ones are not repeated ({added.strip()})")
+    check("Dodane przez Melomancera 1.0" in older.read_text(encoding="utf-8"), "the appended part is readable UTF-8")
+
     # ---- the bundled Python and its libraries ----
     out = run([py, "-c", (
         "import discord, nacl, davey, argon2, uvicorn, fastapi, yt_dlp, psutil, sys; import discord.opus as o;"
