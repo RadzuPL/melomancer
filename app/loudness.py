@@ -16,6 +16,7 @@ import subprocess
 import threading
 from pathlib import Path
 
+from . import hostenv
 from .config import Settings
 from .db import tx
 from .library import track_path
@@ -88,10 +89,13 @@ def measure(path: Path, threshold: float = DEFAULT_SILENCE_DB, duration: float |
     graph = (f"silencedetect=noise={threshold:g}dB:d={SILENCE_MIN_LENGTH:g},"
              "loudnorm=I=-16:TP=-1.5:LRA=11:print_format=json")
     cmd = ["ffmpeg", "-nostdin", "-hide_banner", "-nostats", "-i", str(path), "-vn", "-af", graph, "-f", "null", "-"]
+    flags = hostenv.NO_WINDOW | hostenv.BELOW_NORMAL  # Windows: a lower priority class, the counterpart of nice
     if shutil.which("nice"):  # keep the measurement from competing with the voice stream for CPU
         cmd = ["nice", "-n", "10", *cmd]
     try:
-        result = subprocess.run(cmd, capture_output=True, text=True, timeout=MEASURE_TIMEOUT, check=False)
+        # ffmpeg writes UTF-8; without saying so Windows would decode it with the ANSI code page (cp1250 in Poland).
+        result = subprocess.run(cmd, capture_output=True, encoding="utf-8", errors="replace", creationflags=flags,
+                                timeout=MEASURE_TIMEOUT, check=False)
     except (OSError, subprocess.TimeoutExpired):
         return None
     stderr = result.stderr or ""
