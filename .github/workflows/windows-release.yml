@@ -1,0 +1,122 @@
+name: Windows package for a release
+
+# After "Test, build and release" has published a release, this builds the Windows package from that release's tag,
+# starts it to check that it works, attaches it to the release and adds its link to the release notes. It is a
+# separate workflow on purpose: if the Windows build fails, the container release is untouched.
+on:
+  workflow_run:
+    workflows: ["Test, build and release"]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "An existing release tag to build the package for and attach it to, for example v0.6.36"
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  package:
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    runs-on: windows-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || format('refs/tags/{0}', inputs.tag) }}
+          fetch-depth: 0   # the tags
+
+      - name: Find the release tag
+        id: tag
+        shell: bash
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            tag="${{ inputs.tag }}"
+          else
+            tag=$(git tag --points-at HEAD --list 'v[0-9]*.[0-9]*.[0-9]*' | sort -V | tail -n1)
+          fi
+          if [ -z "$tag" ]; then
+            echo "No release tag on this commit, nothing to do."
+            echo "found=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "Release tag: $tag"
+            echo "found=true" >> "$GITHUB_OUTPUT"
+            echo "tag=$tag" >> "$GITHUB_OUTPUT"
+            echo "version=${tag#v}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/setup-python@v5
+        if: steps.tag.outputs.found == 'true'
+        with:
+          python-version: "3.12"
+
+      - name: Download ffmpeg, ffprobe and deno
+        if: steps.tag.outputs.found == 'true'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: python scripts/windows/build_package.py tools build/bin
+
+      - name: Build the package
+        if: steps.tag.outputs.found == 'true'
+        run: python scripts/windows/build_package.py package --version "${{ steps.tag.outputs.version }}" --tools build/bin --out dist
+
+      # The tests ran on Windows when the change was proposed; what is checked here is the package itself.
+      - name: Start the package and check it
+        if: steps.tag.outputs.found == 'true'
+        shell: bash
+        run: |
+          set -o pipefail
+          python -u scripts/windows/smoke_test.py "dist/Melomancer-win64-${{ steps.tag.outputs.version }}.zip" "${{ steps.tag.outputs.version }}" 2>&1 | tee smoke.log
+
+      - name: Show a smoke test failure as annotations
+        if: failure()
+        shell: bash
+        env:
+          PYTHONUTF8: "1"
+        run: |
+          python - <<'PY'
+          import os
+          lines = open("smoke.log", encoding="utf-8", errors="replace").read().splitlines() if os.path.exists("smoke.log") else ["no smoke.log"]
+          lines = lines[-150:]
+          chunks = ["\n".join(lines[i:i + 15]) for i in range(0, len(lines), 15)][-10:]
+          for chunk in chunks:
+              chunk = chunk.replace("%", "%25").replace("\r", "%0D").replace("\n", "%0A")
+              print(f"::error title=Windows package smoke test::{chunk}")
+          PY
+
+      - name: Attach the package to the release and link it in the notes
+        if: steps.tag.outputs.found == 'true'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.tag.outputs.tag }}
+          VERSION: ${{ steps.tag.outputs.version }}
+          PYTHONUTF8: "1"
+        run: |
+          file="dist/Melomancer-win64-${VERSION}.zip"
+          gh release upload "$TAG" "$file" --clobber
+          url="https://github.com/${{ github.repository }}/releases/download/${TAG}/Melomancer-win64-${VERSION}.zip"
+          gh api "repos/${{ github.repository }}/releases/tags/${TAG}" --jq '.id' | tr -d '\r' > release-id.txt
+          gh api "repos/${{ github.repository }}/releases/tags/${TAG}" --jq '.body // ""' > release-body.md
+          WINDOWS_URL="$url" python - <<'PY'
+          import os, pathlib
+          p = pathlib.Path("release-body.md")
+          body = p.read_text(encoding="utf-8")
+          version, url = os.environ["VERSION"], os.environ["WINDOWS_URL"]
+          line = (f"- **Windows package:** [Melomancer-win64-{version}.zip]({url}) "
+                  "(experimental, not signed: unpack it and run Melomancer.cmd, see "
+                  "[docs/en/windows.md](https://github.com/RadzuPL/melomancer/blob/main/docs/en/windows.md))")
+          if "Melomancer-win64-" in body:
+              print("The notes already link the package.")
+          else:
+              lines = body.rstrip("\n").split("\n")
+              at = next((i for i, l in enumerate(lines) if l.startswith("- **Full changelog:**")), None)
+              if at is None:
+                  lines += ["", line] if lines != [""] else [line]
+              else:
+                  lines.insert(at, line)
+              p.write_text("\n".join(lines) + "\n", encoding="utf-8")
+          PY
+          gh api -X PATCH "repos/${{ github.repository }}/releases/$(cat release-id.txt)" -F body=@release-body.md --jq '.html_url'

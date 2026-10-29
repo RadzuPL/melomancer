@@ -104,6 +104,15 @@ bash scripts/smoke_test.sh melomancer:dev
 - Anything user-controlled goes into the page with `textContent` or `createTextNode`, never as HTML.
 - Add database changes as a new entry at the end of `MIGRATIONS` in `app/db.py`, never edit an old one. Before an upgrade of an existing database a copy is saved next to it as `melomancer.db.before-vN`. Add a test that upgrades a database built from the older migrations (see `tests/test_db.py`).
 
+
+## Releases and their notes
+
+Every push to `main` is a release (see `.github/workflows/build.yml`): the tests run, the image is built and pushed to `ghcr.io/radzupl/melomancer`, a GitHub release is made with the next patch number, and every Monday a rebuild is released with a fresh base image, ffmpeg and yt-dlp.
+
+The text of a release comes from the commit messages (`scripts/release_notes.py`). A push lists the commits since the previous release, the Monday rebuild lists every release since the previous rebuild, grouped by version. The body of a commit message is what the reader sees, so write it for them: what changed and why it matters. When a pull request is squashed, its description or the squash message is that text. Tool trailers (`Co-Authored-By`, `Claude-Session`) are left out. A pull request shows a preview of both texts in the summary of its `notes-preview` job.
+
+A few minutes after a release, `.github/workflows/windows-release.yml` builds the [Windows package](windows.md) from the tag, starts it as a check, attaches `Melomancer-win64-<version>.zip` to the release and adds the link to the notes. It is a separate workflow so that a Windows failure never touches the container release. To make the package for an existing release by hand, run the workflow from the **Actions** tab and give the tag (for example `v0.6.36`).
+
 ## Windows package
 
 The experimental Windows package, how CI builds and tests it: [Windows](windows.md).

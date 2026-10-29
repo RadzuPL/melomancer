@@ -104,6 +104,15 @@ bash scripts/smoke_test.sh melomancer:dev
 - Wszystko, co pochodzi od użytkownika, trafia na stronę przez `textContent` lub `createTextNode`, nigdy jako HTML.
 - Zmiany w bazie dodawaj jako nowy wpis na końcu `MIGRATIONS` w `app/db.py`, nigdy nie edytuj starego. Przed aktualizacją istniejącej bazy obok niej zapisywana jest kopia `melomancer.db.before-vN`. Dodaj test, który aktualizuje bazę zbudowaną ze starszych migracji (zobacz `tests/test_db.py`).
 
+
+## Wydania i ich opisy
+
+Każdy push do `main` jest wydaniem (zob. `.github/workflows/build.yml`): idą testy, obraz jest budowany i wypychany do `ghcr.io/radzupl/melomancer`, powstaje wydanie na GitHubie z kolejnym numerem poprawki, a co poniedziałek wychodzi przebudowa ze świeżym obrazem bazowym, ffmpeg i yt-dlp.
+
+Tekst wydania pochodzi z komunikatów commitów (`scripts/release_notes.py`). Push wypisuje commity od poprzedniego wydania, poniedziałkowa przebudowa wypisuje wszystkie wydania od poprzedniej przebudowy, pogrupowane według wersji. Treść komunikatu commita to to, co zobaczy czytelnik, więc pisz ją dla niego: co się zmieniło i dlaczego to ważne. Gdy pull request jest łączony przez squash, tym tekstem jest jego opis lub komunikat squasha. Dopiski narzędzi (`Co-Authored-By`, `Claude-Session`) są pomijane. Pull request pokazuje podgląd obu tekstów w podsumowaniu zadania `notes-preview`.
+
+Kilka minut po wydaniu `.github/workflows/windows-release.yml` buduje z tagu [paczkę dla Windows](windows.md), uruchamia ją dla sprawdzenia, dołącza `Melomancer-win64-<wersja>.zip` do wydania i dopisuje link do opisu. To osobny workflow, żeby awaria Windows nigdy nie ruszała wydania kontenera. Żeby zrobić paczkę dla istniejącego wydania ręcznie, uruchom workflow w zakładce **Actions** i podaj tag (na przykład `v0.6.36`).
+
 ## Paczka dla Windows
 
 Eksperymentalna paczka dla Windows i to, jak CI ją buduje i testuje: [Windows](windows.md).

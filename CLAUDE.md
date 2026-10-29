@@ -32,6 +32,13 @@ tell you and what already cost time.
   (`gh api repos/RadzuPL/melomancer/check-runs/<job id>/annotations`). `gh release list` fails (no GraphQL), use
   `git fetch --tags` and `git tag --sort=-v:refname | head -1`.
 - Commit messages end with the attribution trailer your harness asks for.
+- The text of a release is made from the commit messages (`scripts/release_notes.py`): a push lists the commits since the
+  previous release, the Monday rebuild every release since the previous rebuild. So write the body of a commit, and the
+  squash message when you merge a pull request, for the person who reads the release: what changed and why it matters.
+  Tool trailers are filtered out. A pull request shows a preview in the summary of its `notes-preview` job.
+- After a release, `windows-release.yml` builds the Windows package from the tag, attaches it to the release and adds its
+  link to the notes; it is separate so that a Windows failure never touches the container release. For an existing tag,
+  run it by hand with `gh api -X POST repos/RadzuPL/melomancer/actions/workflows/windows-release.yml/dispatches -f ref=main -f 'inputs[tag]=v0.6.36'`.
 
 ## Checking a change before you push
 
