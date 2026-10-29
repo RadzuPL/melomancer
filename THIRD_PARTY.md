@@ -21,6 +21,8 @@ Melomancer uses the software below. It is not part of this repository: the libra
 | [FFmpeg](https://ffmpeg.org/) | Decoding, loudness and silence analysis | LGPL or GPL, depending on the build; the Debian package in the image is built with GPL options and runs as a separate process, it is not linked into Melomancer |
 | [Python](https://www.python.org/), [Debian](https://www.debian.org/) | Runtime and base image | PSF License, various |
 
+The Windows package ([docs/en/windows.md](docs/en/windows.md)) carries, besides the libraries above and [psutil](https://github.com/giampaolo/psutil) (BSD-3-Clause), the embeddable Python from python.org (PSF License), the LGPL build of FFmpeg from [BtbN/FFmpeg-Builds](https://github.com/BtbN/FFmpeg-Builds) (LGPL; shared libraries next to a separate process, its license text is in the package's `licenses` folder, the source is available from the project) and the Deno binary (MIT).
+
 The list is kept by hand. Check the license of each project before relying on this table, and the `LICENSE` or `METADATA` file of an installed version for the exact text.
 
 ## Komponenty zewnętrzne
@@ -43,5 +45,7 @@ Melomancer korzysta z oprogramowania poniżej. Nie jest ono częścią tego repo
 | [Deno](https://github.com/denoland/deno) | Środowisko JavaScript wymagane przez yt-dlp | MIT |
 | [FFmpeg](https://ffmpeg.org/) | Dekodowanie, analiza głośności i ciszy | LGPL lub GPL zależnie od kompilacji; pakiet Debiana w obrazie jest zbudowany z opcjami GPL i działa jako osobny proces, nie jest linkowany do Melomancera |
 | [Python](https://www.python.org/), [Debian](https://www.debian.org/) | Środowisko i obraz bazowy | PSF License, różne |
+
+Paczka dla Windows ([docs/pl/windows.md](docs/pl/windows.md)) zawiera, oprócz bibliotek powyżej i [psutil](https://github.com/giampaolo/psutil) (BSD-3-Clause), embeddable Pythona z python.org (PSF License), build LGPL FFmpeg z [BtbN/FFmpeg-Builds](https://github.com/BtbN/FFmpeg-Builds) (LGPL; biblioteki współdzielone obok osobnego procesu, tekst licencji jest w folderze `licenses` paczki, źródła są dostępne u projektu) oraz plik wykonywalny Deno (MIT).
 
 Lista jest prowadzona ręcznie. Przed oparciem się na tej tabeli sprawdź licencję każdego projektu, a dokładny tekst w pliku `LICENSE` lub `METADATA` zainstalowanej wersji.

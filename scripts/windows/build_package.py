@@ -68,6 +68,9 @@ READ_ME = """Melomancer dla Windows (wersja eksperymentalna)
 5. Twoje dane (baza i muzyka) są w %LOCALAPPDATA%\\Melomancer\\data. Licencje dołączonych programów są w folderze
    "licenses" i w THIRD_PARTY.md.
 
+Pełna instrukcja (bot, ustawienia, aktualizacja, problemy):
+https://github.com/RadzuPL/melomancer/blob/main/docs/pl/windows.md
+
 
 Melomancer for Windows (experimental build)
 ===========================================
@@ -90,6 +93,9 @@ Melomancer for Windows (experimental build)
    the window).
 5. Your data (database and music) is in %LOCALAPPDATA%\\Melomancer\\data. Licences of the bundled programs are in
    the folder "licenses" and in THIRD_PARTY.md.
+
+Full guide (the bot, settings, updating, problems):
+https://github.com/RadzuPL/melomancer/blob/main/docs/en/windows.md
 """
 
 

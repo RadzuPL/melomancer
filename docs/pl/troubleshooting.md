@@ -2,7 +2,7 @@
 
 Języki: [English](../en/troubleshooting.md) · **Polski**
 
-Zacznij od logu, zwykle mówi, co jest nie tak:
+Na Windowsie bez Dockera zobacz tabelę „Problemy" w [Windows](windows.md). W kontenerze zacznij od logu, zwykle mówi, co jest nie tak:
 
 ```
 docker logs --tail 100 melomancer

@@ -29,7 +29,7 @@ A self-hosted **music player for tabletop RPG sessions**, with a web panel. It p
 
 ### Where it runs
 
-For now Melomancer is meant to run as a container (Docker, Docker Compose, Unraid). Running it directly on a Windows computer, or a small wrapper that starts it as a desktop application, are not ruled out: they may be described or built later, but neither exists today.
+Melomancer is meant to run as a container (Docker, Docker Compose, Unraid). There is also an experimental package for a Windows 10 or 11 computer, without Docker: unpack it, start `Melomancer.cmd`, and the panel opens in your browser. It is attached to every release; how to try it: [docs/en/windows.md](docs/en/windows.md).
 
 ### Quick start
 
@@ -73,6 +73,7 @@ services:
 | [Security](docs/en/security.md) | Cloudflare Access, privacy between users, notes on downloading from YouTube |
 | [Architecture](docs/en/architecture.md) | Components, data model, permissions, API |
 | [Development](docs/en/development.md) | Running locally, tests, CI, automatic versions |
+| [Windows (experimental)](docs/en/windows.md) | Running without Docker: download, first start, the bot, settings, updating, problems |
 | [Troubleshooting](docs/en/troubleshooting.md) | Common problems and fixes |
 
 ### License
@@ -106,7 +107,7 @@ Własny **odtwarzacz muzyki na sesje RPG** z panelem webowym. Gra w samym panelu
 
 ### Gdzie to działa
 
-Na razie Melomancer jest przeznaczony do uruchamiania jako kontener (Docker, Docker Compose, Unraid). Uruchomienie go wprost na komputerze z Windowsem albo mała „otoczka”, która startuje go jako aplikację desktopową, nie są wykluczone: mogą zostać opisane lub zrobione później, ale na dziś żadne z nich nie istnieje.
+Melomancer jest przeznaczony do uruchamiania jako kontener (Docker, Docker Compose, Unraid). Jest też eksperymentalna paczka dla komputera z Windows 10 lub 11, bez Dockera: rozpakowujesz, uruchamiasz `Melomancer.cmd`, a panel otwiera się w przeglądarce. Jest dołączona do każdego wydania; jak ją wypróbować: [docs/pl/windows.md](docs/pl/windows.md).
 
 ### Szybki start
 
@@ -150,6 +151,7 @@ services:
 | [Bezpieczeństwo](docs/pl/security.md) | Cloudflare Access, prywatność między użytkownikami, uwagi o pobieraniu z YouTube |
 | [Architektura](docs/pl/architecture.md) | Komponenty, model danych, uprawnienia, API |
 | [Rozwój](docs/pl/development.md) | Uruchomienie lokalne, testy, CI, automatyczne wersje |
+| [Windows (eksperyment)](docs/pl/windows.md) | Uruchomienie bez Dockera: pobranie, pierwszy start, bot, ustawienia, aktualizacja, problemy |
 | [Rozwiązywanie problemów](docs/pl/troubleshooting.md) | Typowe problemy i ich rozwiązania |
 
 ### Licencja

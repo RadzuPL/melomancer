@@ -2,7 +2,7 @@
 
 Languages: **English** · [Polski](../pl/troubleshooting.md)
 
-Start with the log, it usually says what is wrong:
+On Windows without Docker, see the table "Problems" in [Windows](windows.md). In a container, start with the log, it usually says what is wrong:
 
 ```
 docker logs --tail 100 melomancer
