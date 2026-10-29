@@ -84,7 +84,7 @@ jobs:
         if: ${{ !cancelled() }}
         with:
           name: Melomancer-win64-${{ steps.version.outputs.value }}
-          path: dist/*.zip
+          path: build/Melomancer   # the folder itself: the artifact is already a zip, no zip inside a zip
           if-no-files-found: ignore
           retention-days: 14
 

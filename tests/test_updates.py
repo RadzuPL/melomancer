@@ -8,7 +8,7 @@ import threading
 from dataclasses import replace
 from types import SimpleNamespace
 
-from app import updates
+from app import hostenv, updates
 from app.config import Settings
 from app.updates import FetchError, NotModified, UpdateChecker, parse_version
 
@@ -145,6 +145,15 @@ def test_the_thread_asks_with_force(monkeypatch):
     checker.stop()
     thread.join(2)
     assert seen and seen[0] is True
+
+
+def test_the_status_says_how_an_update_is_installed(monkeypatch):
+    checker, _ = make("0.6.28", [])
+    assert checker.status()["host"] == ("desktop" if hostenv.IS_WINDOWS else "container")
+    monkeypatch.setattr(hostenv, "IS_WINDOWS", True)
+    assert checker.status()["host"] == "desktop"
+    monkeypatch.setattr(hostenv, "IS_WINDOWS", False)
+    assert checker.status()["host"] == "container"
 
 
 def test_status_shows_the_switch():

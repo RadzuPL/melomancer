@@ -2,6 +2,7 @@
 scripts/dev/run_tests.py, and they run on every platform."""
 from __future__ import annotations
 
+import logging
 import os
 from pathlib import Path
 
@@ -90,3 +91,17 @@ def test_bundled_tools_come_first_on_the_path_and_the_version_is_read(tmp_path):
     empty = {"PATH": "/usr/bin"}
     winmain.prepare_path(tmp_path / "nowhere", empty)
     assert empty["PATH"] == "/usr/bin"
+
+
+def test_only_the_harmless_windows_connection_reset_is_hidden():
+    def record(exc):
+        info = (type(exc), exc, None) if exc else None
+        return logging.LogRecord("asyncio", logging.ERROR, __file__, 1, "Exception in callback", None, info)
+
+    quiet = winmain.QuietConnectionResets()
+    reset = ConnectionResetError(10054, "forcibly closed by the remote host")
+    assert quiet.filter(record(reset)) is False
+    other = ConnectionResetError(104, "connection reset by peer")
+    assert quiet.filter(record(other)) is True                    # a reset with another code is not this noise
+    assert quiet.filter(record(RuntimeError("boom"))) is True
+    assert quiet.filter(record(None)) is True

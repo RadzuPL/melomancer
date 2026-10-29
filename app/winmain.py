@@ -11,6 +11,7 @@ wins over the file.
 from __future__ import annotations
 
 import argparse
+import logging
 import os
 import sys
 import threading
@@ -50,6 +51,16 @@ TEMPLATE = """\
 # data_dir = 'D:\\Melomancer\\data'
 # music_dir = 'D:\\Music\\Melomancer'
 """
+
+
+class QuietConnectionResets(logging.Filter):
+    """Windows' event loop logs "WinError 10054" as an ERROR with a traceback whenever a browser drops a connection it
+    had open (closing a tab, seeking in the audio it streams). Nothing is wrong, so that one message is not shown."""
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        exc = record.exc_info[1] if record.exc_info else None
+        reset = isinstance(exc, ConnectionResetError) and 10054 in (getattr(exc, "winerror", None), exc.errno)
+        return not reset
 
 
 def read_config(path: Path) -> dict[str, Any]:
@@ -138,6 +149,8 @@ def main(argv: list[str] | None = None) -> int:
     for stream in (sys.stdout, sys.stderr):
         if hasattr(stream, "reconfigure"):
             stream.reconfigure(errors="replace")
+
+    logging.getLogger("asyncio").addFilter(QuietConnectionResets())
 
     home = Path(__file__).resolve().parents[1]
     prepare_path(home, os.environ)

@@ -68,7 +68,7 @@ ROUTES = {
         {"id": 2, "url": "https://youtu.be/b", "status": "running", "error": None, "title": "Rain on a tin roof", "track_id": None, "user": "admin", "created_at": "", "stage": "downloading", "percent": 43.4, "speed": 1258291, "eta": 12, "elapsed": 20},
         {"id": 1, "url": "https://youtu.be/a", "status": "running", "error": None, "title": None, "track_id": None, "user": "admin", "created_at": "", "stage": "preparing", "percent": None, "speed": None, "eta": None, "elapsed": 37},
         {"id": 0, "url": "https://youtu.be/x", "status": "error", "error": "Sign in to confirm", "title": None, "track_id": None, "user": "admin", "created_at": "", "stage": None, "percent": None, "speed": None, "eta": None}]},
-    "/api/system/update": {"enabled": True, "current": "1.2.3", "comparable": True, "latest": "1.3.0", "available": True,
+    "/api/system/update": {"enabled": True, "current": "1.2.3", "comparable": True, "host": "container", "latest": "1.3.0", "available": True,
                            "url": "https://github.com/RadzuPL/melomancer/releases/tag/v1.3.0", "checked_at": 1793000000, "error": None},
     "/api/system/load": {"source": "cgroup2", "cpu": 4.2, "cpu_average": 3.1, "cpu_peak": 17.8, "memory_mb": 187, "cores": 4,
                          "history": {"cpu": [round(2 + (i * 7) % 15 + (i % 5), 1) for i in range(90)], "memory_mb": [150 + i // 3 for i in range(90)]}},
@@ -212,6 +212,18 @@ with sync_playwright() as p:
             page.locator("label:has-text('Wyrównywanie głośności') input").uncheck()
             page.wait_for_timeout(300)
             assert json.loads(bodies["/api/system"]) == {"normalize": False}, bodies.get("/api/system")
+            assert "Obciążenie kontenera" in page.inner_text("main") and "używana przez kontener" in page.inner_text("main")
+            # a desktop run has no container: the tiles say whose numbers they are
+            ROUTES["/api/system/load"]["source"] = "process"
+            ROUTES["/api/system/update"]["host"] = "desktop"
+            page.click("nav.tabs button:has-text('Odtwarzacz')")
+            page.click("nav.tabs button:has-text('Ustawienia')")
+            page.wait_for_timeout(500)
+            text = page.inner_text("main")
+            assert "Obciążenie procesu Melomancera" in text and "używana przez Melomancera" in text and "kontener" not in text, text
+            assert "Pobierz nowszą paczkę dla Windows" in text, text
+            ROUTES["/api/system/load"]["source"] = "cgroup2"
+            ROUTES["/api/system/update"]["host"] = "container"
 
     # interactions
     page.click("nav.tabs button:has-text('Pobieranie')")

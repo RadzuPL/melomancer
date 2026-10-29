@@ -6,11 +6,11 @@ Melomancer also runs on a Windows 10 or 11 computer without Docker: the same app
 
 ## Get it and start it
 
-The package is built by the workflow **Windows package (experimental)** (`.github/workflows/windows.yml`) and is an artifact of its runs, not a release: open the run in the **Actions** tab of https://github.com/RadzuPL/melomancer/actions, download `Melomancer-win64-<version>` at the bottom of the page (a GitHub account is needed) and unpack it where you like, for example `C:\Melomancer` (not in Program Files).
+The package is built by the workflow **Windows package (experimental)** (`.github/workflows/windows.yml`) and is an artifact of its runs, not a release: open the run in the **Actions** tab of https://github.com/RadzuPL/melomancer/actions, download `Melomancer-win64-<version>` at the bottom of the page (a GitHub account is needed). Right-click the downloaded zip, choose **Properties**, tick **Unblock** and confirm, then unpack it (**Extract all**) where you like, for example into `C:\Melomancer` (not Program Files). The zip holds the program folder directly; later, as a release, it will be a single zip.
 
 Start `Melomancer.cmd`. A window opens and, when the server is up, the browser opens the panel at http://127.0.0.1:8080/. Closing the window stops Melomancer.
 
-Because the file is not signed, Windows may show "Windows protected your PC": **More info**, then **Run anyway**. On a fresh Windows 11 with Smart App Control switched on, unsigned programs can be blocked outright; that is a known limit of this experiment.
+Because the file is not signed, Windows shows "Unable to verify the publisher" (the Open File - Security Warning, with the publisher "Unknown publisher") when you start `Melomancer.cmd`: choose **Run**. Unblocking the zip before unpacking, as above, avoids this question for every file. A plain SmartScreen page ("Windows protected your PC") says **More info**, then **Run anyway**. On a fresh Windows 11 with Smart App Control switched on, unsigned programs can be blocked outright; that is a known limit of this experiment.
 
 ## Settings
 
@@ -29,7 +29,8 @@ Every key is the lower-case name of an environment variable from [Configuration]
 
 - The panel listens on 127.0.0.1 by default and there is no tunnel. Playing in the browser ("Play here") works as before.
 - A track that is being played or streamed cannot be deleted from disk on Windows: the track is removed from the library and a note is logged, the file stays in the music folder.
-- The load tiles in Settings show the Melomancer process and its ffmpeg children (there is no container to measure).
+- The load tiles in Settings show the Melomancer process and its ffmpeg children (there is no container to measure), and the "Update available" notice tells you to download the newer package instead of updating an image. Your settings and data live outside the program folder, so unpacking a newer package over the old one keeps them.
+- The console window may show harmless messages from the web stack; the Windows "connection was reset" message that appears when a browser drops a connection is hidden.
 
 ## How the package is built
 
