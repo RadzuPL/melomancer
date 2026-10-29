@@ -2,7 +2,7 @@
 
 Języki: [English](../en/installation.md) · **Polski**
 
-Melomancer to jeden kontener, a kontener to na razie jedyny sposób uruchamiania opisany w tej dokumentacji (zwykły komputer z Windowsem albo otoczka desktopowa nie są wykluczone na później). Potrzebuje tylko ruchu wychodzącego do internetu (Discord przez HTTPS/WebSocket oraz UDP dla głosu), dla bota nie otwierasz żadnych portów przychodzących. Panel webowy nasłuchuje na porcie **8080**.
+Melomancer to jeden kontener, a kontener to sposób uruchamiania opisany na tej stronie. Dla zwykłego komputera z Windowsem bez Dockera jest eksperymentalna paczka: [Windows](windows.md). Potrzebuje tylko ruchu wychodzącego do internetu (Discord przez HTTPS/WebSocket oraz UDP dla głosu), dla bota nie otwierasz żadnych portów przychodzących. Panel webowy nasłuchuje na porcie **8080**.
 
 Zanim zaczniesz, potrzebujesz **tokena bota Discord**. Najpierw załóż bota: [Tworzenie bota Discord](discord-bot.md).
 

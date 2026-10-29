@@ -1,43 +1,128 @@
-# Windows (experimental)
+# Melomancer on Windows
 
 Languages: **English** · [Polski](../pl/windows.md)
 
-Melomancer also runs on a Windows 10 or 11 computer without Docker: the same application, started from a folder you unpack. This is the first, experimental step. There is no installer, no tray icon and no self-update yet, and the package is not signed.
+Melomancer is a music player for tabletop RPG sessions. You can play the music from your computer's speakers, or through a bot in a Discord voice channel. This guide shows how to start it on an ordinary Windows computer, **without installing anything**.
 
-## Get it and start it
+This is a test version. It works, but there is no installer or tray icon yet, and Windows will ask for your permission the first time you start it (step 3).
 
-**From a release:** every release of Melomancer carries the package as `Melomancer-win64-<version>.zip` (attached a few minutes after the release itself, built and started once as a check by the workflow `windows-release.yml`; the link is in the release notes), see https://github.com/RadzuPL/melomancer/releases. If the file is missing, that build failed: use the previous release. **From a pull request or a test build:** The package is built by the workflow **Windows package (experimental)** (`.github/workflows/windows.yml`) and is an artifact of its runs, not a release: open the run in the **Actions** tab of https://github.com/RadzuPL/melomancer/actions, download `Melomancer-win64-<version>-build<number>` (the build number tells two builds of one version apart; it is also printed in the console window) at the bottom of the page (a GitHub account is needed). Unpack it (**Extract all**) where you like, for example into `C:\Melomancer` (not Program Files). The zip holds the program folder directly; later, as a release, it will be a single zip.
+## Before you start
 
-Start `Melomancer.cmd`. A window opens and, when the server is up, the browser opens the panel at http://127.0.0.1:8080/. Closing the window stops Melomancer.
+- A computer with Windows 10 or 11. You do not need an administrator account.
+- About 140 MB to download and a few hundred MB of free disk space, plus room for your music.
+- Internet access.
+- For music on Discord: a bot of your own and a Discord account. Without a bot you can still play, from the computer's speakers (step 4).
 
-Because the file is not signed, Windows shows "Unable to verify the publisher" (the Open File - Security Warning, with the publisher "Unknown publisher") when you start `Melomancer.cmd`: choose **Run**. The same window has the box **Always ask before opening this file**: untick it before you click **Run** and Windows stops asking. A plain SmartScreen page ("Windows protected your PC") says **More info**, then **Run anyway**. On a fresh Windows 11 with Smart App Control switched on, unsigned programs can be blocked outright; that is a known limit of this experiment.
+## Step 1. Download
 
-## Settings
+1. Open https://github.com/RadzuPL/melomancer/releases
+2. The newest version is at the top. In its description there is a line **Windows package** with a link. Click it. (The same file is further down, in the **Assets** section.)
+3. Your browser downloads a file named like `Melomancer-win64-0.6.39.zip` (about 140 MB), usually into the **Downloads** folder.
 
-The first start creates `%LOCALAPPDATA%\Melomancer\config.toml`, full of commented examples, and prints where it is. Remove the `#` in front of a line, save, start Melomancer again. Put your bot token there (`discord_token`, see [Discord bot](discord-bot.md)); without it the panel works and the bot stays offline. Optionally add the bot's Application ID as `discord_client_id`: the **Settings** tab then shows the **Add the bot to a server** link. The file is bilingual and lists every setting with an explanation. The shortcut `Ustawienia - Settings.cmd` in the package folder opens it in Notepad, and the package folder holds the same list as `config.example.toml`. When a newer version has settings your file does not mention yet, Melomancer appends them at the end, as commented lines under a heading with the version (it never changes a line you wrote), and says so in the window.
+If the newest version has no such file, wait a few minutes or take the previous version from the list.
 
-Every key is the lower-case name of an environment variable from [Configuration](configuration.md), plus `host` and `port` for the launcher. An environment variable that is already set wins over the file. Use single quotes for paths: `music_dir = 'D:\Music\Melomancer'`.
+## Step 2. Unpack
 
-| What | Where |
+1. Right-click the downloaded file and choose **Extract all…**
+2. As the place, type the folder where the program should stay, for example `C:\Melomancer`, and click **Extract**.
+
+Two notes: do not start the program from inside the zip (unpack it first), and do not unpack into **Program Files**, because Windows asks for administrator rights there. After unpacking you can delete the downloaded zip.
+
+## Step 3. Start it
+
+In the unpacked folder double-click the file **Melomancer.cmd** (it has a gears icon).
+
+Windows shows this window (here from a Polish Windows; in an English one it is titled "Open File - Security Warning" and says "Unable to verify the publisher"):
+
+![The Windows warning when starting Melomancer.cmd](../img/windows-security-warning.png)
+
+This is normal. Windows shows it for every program that has no paid publisher certificate, and Melomancer has none. If you trust the program:
+
+1. **Untick** the box **Always ask before opening this file**, so that Windows does not ask every time.
+2. Click **Run**.
+
+Instead, you may get a blue page "Windows protected your PC". Then click **More info**, then **Run anyway**.
+
+After a moment a **black window** with text opens. That is Melomancer running: **do not close it while you listen to music**. A few seconds later your browser opens the Melomancer page. You do not have to sign in.
+
+If the browser does not open by itself, type this address into its address bar: http://127.0.0.1:8080/ (and bookmark it, it will be handy).
+
+## Step 4. Add music and play
+
+1. The **Library** tab: click **Choose files** (or **Choose folder**) and pick your tracks. You can also drag them with the mouse onto the dashed area.
+2. Or the **Downloads** tab: paste the address of a YouTube video and click **Download**.
+3. The **Playlists** tab: click **New set** (it is like a folder for a few playlists, for example one session), then **New playlist**, type a name, click **Create** and add tracks to it.
+4. The **Player** tab: click **Play here**, then your playlist. The music plays from the computer's speakers.
+
+More about the panel: [Using the panel](usage.md).
+
+## Step 5 (optional). Music on Discord
+
+To play music in a Discord voice channel you need a bot of your own: a robot account that you create for free on the Discord website. You will need two things:
+
+- The **token**: a long secret string of characters, it works like a password for your bot.
+- The **Application ID**: a long number that identifies your application.
+
+1. Create the bot and copy those two things following the guide [Creating the Discord bot](discord-bot.md) (steps 1 to 4).
+2. In the Melomancer folder double-click **Ustawienia - Settings.cmd**. Notepad opens with the settings file.
+3. Find these two lines (they start with `#`, which means "this line is only a description, the program skips it"):
+
+   ```
+   # discord_token = ''
+   # discord_client_id = ''
+   ```
+
+4. Remove the `#` and the space after it, and paste your values **between the apostrophes** (do not remove the apostrophes):
+
+   ```
+   discord_token = 'paste-the-token-here'
+   discord_client_id = '123456789012345678'
+   ```
+
+5. Save the file (Ctrl+S) and close Notepad.
+6. Close the black Melomancer window and start **Melomancer.cmd** again. The window shows a line saying the bot logged in.
+7. In the panel open **Settings**. You will see that the bot is **Running**, and a button **Add the bot to a server**. Click it and pick your Discord server (you need the permission to manage that server).
+8. In the **Player** tab choose the **Server** and the **Voice channel**, click **Connect**, then your playlist.
+
+**Keep the token secret**: do not send it to anyone and do not paste it in messages or screenshots. If it ever leaks, click **Reset Token** in the Developer Portal and put the new one in the file.
+
+## Every day
+
+- **Start:** double-click **Melomancer.cmd** and wait for the browser to open.
+- You can minimize the **black window**, but do not close it. Closing it switches Melomancer off and the music stops.
+- **To finish:** close the black window.
+
+## Updating
+
+In the panel, in **Settings** in the group **Updates**, you will see "Update available" when there is a new version. To install it:
+
+1. Close the black window.
+2. Download the new package (step 1) and unpack it into a **new** folder, for example `C:\Melomancer-2` (step 2).
+3. Start **Melomancer.cmd** from the new folder (Windows asks for permission again, because it is a new place, step 3).
+4. When everything works, you can delete the old folder.
+
+Your music, playlists and settings **stay**, because they live in a different place than the program.
+
+## Removing
+
+Close the black window and delete the program folder. That is all. To remove your library and settings too, delete the folder `C:\Users\YourName\AppData\Local\Melomancer` (to find it, press Win+R, type `%LOCALAPPDATA%` and press Enter). **Careful: that deletes the music you uploaded and the playlists**, so copy what you want to keep first.
+
+## When something does not work
+
+| What you see | What to do |
 |---|---|
-| Settings file | `%LOCALAPPDATA%\Melomancer\config.toml` |
-| Database (and the music, unless `music_dir` is set) | `%LOCALAPPDATA%\Melomancer\data` |
-| First administrator | `admin_username` and `admin_password` in the file; without a password a random one is shown once in the window (you only need it when you switch `auto_login` off or open the panel from another computer) |
-| Address | `127.0.0.1` (this computer only, so Windows has no firewall question); `host = '0.0.0.0'` opens it to your network |
+| Windows asks about the publisher every time | In that window untick **Always ask before opening this file** before you click **Run**. |
+| Windows or the antivirus blocks the file or puts it in quarantine | The program has no digital signature, so it is sometimes blocked by mistake. Allow this folder in your antivirus or in Windows Security. |
+| The black window shows an error and waits | Read what it says. Most often it is a typing mistake in the settings file: fix it, or delete the file `config.toml` (the program makes a new one at the next start). |
+| The browser does not open | Type the address http://127.0.0.1:8080/ yourself. |
+| The page does not open and the window talks about an address in use | Another program uses the same "port". See the [details for advanced users](windows-advanced.md#problems). |
+| The bot shows "Not running" | Most likely the token is missing from the settings file or is wrong. Paste it again (step 5). |
+| The Player has no servers | The bot is not on your server yet: in **Settings** use **Add the bot to a server**. |
+| The bot is in the channel but there is no sound | Check that the bot may speak in that channel (the channel permissions in Discord). |
+| Downloading from YouTube does not work | YouTube changes things often. Update Melomancer to the newest version. |
 
-## Signing in
+Something else? Report it at https://github.com/RadzuPL/melomancer/issues: say what you did, which version the first line of the black window shows, and include the last few lines of that window. **Never include the token.**
 
-By default the panel lets **this computer** in as the administrator without a password (`auto_login = true`): the browser that Melomancer opens is already signed in, there is no login page and no **Log out** item. Set `auto_login = false` in `config.toml` to ask for the password as in the container.
+## For advanced users
 
-It is refused, whatever the file says, unless all of this holds: the panel listens on `127.0.0.1` only (`host = '0.0.0.0'` switches it off and the window says so), the request comes from the loopback address, its `Host` header is `127.0.0.1` or `localhost` (a web page on another site that points its own name at your computer is refused), and there is no proxy or tunnel header on it. A Cloudflare Tunnel or a reverse proxy on the same computer therefore never gets in without a password. What it does not stop: any program, or any other Windows account, on this computer can open the panel as the administrator. On a computer that several people use, set `auto_login = false`. Details: [Security](security.md).
-
-## What is different from the container
-
-- The panel listens on 127.0.0.1 by default and there is no tunnel. Playing in the browser ("Play here") works as before.
-- A track that is being played or streamed cannot be deleted from disk on Windows: the track is removed from the library and a note is logged, the file stays in the music folder.
-- The load tiles in Settings show the Melomancer process and its ffmpeg children (there is no container to measure), and the "Update available" notice tells you to download the newer package instead of updating an image. Your settings and data live outside the program folder, so unpacking a newer package over the old one keeps them.
-- The console window may show harmless messages from the web stack; the Windows "connection was reset" message that appears when a browser drops a connection is hidden.
-
-## How the package is built
-
-`scripts/windows/build_package.py` downloads the official embeddable Python of the same version as the runner, installs `requirements.txt` into it as wheels, adds the LGPL build of ffmpeg (https://github.com/BtbN/FFmpeg-Builds) and deno (the JavaScript runtime yt-dlp needs for YouTube), and zips the folder. `scripts/windows/smoke_test.py` then starts the unpacked package from a folder with Polish letters in its name, logs in, uploads a file whose tag has Polish letters, waits for the loudness analysis and deletes the track. The workflow runs the whole test suite on `windows-latest` first. Nothing here has been tried against a real Discord voice channel on Windows.
+All the settings, signing in without a password, starting with Windows, the differences from the container version and how the package is built: [Windows: details for advanced users](windows-advanced.md).

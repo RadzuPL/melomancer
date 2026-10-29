@@ -115,4 +115,4 @@ A few minutes after a release, `.github/workflows/windows-release.yml` builds th
 
 ## Windows package
 
-The experimental Windows package, how CI builds and tests it: [Windows](windows.md).
+The experimental Windows package, how CI builds and tests it: [Windows (for advanced users)](windows-advanced.md).

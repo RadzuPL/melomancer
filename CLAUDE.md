@@ -115,7 +115,8 @@ UI changes are checked: extend its mock data and assertions with every UI change
 The diagrams and the screenshots in `docs/img/` are generated, never edited by hand: `scripts/dev/diagrams.py` draws the
 diagrams (English and Polish from one source) and `scripts/dev/screenshots.py` takes the screenshots from the real panel
 against demo data (English and Polish, light and dark; needs `playwright` and `pillow`). Run them again after the look of
-the panel or the architecture changes, and commit the files together.
+the panel or the architecture changes, and commit the files together. The one exception is
+`docs/img/windows-security-warning.png`, a real screenshot of a Windows window that cannot be generated.
 
 A feature is not done until it is in `docs/en/` and `docs/pl/` (`usage.md` for what a person sees,
 `architecture.md` for how it works, `configuration.md` only for environment variables), in both language blocks of
