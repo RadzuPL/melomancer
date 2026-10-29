@@ -85,9 +85,22 @@ jobs:
           retention-days: 14
 
       - name: Start the package and check it
-        run: python scripts/windows/smoke_test.py "dist/Melomancer-win64-${{ steps.version.outputs.value }}.zip" "${{ steps.version.outputs.value }}"
+        shell: bash
+        run: |
+          set -o pipefail
+          python -u scripts/windows/smoke_test.py "dist/Melomancer-win64-${{ steps.version.outputs.value }}.zip" "${{ steps.version.outputs.value }}" 2>&1 | tee smoke.log
 
+      # The job log is not always reachable from outside GitHub, annotations are.
       - name: Show a smoke test failure as annotations
         if: failure()
         shell: bash
-        run: echo "::error title=Windows package::the build or the smoke test failed, see the job log"
+        run: |
+          python - <<'PY'
+          import os
+          lines = open("smoke.log", encoding="utf-8", errors="replace").read().splitlines() if os.path.exists("smoke.log") else ["no smoke.log"]
+          lines = lines[-150:]
+          chunks = ["\n".join(lines[i:i + 15]) for i in range(0, len(lines), 15)][-10:]
+          for chunk in chunks:
+              chunk = chunk.replace("%", "%25").replace("\r", "%0D").replace("\n", "%0A")
+              print(f"::error title=Windows package smoke test::{chunk}")
+          PY
