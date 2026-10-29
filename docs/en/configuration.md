@@ -75,6 +75,7 @@ Two things to remember: the backup has to cover this folder too, because it is n
 | 8080/tcp | inbound | Web panel. Do not expose it directly to the internet. |
 | 443/tcp and Discord voice UDP | outbound | Discord gateway and voice. Normal NAT is enough. |
 | 443/tcp | outbound | yt-dlp downloads, only when downloads are enabled. |
+| 443/tcp | outbound | `api.github.com`: the check for a newer release (Settings, can be switched off). |
 
 ## Reverse proxy and tunnel
 

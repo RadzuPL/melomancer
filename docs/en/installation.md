@@ -97,7 +97,7 @@ Unraid users normally add containers from a template in the Docker tab. The temp
 
 If the image is private (your own fork), do the registry login from section 1 first, otherwise Unraid shows a pull error.
 
-Updates: Docker tab, **Check for Updates**, then **apply update** next to the container. If you run Watchtower it will pick up new `latest` images by itself. A new image is also built every Monday, which refreshes `yt-dlp` (it gets a new version number, the middle one goes up).
+Updates: Docker tab, **Check for Updates**, then **apply update** next to the container. If you run Watchtower it will pick up new `latest` images by itself. A new image is also built every Monday, which refreshes `yt-dlp` (it gets a new version number, the middle one goes up). The Settings tab of the panel also tells an administrator when a newer release exists.
 
 Bridge or custom network: if a Cloudflare Tunnel container reaches the panel by container name, put Melomancer on the same custom Docker network and use `http://melomancer:8080` as the tunnel's service URL.
 

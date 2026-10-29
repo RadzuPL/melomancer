@@ -25,7 +25,7 @@ A self-hosted **music player for tabletop RPG sessions**, with a web panel. It p
 - Copy a playlist to another user, optionally with your private tags.
 - Several Discord servers with one bot; per-user access to servers; one controller per server at a time.
 - Voice with Discord's end-to-end encryption (DAVE), reconnect protection, leaves empty channels.
-- One container, SQLite, no external services. Image on GitHub Container Registry, built and versioned automatically. Unraid template included.
+- One container, SQLite, no external services. Image on GitHub Container Registry, built and versioned automatically. Unraid template included. The Settings tab tells an administrator when a newer release is out.
 
 ### Where it runs
 
@@ -102,7 +102,7 @@ Własny **odtwarzacz muzyki na sesje RPG** z panelem webowym. Gra w samym panelu
 - Kopiowanie playlisty innemu użytkownikowi, opcjonalnie z twoimi prywatnymi tagami.
 - Kilka serwerów Discord z jednym botem; dostęp użytkowników do serwerów; jeden sterujący na serwer naraz.
 - Głos z szyfrowaniem end-to-end Discorda (DAVE), ochrona przed pętlą ponownych połączeń, opuszczanie pustych kanałów.
-- Jeden kontener, SQLite, żadnych usług zewnętrznych. Obraz w GitHub Container Registry, budowany i wersjonowany automatycznie. W zestawie szablon Unraid.
+- Jeden kontener, SQLite, żadnych usług zewnętrznych. Obraz w GitHub Container Registry, budowany i wersjonowany automatycznie. W zestawie szablon Unraid. Zakładka Ustawienia informuje administratora, że jest nowsze wydanie.
 
 ### Gdzie to działa
 

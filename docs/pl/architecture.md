@@ -42,6 +42,7 @@ Strona przeglądarkowa to statyczna strona (`app/static`): zwykły JavaScript, b
 | `app/downloader.py` | Walidacja adresów, dzienny limit, wątek roboczy z kolejką wokół yt-dlp |
 | `app/player.py` | `GuildPlayer` (kolejka, głośność, odstęp po zerwaniu) i `BotManager` |
 | `app/loudness.py` | Analiza w tle (głośność i cisza jednym przebiegiem ffmpeg), wzmocnienie przy odtwarzaniu, `RuntimeSettings` (wszystko, co administrator zmienia w panelu) |
+| `app/updates.py` | Sprawdzanie najnowszego wydania na GitHubie dla zakładki Ustawienia: odczyt i porównanie numerów wersji, pamięć podręczna z ETagiem, wątek w tle (zob. Powiadomienie o aktualizacji) |
 | `app/sysload.py` | CPU i pamięć kontenera z cgroup (v2 lub v1), próbkowane co 2 s, ostatnie dziesięć minut zostaje w pamięci (trzy z nich idą na wykresy), dla zakładki Ustawienia |
 | `app/mixer.py` | Mikser PCM: warstwy dekodowane z wyprzedzeniem przez wątki, przejścia equal-power, następny utwór kolejkowany przed końcem bieżącego |
 | `app/playback.py` | Reguła, gdzie utwór się zaczyna i kończy (ręczne punkty, przycinanie ciszy, przewinięcie) i wpis, który dostaje odtwarzacz w przeglądarce. Jedna funkcja dla bota i dla przeglądarki |
@@ -131,7 +132,13 @@ Wszystkie ścieżki są pod `/api`; żądania zmieniające stan wymagają nagł�
 | Odtwarzacz | `GET/PUT /player/choice` (ostatnio wybrany serwer i kanał, osobno dla każdego), `GET /player/guilds`, `GET /player/{guild}/state`, `POST /player/{guild}/connect`, `disconnect`, `play`, `pause`, `resume`, `next`, `prev`, `jump`, `seek`, `stop`, `volume`, `PATCH /player/{guild}/options` |
 | Osoby | `GET /people` (aktywne konta poza twoim, tylko nazwy, do wyboru odbiorcy kopii) |
 | Odtwarzanie lokalne | `POST /local/queue` (to samo ciało co `play`: `playlist_id`, `track_id` albo `tags` + `mode`), `POST /local/resolve` (`track_ids`) |
-| System | `GET /system`, `PATCH /system` (administrator: ustawienia głośności, przejść i ciszy), `GET /system/load` (administrator: CPU i pamięć), `GET /health` |
+| System | `GET /system`, `PATCH /system` (administrator: ustawienia głośności, przejść i ciszy), `GET /system/load` (administrator: CPU i pamięć), `GET /system/update` i `POST /system/update/check` (administrator: najnowsze wydanie, pytanie od razu), `GET /health` |
+
+## Powiadomienie o aktualizacji
+
+`UpdateChecker` (`app/updates.py`) pyta `https://api.github.com/repos/RadzuPL/melomancer/releases/latest` jednym anonimowym GET: limit czasu 8 s, odpowiedź ograniczona do 256 KB, nagłówek `If-None-Match` z ostatnim ETagiem, żeby niezmienione wydanie kosztowało tylko odpowiedź 304. Pyta serwer, nie przeglądarka, bo polityka bezpieczeństwa treści panelu nie dopuszcza zapytań na zewnątrz. Wątek demona (uruchamiany w lifespan jak pozostałe) zagląda 30 s po starcie, a potem co 6 godzin, ale tylko gdy ustawienie `update_check` jest włączone; limit zapytań GitHuba (403 lub 429) wstrzymuje go na godzinę. `POST /system/update/check` pyta od razu, najwyżej raz na 10 sekund, niezależnie od przełącznika. Nic nie jest zapisywane: po restarcie pierwsze sprawdzenie uzupełnia pamięć podręczną.
+
+Tag (`vX.Y.Z`) jest rozbijany na trzy liczby i porównywany jako liczby, więc 0.6.10 jest wyżej niż 0.6.9. Szkice, wersje przedpremierowe i dziwne tagi są pomijane. Link do notatek wydania powstaje z tagu, nigdy z odpowiedzi. Działająca wersja, która nie jest trzema liczbami (`dev`), nigdy nie jest porównywana, a wątek się nie uruchamia. Błędy to krótkie kody (`unreachable`, `rate_limited`, `bad_response`), które panel tłumaczy pod `update_err_*`, a ostatnia dobra odpowiedź zostaje. Poniedziałkowa przebudowa tworzy wydanie jak każde inne, więc liczy się jako aktualizacja.
 
 ## Jeszcze nie zrobione
 

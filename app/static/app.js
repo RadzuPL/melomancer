@@ -1492,7 +1492,7 @@ function sparkline(floor) {
 }
 
 async function viewSettings(main) {
-  const system = await api("GET", "/api/system");
+  const [system, upd] = await Promise.all([api("GET", "/api/system"), api("GET", "/api/system/update")]);
   state.system = system;
   const refresh = () => { render(); };
 
@@ -1508,6 +1508,32 @@ async function viewSettings(main) {
   const fadeNumber = (key, max, step, label) => h("label", { class: "row" }, label,
     h("input", { type: "number", min: 0, max, step, value: system[key], "aria-label": label,
       onchange: (e) => saveNormalize({ [key]: Math.min(max, Math.max(0, Number(e.target.value))) }) }));
+  const updBox = h("input", { type: "checkbox", checked: system.update_check, onchange: (e) => saveNormalize({ update_check: e.target.checked }) });
+  const checkUpdateNow = async (e) => {
+    e.target.disabled = true;
+    try { await api("POST", "/api/system/update/check"); } catch (err) { fail(err); }
+    refresh();
+  };
+  // The address comes from the server, which builds it from a release tag; still, only a GitHub address is ever linked.
+  const updUrl = upd.url && upd.url.startsWith("https://github.com/") ? upd.url : null;
+  const updStatus = [];
+  if (upd.available) {
+    updStatus.push(h("div", { class: "notice" },
+      h("b", {}, tr("update_available", { latest: upd.latest, current: upd.current })),
+      updUrl ? [" · ", h("a", { href: updUrl, target: "_blank", rel: "noopener noreferrer" }, tr("update_whats_new"))] : null,
+      h("div", { class: "small" }, tr("update_how"))));
+  } else if (upd.latest && !upd.comparable) {
+    updStatus.push(h("div", { class: "muted small" }, tr("update_nocompare", { current: upd.current, latest: upd.latest })));
+  } else if (upd.latest) {
+    updStatus.push(h("div", { class: "muted small" }, tr("update_current", { current: upd.current })));
+  } else if (!upd.error) {
+    updStatus.push(h("div", { class: "muted small" }, tr("update_never")));
+  }
+  if (upd.error) updStatus.push(h("div", { class: "small" }, tr("update_err_" + upd.error)));
+  if (upd.checked_at) {
+    updStatus.push(h("div", { class: "muted small" },
+      tr("update_checked", { time: new Date(upd.checked_at * 1000).toLocaleString(state.lang === "pl" ? "pl-PL" : "en-GB") })));
+  }
   const loud = system.loudness;
   // Bot, CPU and memory as tiles; the charts show the last three minutes, as the server remembers them.
   const cpuVal = h("div", { class: "value" }, "–");
@@ -1565,7 +1591,12 @@ async function viewSettings(main) {
             "aria-label": tr("silence_label"), onchange: (e) => saveNormalize({ silence_threshold: Math.min(-30, Math.max(-70, Number(e.target.value))) }) }))),
       h("div", { class: "muted small" }, tr("trim_hint")),
       h("div", { class: "muted small" }, tr("normalize_status", { measured: loud.measured, total: loud.total })
-        + (loud.waiting ? " · " + tr("normalize_waiting", { n: loud.waiting }) : ""))));
+        + (loud.waiting ? " · " + tr("normalize_waiting", { n: loud.waiting }) : "")),
+      h("h3", {}, tr("section_updates")),
+      h("div", { class: "row" }, h("label", { class: "row" }, updBox, tr("update_check_label")),
+        h("button", { class: "btn small", type: "button", onclick: checkUpdateNow }, tr("update_check_now"))),
+      updStatus,
+      h("div", { class: "muted small" }, tr("update_hint"))));
 }
 
 async function viewUsers(main) {

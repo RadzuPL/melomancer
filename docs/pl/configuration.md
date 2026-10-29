@@ -75,6 +75,7 @@ Dwie rzeczy do zapamiętania: kopia zapasowa musi obejmować także ten folder, 
 | 8080/tcp | przychodzący | Panel webowy. Nie wystawiaj go bezpośrednio do internetu. |
 | 443/tcp i UDP głosu Discorda | wychodzący | Gateway i głos Discorda. Zwykły NAT wystarcza. |
 | 443/tcp | wychodzący | Pobieranie yt-dlp, tylko gdy pobieranie jest włączone. |
+| 443/tcp | wychodzący | `api.github.com`: sprawdzanie nowszego wydania (Ustawienia, można wyłączyć). |
 
 ## Reverse proxy i tunel
 

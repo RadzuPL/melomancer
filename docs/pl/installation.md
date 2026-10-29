@@ -97,7 +97,7 @@ Na Unraidzie kontenery zwykle dodaje się z szablonu w zakładce Docker. Szablon
 
 Jeśli obraz jest prywatny (twój własny fork), najpierw wykonaj logowanie do rejestru z punktu 1, inaczej Unraid pokaże błąd pobierania.
 
-Aktualizacje: zakładka Docker, **Check for Updates**, potem **apply update** przy kontenerze. Jeśli masz Watchtowera, sam podmieni nowe obrazy `latest`. Nowy obraz powstaje też co poniedziałek, co odświeża `yt-dlp` (dostaje nowy numer wersji, środkowa liczba rośnie).
+Aktualizacje: zakładka Docker, **Check for Updates**, potem **apply update** przy kontenerze. Jeśli masz Watchtowera, sam podmieni nowe obrazy `latest`. Nowy obraz powstaje też co poniedziałek, co odświeża `yt-dlp` (dostaje nowy numer wersji, środkowa liczba rośnie). Zakładka Ustawienia w panelu też informuje administratora, że jest nowsze wydanie.
 
 Sieć bridge albo własna: jeśli kontener Cloudflare Tunnel łączy się z panelem po nazwie kontenera, ustaw Melomancera w tej samej własnej sieci Dockera i użyj `http://melomancer:8080` jako adresu usługi w tunelu.
 

@@ -217,6 +217,7 @@ def _system_info(request: Request) -> dict:
         "volume_glide_seconds": request.app.state.runtime.glide,
         "trim_silence": request.app.state.runtime.trim_silence,
         "silence_threshold": request.app.state.runtime.silence_db,
+        "update_check": request.app.state.runtime.update_check,
         "settings_rev": request.app.state.runtime.rev,
         "loudness": loudness_counts(settings, request.app.state.runtime.silence_db),
     }
@@ -233,6 +234,18 @@ def system_load(request: Request, _: dict = Depends(require_admin)):
     return request.app.state.load.snapshot()
 
 
+@router.get("/system/update")
+def system_update(request: Request, _: dict = Depends(require_admin)):
+    """What the last look at the newest GitHub release found, for the Settings tab."""
+    return request.app.state.updates.status()
+
+
+@router.post("/system/update/check")
+def system_update_check(request: Request, _: dict = Depends(require_admin)):
+    """Asks GitHub right now (the switch only governs the automatic checks)."""
+    return request.app.state.updates.check(force=True)
+
+
 class SystemPatch(BaseModel):
     normalize: bool | None = None
     normalize_target: float | None = Field(default=None, ge=TARGET_RANGE[0], le=TARGET_RANGE[1])
@@ -242,6 +255,7 @@ class SystemPatch(BaseModel):
     volume_glide_seconds: float | None = Field(default=None, ge=GLIDE_RANGE[0], le=GLIDE_RANGE[1])
     trim_silence: bool | None = None
     silence_threshold: float | None = Field(default=None, ge=SILENCE_RANGE[0], le=SILENCE_RANGE[1])
+    update_check: bool | None = None
 
 
 @router.patch("/system")
@@ -250,7 +264,10 @@ def patch_system(body: SystemPatch, request: Request, _: dict = Depends(require_
     request.app.state.runtime.update(normalize=body.normalize, target=body.normalize_target,
                                      max_boost=body.normalize_max_boost, crossfade=body.crossfade_seconds,
                                      scrub=body.scrub_seconds, trim_silence=body.trim_silence,
-                                     silence_db=body.silence_threshold, glide=body.volume_glide_seconds)
+                                     silence_db=body.silence_threshold, glide=body.volume_glide_seconds,
+                                     update_check=body.update_check)
+    if body.update_check:
+        request.app.state.updates.wake()  # switched on: look soon instead of at the next round
     request.app.state.loudness.wake()  # a changed threshold means the library is measured again
     request.app.state.bot.refresh_settings()
     return _system_info(request)
