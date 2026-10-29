@@ -73,7 +73,8 @@ services:
 | [Security](docs/en/security.md) | Cloudflare Access, privacy between users, notes on downloading from YouTube |
 | [Architecture](docs/en/architecture.md) | Components, data model, permissions, API |
 | [Development](docs/en/development.md) | Running locally, tests, CI, automatic versions |
-| [Windows (experimental)](docs/en/windows.md) | Running without Docker: download, first start, the bot, settings, updating, problems |
+| [Windows (test version)](docs/en/windows.md) | Running on a normal Windows computer, step by step, no Docker |
+| [Windows: advanced](docs/en/windows-advanced.md) | All settings, signing in, differences from the container, how the package is built |
 | [Troubleshooting](docs/en/troubleshooting.md) | Common problems and fixes |
 
 ### License
@@ -151,7 +152,8 @@ services:
 | [Bezpieczeństwo](docs/pl/security.md) | Cloudflare Access, prywatność między użytkownikami, uwagi o pobieraniu z YouTube |
 | [Architektura](docs/pl/architecture.md) | Komponenty, model danych, uprawnienia, API |
 | [Rozwój](docs/pl/development.md) | Uruchomienie lokalne, testy, CI, automatyczne wersje |
-| [Windows (eksperyment)](docs/pl/windows.md) | Uruchomienie bez Dockera: pobranie, pierwszy start, bot, ustawienia, aktualizacja, problemy |
+| [Windows (wersja testowa)](docs/pl/windows.md) | Uruchomienie na zwykłym komputerze z Windows, krok po kroku, bez Dockera |
+| [Windows: dla zaawansowanych](docs/pl/windows-advanced.md) | Wszystkie ustawienia, logowanie, różnice względem kontenera, budowa paczki |
 | [Rozwiązywanie problemów](docs/pl/troubleshooting.md) | Typowe problemy i ich rozwiązania |
 
 ### Licencja

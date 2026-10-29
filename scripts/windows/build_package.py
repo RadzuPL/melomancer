@@ -47,55 +47,50 @@ if errorlevel 1 (
 )
 """
 
-READ_ME = """Melomancer dla Windows (wersja eksperymentalna)
-================================================
+READ_ME = """Melomancer dla Windows (wersja testowa)
+=======================================
 
-1. Rozpakuj ten folder tam, gdzie ma zostać, na przykład do C:\\Melomancer (nie do Program Files).
-2. Uruchom Melomancer.cmd. Windows zapyta "Nie można zweryfikować wydawcy", bo plik nie jest podpisany cyfrowo:
-   wybierz "Uruchom". Żeby nie pytał za każdym razem, odznacz "Zawsze pytaj przed otwarciem tego pliku" przed
-   kliknięciem "Uruchom". Otworzy się okno, a gdy serwer wstanie, przeglądarka pokaże panel pod adresem
-   http://127.0.0.1:8080/. Zamknięcie okna zatrzymuje Melomancera.
-3. Ustawienia są w pliku %LOCALAPPDATA%\\Melomancer\\config.toml (powstaje przy pierwszym uruchomieniu). Otworzysz go
-   skrótem "Ustawienia - Settings.cmd" z tego folderu. W pliku są wszystkie ustawienia z opisami po polsku i
-   angielsku: usuń # sprzed linii, zapisz plik i uruchom Melomancera ponownie. Najczęściej potrzebne:
-   discord_token (token bota Discorda, instrukcja:
-   https://github.com/RadzuPL/melomancer/blob/main/docs/pl/discord-bot.md) i discord_client_id (Application ID bota,
-   dzięki niemu Ustawienia w panelu pokażą link "Dodaj bota do serwera"). Bez tokena panel działa, a bot zostaje
-   offline. Ta sama lista z opisami jest w pliku config.example.toml w tym folderze. Gdy nowsza wersja doda
-   ustawienia, Melomancer dopisze je do Twojego pliku jako zakomentowane linie.
-4. Panel domyślnie wpuszcza ten komputer jako administratora bez hasła (auto_login = false w pliku włącza hasło;
-   wtedy bez hasła w pliku powstaje losowe, pokazane raz w oknie).
-5. Twoje dane (baza i muzyka) są w %LOCALAPPDATA%\\Melomancer\\data. Licencje dołączonych programów są w folderze
-   "licenses" i w THIRD_PARTY.md.
-
-Pełna instrukcja (bot, ustawienia, aktualizacja, problemy):
+Pełna instrukcja ze zdjęciami i krokami:
 https://github.com/RadzuPL/melomancer/blob/main/docs/pl/windows.md
 
+W skrócie:
 
-Melomancer for Windows (experimental build)
-===========================================
+1. Rozpakuj ten folder w miejscu, w którym ma zostać, na przykład C:\\Melomancer (nie do "Program Files" i nie
+   uruchamiaj programu z wnętrza zipa).
+2. Kliknij dwukrotnie Melomancer.cmd. Windows zapyta "Nie można zweryfikować wydawcy": to normalne, bo program nie ma
+   płatnego podpisu. Odznacz "Zawsze pytaj przed otwarciem tego pliku" i kliknij "Uruchom".
+3. Otworzy się czarne okno (to działa Melomancer, nie zamykaj go, dopóki słuchasz) i przeglądarka ze stroną
+   Melomancera. Logować się nie trzeba. Gdyby przeglądarka się nie otworzyła, wpisz: http://127.0.0.1:8080/
+4. Dodaj muzykę w zakładce "Biblioteka" i zagraj ją w zakładce "Odtwarzacz" przyciskiem "Odtwarzaj tutaj".
+5. Muzyka na Discordzie: kliknij dwukrotnie "Ustawienia - Settings.cmd", wpisz token i Application ID swojego bota
+   (instrukcja w pełnym opisie) i uruchom Melomancera ponownie.
 
-1. Keep this folder where it is, for example in C:\\Melomancer (not in Program Files).
-2. Start Melomancer.cmd. Windows asks "Unable to verify the publisher" because the file is not signed: choose
-   "Run". To stop it asking every time, untick "Always ask before opening this file" before you click "Run". A
-   window opens and, once the server is up, your browser opens the panel at http://127.0.0.1:8080/. Closing the
-   window stops Melomancer.
-3. The settings are in %LOCALAPPDATA%\\Melomancer\\config.toml (created on the first start). Open it with the shortcut
-   "Ustawienia - Settings.cmd" in this folder. It lists every setting, explained in Polish and English: remove the
-   # in front of a line, save the file and start Melomancer again. The ones you will most likely need:
-   discord_token (the bot token, docs:
-   https://github.com/RadzuPL/melomancer/blob/main/docs/en/discord-bot.md) and discord_client_id (the bot's
-   Application ID: with it Settings shows an "Add the bot to a server" link). Without a token the panel works and
-   the bot stays offline. The same list with the explanations is in config.example.toml in this folder. When a
-   newer version adds settings, Melomancer appends them to your file as commented lines.
-4. By default the panel lets this computer in as the administrator without a password (auto_login = false in the
-   file brings the password back; without a password in the file a random one is then generated and shown once in
-   the window).
-5. Your data (database and music) is in %LOCALAPPDATA%\\Melomancer\\data. Licences of the bundled programs are in
-   the folder "licenses" and in THIRD_PARTY.md.
+Twoje ustawienia i muzyka leżą w %LOCALAPPDATA%\\Melomancer, poza tym folderem, więc aktualizacja polega na
+rozpakowaniu nowej wersji do nowego folderu. Zamknięcie czarnego okna wyłącza Melomancera. Licencje dołączonych
+programów są w folderze "licenses" i w THIRD_PARTY.md.
 
-Full guide (the bot, settings, updating, problems):
+
+Melomancer for Windows (test version)
+=====================================
+
+The full guide with pictures and steps:
 https://github.com/RadzuPL/melomancer/blob/main/docs/en/windows.md
+
+In short:
+
+1. Unpack this folder where it should stay, for example C:\\Melomancer (not into "Program Files", and do not start
+   the program from inside the zip).
+2. Double-click Melomancer.cmd. Windows asks "Unable to verify the publisher": that is normal, because the program
+   has no paid signature. Untick "Always ask before opening this file" and click "Run".
+3. A black window opens (that is Melomancer running, do not close it while you listen) and your browser opens the
+   Melomancer page. You do not have to sign in. If the browser does not open, type: http://127.0.0.1:8080/
+4. Add music in the "Library" tab and play it in the "Player" tab with the "Play here" button.
+5. Music on Discord: double-click "Ustawienia - Settings.cmd", enter the token and the Application ID of your bot
+   (see the full guide) and start Melomancer again.
+
+Your settings and music live in %LOCALAPPDATA%\\Melomancer, outside this folder, so updating means unpacking the new
+version into a new folder. Closing the black window switches Melomancer off. Licences of the bundled programs are in
+the folder "licenses" and in THIRD_PARTY.md.
 """
 
 

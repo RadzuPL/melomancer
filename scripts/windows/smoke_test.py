@@ -92,8 +92,9 @@ def main(archive: Path, version: str) -> int:
     for name in ("Melomancer.cmd", "Ustawienia - Settings.cmd", "README-WINDOWS.txt", "config.example.toml", "THIRD_PARTY.md"):
         check((root / name).is_file(), f"{name} is in the package")
     readme = (root / "README-WINDOWS.txt").read_text(encoding="utf-8")
-    check("Zawsze pytaj przed otwarciem" in readme and "Odblokuj" not in readme and "Unblock" not in readme,
-          "the README describes the security window of the .cmd file, in Polish and English")
+    check("Zawsze pytaj przed otwarciem" in readme and "Always ask before opening" in readme
+          and "Odblokuj" not in readme and "Unblock" not in readme and "docs/pl/windows.md" in readme and "docs/en/windows.md" in readme,
+          "the README describes the security window of the .cmd file and links the full guide, in Polish and English")
     check("discord_client_id" in (root / "config.example.toml").read_text(encoding="utf-8"), "config.example.toml lists discord_client_id")
 
     # ---- an older settings file is brought up to date, in a folder with Polish letters ----

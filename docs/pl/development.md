@@ -115,4 +115,4 @@ Kilka minut po wydaniu `.github/workflows/windows-release.yml` buduje z tagu [pa
 
 ## Paczka dla Windows
 
-Eksperymentalna paczka dla Windows i to, jak CI ją buduje i testuje: [Windows](windows.md).
+Eksperymentalna paczka dla Windows i to, jak CI ją buduje i testuje: [Windows (dla zaawansowanych)](windows-advanced.md).
