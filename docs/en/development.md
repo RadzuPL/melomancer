@@ -103,3 +103,7 @@ bash scripts/smoke_test.sh melomancer:dev
 - Return short machine codes as `detail` (`not_found`, `in_use`, ...). The panel translates them in `i18n.js` under `err.<code>`.
 - Anything user-controlled goes into the page with `textContent` or `createTextNode`, never as HTML.
 - Add database changes as a new entry at the end of `MIGRATIONS` in `app/db.py`, never edit an old one. Before an upgrade of an existing database a copy is saved next to it as `melomancer.db.before-vN`. Add a test that upgrades a database built from the older migrations (see `tests/test_db.py`).
+
+## Windows package
+
+The experimental Windows package, how CI builds and tests it: [Windows](windows.md).

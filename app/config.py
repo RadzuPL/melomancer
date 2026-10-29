@@ -6,6 +6,8 @@ import os
 from dataclasses import dataclass
 from pathlib import Path
 
+from .hostenv import default_data_dir
+
 # View Channels + Connect + Speak: all that the bot needs in a server.
 BOT_PERMISSIONS = 1024 + (1 << 20) + (1 << 21)
 
@@ -86,7 +88,7 @@ class Settings:
         if cookie_secure not in {"auto", "true", "false"}:
             raise SystemExit("COOKIE_SECURE must be auto, true or false.")
         return cls(
-            data_dir=Path(os.getenv("DATA_DIR", "/data")),
+            data_dir=Path(os.getenv("DATA_DIR", "").strip() or default_data_dir()),
             music_dir_override=os.getenv("MUSIC_DIR", "").strip(),
             discord_token=os.getenv("DISCORD_TOKEN", "").strip(),
             discord_client_id=_client_id(os.getenv("DISCORD_CLIENT_ID", "")),

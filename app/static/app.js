@@ -900,7 +900,16 @@ async function viewPlayer(main) {
     return true;
   });
   stopPolling();
-  ps.timer = setInterval(() => { poll(); }, 2500);
+  // The bot logs in a moment after the server is up, and the browser may open in between: while the page says
+  // "starting", look again until that changes, then draw the page anew (the server list is empty until then).
+  async function watchBot() {
+    if (system.bot_status !== "starting" || document.hidden || state.tab !== "player" || !document.body.contains(titleEl)) return;
+    try {
+      const now = await api("GET", "/api/system");
+      if (now.bot_status !== "starting") { state.system = now; render(); }
+    } catch (_) { /* transient */ }
+  }
+  ps.timer = setInterval(() => { poll(); watchBot(); }, 2500);
   const tickId = setInterval(() => { if (state.tab !== "player" || !document.body.contains(seekBar)) clearInterval(tickId); else tickBar(); }, 1000);
   poll();
 }
@@ -1521,7 +1530,7 @@ async function viewSettings(main) {
     updStatus.push(h("div", { class: "notice" },
       h("b", {}, tr("update_available", { latest: upd.latest, current: upd.current })),
       updUrl ? [" · ", h("a", { href: updUrl, target: "_blank", rel: "noopener noreferrer" }, tr("update_whats_new"))] : null,
-      h("div", { class: "small" }, tr("update_how"))));
+      h("div", { class: "small" }, tr(upd.host === "desktop" ? "update_how_desktop" : "update_how"))));
   } else if (upd.latest && !upd.comparable) {
     updStatus.push(h("div", { class: "muted small" }, tr("update_nocompare", { current: upd.current, latest: upd.latest })));
   } else if (upd.latest) {
@@ -1542,8 +1551,8 @@ async function viewSettings(main) {
   const cpuTile = h("div", { class: "tile" }, h("div", { class: "label" }, tr("tile_cpu")), cpuVal, cpuSub, cpuSpark.el);
   const memVal = h("div", { class: "value" }, "–");
   const memSpark = sparkline(1);
-  const memTile = h("div", { class: "tile" }, h("div", { class: "label" }, tr("tile_mem")), memVal,
-    h("div", { class: "sub" }, tr("tile_mem_sub")), memSpark.el);
+  const memSub = h("div", { class: "sub" }, tr("tile_mem_sub"));
+  const memTile = h("div", { class: "tile" }, h("div", { class: "label" }, tr("tile_mem")), memVal, memSub, memSpark.el);
   const loadHint = h("p", { class: "muted small" }, tr("load_waiting"));
   const running = system.bot_status === "ready";
   const botTile = h("div", { class: "tile" + (running ? " ok" : " bad") },
@@ -1560,7 +1569,10 @@ async function viewSettings(main) {
       cpuSub.replaceChildren(tr("load_avg") + " ", h("b", {}, pct(l.cpu_average) + " %"), " · " + tr("load_peak") + " ", h("b", {}, pct(l.cpu_peak) + " %"));
       cpuTile.classList.toggle("hot", l.cpu !== null && l.cpu >= 80);
       memVal.replaceChildren(String(l.memory_mb), h("small", {}, " MB"));
-      loadHint.textContent = tr("load_hint", { source: l.source, cores: l.cores });
+      // Without a container (a desktop run) the numbers are those of the Melomancer process and its ffmpeg children.
+      const own = l.source === "process";
+      loadHint.textContent = own ? tr("load_hint_process", { cores: l.cores }) : tr("load_hint", { source: l.source, cores: l.cores });
+      memSub.textContent = tr(own ? "tile_mem_sub_process" : "tile_mem_sub");
       cpuSpark.paint(l.history.cpu);
       memSpark.paint(l.history.memory_mb);
     } catch (err) { /* keep the last value: the next tick tries again */ }

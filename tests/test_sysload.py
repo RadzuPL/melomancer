@@ -43,6 +43,7 @@ def test_without_cgroup_files_the_process_itself_is_measured(tmp_path):
     assert monitor._source.kind == "process"
     assert monitor.snapshot()["cpu"] is None            # nothing sampled yet
     assert monitor.snapshot()["memory_mb"] > 0
+    time.sleep(0.05)  # Windows' monotonic clock ticks every 15.6 ms: two readings at once would be skipped as no time passed
     monitor.sample()
     assert monitor.snapshot()["cpu"] >= 0
 

@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import logging
 import re
 import shutil
 import sqlite3
@@ -11,8 +12,11 @@ import uuid
 from pathlib import Path
 from typing import Iterable
 
+from . import hostenv
 from .config import Settings
 from .db import tx
+
+log = logging.getLogger("melomancer.library")
 
 ALLOWED_EXT = {".mp3", ".ogg", ".oga", ".opus", ".flac", ".wav", ".m4a", ".aac", ".webm"}
 MAX_TAGS_PER_TRACK = 30
@@ -62,7 +66,8 @@ def probe(path: Path) -> dict:
                 "-show_entries", "format=duration:format_tags=title,artist:stream=codec_type",
                 "-of", "json", str(path),
             ],
-            capture_output=True, text=True, timeout=60, check=False,
+            capture_output=True, encoding="utf-8", errors="replace", creationflags=hostenv.NO_WINDOW,
+            timeout=60, check=False,
         )
     except (OSError, subprocess.TimeoutExpired):
         raise IngestError("probe_failed") from None
@@ -209,7 +214,16 @@ def tracks_for_tags(conn: sqlite3.Connection, user_id: int, tags: Iterable[str],
 def soft_delete(settings: Settings, conn: sqlite3.Connection, track: sqlite3.Row) -> None:
     """Keep the row (title survives as a tombstone) but remove the audio file."""
     conn.execute("UPDATE tracks SET deleted_at=datetime('now') WHERE id=?", (track["id"],))
-    track_path(settings, track["id"], track["ext"]).unlink(missing_ok=True)
+    remove_file(track_path(settings, track["id"], track["ext"]))
+
+
+def remove_file(path: Path) -> None:
+    """Delete a file. Windows refuses while another process (ffmpeg playing it, the browser streaming it) has it open;
+    that must not turn deleting a track into an error, so the file is left behind and a note is logged."""
+    try:
+        path.unlink(missing_ok=True)
+    except PermissionError:
+        log.warning("Could not delete %s because it is in use; the track is removed, the file stays on disk.", path)
 
 
 def list_tracks(conn: sqlite3.Connection, user: dict) -> list[dict]:

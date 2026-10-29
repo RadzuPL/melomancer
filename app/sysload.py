@@ -2,17 +2,26 @@
 
 Docker's own numbers come from the same files. CPU is given in percent of one core (as `docker stats` does, so 100 %
 is one full core and a busy two-core container can show 200 %). Outside a container, or when the cgroup files are not
-readable, the process's own CPU time and memory are used instead: that leaves out child processes such as ffmpeg.
+readable, the process's own CPU time and memory are used instead. On Windows (`psutil` is installed there) the child
+processes such as ffmpeg are counted too; elsewhere without a cgroup they are left out.
 """
 from __future__ import annotations
 
 import logging
 import os
-import resource
 import threading
 import time
 from collections import deque
 from pathlib import Path
+
+try:
+    import resource  # not available on Windows
+except ImportError:
+    resource = None
+try:
+    import psutil  # a dependency on Windows only (requirements.txt)
+except ImportError:
+    psutil = None
 
 log = logging.getLogger("melomancer.sysload")
 
@@ -37,6 +46,33 @@ def _stat_value(text: str | None, key: str) -> int | None:
     return None
 
 
+def _processes() -> list:
+    """This process and everything it started (ffmpeg, ffprobe, yt-dlp helpers)."""
+    me = psutil.Process()
+    return [me, *me.children(recursive=True)]
+
+
+def _psutil_cpu_seconds() -> float:
+    total = 0.0
+    for proc in _processes():
+        try:
+            times = proc.cpu_times()
+        except psutil.Error:  # it ended between the listing and the reading
+            continue
+        total += times.user + times.system
+    return total
+
+
+def _psutil_memory_bytes() -> int:
+    total = 0
+    for proc in _processes():
+        try:
+            total += proc.memory_info().rss
+        except psutil.Error:
+            continue
+    return total
+
+
 class _Source:
     """Where the numbers come from: 'cgroup2', 'cgroup1' or 'process'."""
 
@@ -56,8 +92,15 @@ class _Source:
                 text = _read(self.root / sub / "cpuacct.usage")
                 if text and text.strip().isdigit():
                     return int(text) / 1e9
-        own, kids = resource.getrusage(resource.RUSAGE_SELF), resource.getrusage(resource.RUSAGE_CHILDREN)
-        return own.ru_utime + own.ru_stime + kids.ru_utime + kids.ru_stime
+        if psutil is not None:
+            try:
+                return _psutil_cpu_seconds()
+            except Exception:  # noqa: BLE001
+                log.debug("psutil could not read the CPU time", exc_info=True)
+        if resource is not None:
+            own, kids = resource.getrusage(resource.RUSAGE_SELF), resource.getrusage(resource.RUSAGE_CHILDREN)
+            return own.ru_utime + own.ru_stime + kids.ru_utime + kids.ru_stime
+        return time.process_time()
 
     def memory_bytes(self) -> int:
         """Memory in use without the page cache that Linux can drop at any time (what `docker stats` shows)."""
@@ -71,6 +114,11 @@ class _Source:
             if text and text.strip().isdigit():
                 cache = _stat_value(_read(self.root / "memory" / "memory.stat"), "total_inactive_file") or 0
                 return max(0, int(text) - cache)
+        if psutil is not None:
+            try:
+                return _psutil_memory_bytes()
+            except Exception:  # noqa: BLE001
+                log.debug("psutil could not read the memory use", exc_info=True)
         for line in (_read(Path("/proc/self/status")) or "").splitlines():
             if line.startswith("VmRSS:"):
                 return int(line.split()[1]) * 1024

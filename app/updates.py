@@ -17,6 +17,7 @@ import urllib.error
 import urllib.request
 from typing import Callable
 
+from . import hostenv
 from .config import Settings
 
 log = logging.getLogger("melomancer.updates")
@@ -125,6 +126,7 @@ class UpdateChecker:
             "enabled": self._runtime.update_check,
             "current": self._settings.version,
             "comparable": current is not None,
+            "host": "desktop" if hostenv.IS_WINDOWS else "container",  # how an update is installed (the panel words it)
             "latest": ".".join(map(str, latest)) if latest else None,
             "available": bool(latest and current and latest > current),
             "url": RELEASE_URL + tag if latest else None,

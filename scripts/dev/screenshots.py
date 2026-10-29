@@ -126,7 +126,7 @@ def demo(lang: str) -> dict:
                         "normalize_target": -16.0, "normalize_max_boost": 6.0, "trim_silence": True, "silence_threshold": -50.0,
                         "crossfade_seconds": 3.0, "scrub_seconds": 0.3, "volume_glide_seconds": 0.25, "update_check": True, "settings_rev": 1,
                         "loudness": {"total": len(tracks), "measured": len(tracks), "waiting": 0}},
-        "/api/system/update": {"enabled": True, "current": "0.8.0", "comparable": True, "latest": "0.8.1", "available": True,
+        "/api/system/update": {"enabled": True, "current": "0.8.0", "comparable": True, "host": "container", "latest": "0.8.1", "available": True,
                                "url": "https://github.com/RadzuPL/melomancer/releases/tag/v0.8.1", "checked_at": 1793000000, "error": None},
         "/api/system/load": {"source": "cgroup2", "cpu": cpu[-1], "cpu_average": round(sum(cpu[-30:]) / 30, 1), "cpu_peak": max(cpu),
                              "memory_mb": memory[-1], "cores": 4, "history": {"cpu": cpu, "memory_mb": memory}},
