@@ -61,6 +61,29 @@ jobs:
               print(f"::error title=pytest::{chunk}")
           PY
 
+  # What the text of the release would say, for a look before merging (the history is needed, so a full checkout).
+  notes-preview:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Preview the release notes
+        run: |
+          prev=$(git tag --list 'v[0-9]*.[0-9]*.[0-9]*' --sort=-v:refname | head -n1)
+          since=$(git tag --list 'v[0-9]*.[0-9]*.[0-9]*' --sort=-v:refname | sed -n 6p)
+          version=$(bash scripts/next_version.sh)
+          {
+            echo "## Release notes preview: a push to main"
+            python3 scripts/release_notes.py --mode commit --version "$version" --prev "$prev"
+            echo
+            echo "## Release notes preview: the Monday rebuild (since $since)"
+            python3 scripts/release_notes.py --mode weekly --version "$version" --prev "$prev" --since-tag "$since"
+          } | tee -a "$GITHUB_STEP_SUMMARY"
+
   release:
     needs: test
     timeout-minutes: 30
@@ -121,6 +144,25 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
+      # What the release says: the commit messages since the previous release (a push) or since the previous Monday
+      # rebuild (the schedule), see scripts/release_notes.py. A failure here must not stop the release: GitHub's own
+      # notes are used then.
+      - name: Write the release notes
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          version="${{ steps.version.outputs.value }}"
+          prev=$(git tag --list 'v[0-9]*.[0-9]*.[0-9]*' --sort=-v:refname | grep -vx "v${version}" | head -n1 || true)
+          if [ "${{ github.event_name }}" = "schedule" ]; then
+            since=$(gh api "repos/${{ github.repository }}/releases?per_page=100" --jq '[.[] | select(.draft | not) | select(.name | test("weekly rebuild"))][0].tag_name // empty' || true)
+            python3 scripts/release_notes.py --mode weekly --version "$version" --prev "$prev" ${since:+--since-tag "$since"} > release-notes.tmp
+          else
+            python3 scripts/release_notes.py --mode commit --version "$version" --prev "$prev" > release-notes.tmp
+          fi
+          mv release-notes.tmp release-notes.md
+          cat release-notes.md
+
       # The tag is created only after the image was pushed, so a failed build does not use up a version number.
       - name: Tag and publish the release
         env:
@@ -130,10 +172,17 @@ jobs:
           if git rev-parse -q --verify "refs/tags/v${version}" >/dev/null; then
             echo "Tag v${version} already exists, nothing to publish."
           else
-            if [ "${{ github.event_name }}" = "schedule" ]; then
-              gh release create "v${version}" --target "$GITHUB_SHA" --title "v${version} (weekly rebuild)" \
-                --notes "Scheduled rebuild: fresh base image, ffmpeg and yt-dlp. No code changes."
+            if [ -s release-notes.md ]; then
+              notes=(--notes-file release-notes.md)
+            elif [ "${{ github.event_name }}" = "schedule" ]; then
+              notes=(--notes "Scheduled rebuild: fresh base image, ffmpeg and yt-dlp. No code changes.")
             else
-              gh release create "v${version}" --target "$GITHUB_SHA" --title "v${version}" --generate-notes
+              notes=(--generate-notes)
             fi
+            if [ "${{ github.event_name }}" = "schedule" ]; then
+              title="v${version} (weekly rebuild)"
+            else
+              title="v${version}"
+            fi
+            gh release create "v${version}" --target "$GITHUB_SHA" --title "$title" "${notes[@]}"
           fi
