@@ -117,3 +117,62 @@ def test_the_template_has_the_client_id_and_both_languages():
     text = winmain.TEMPLATE
     assert "# discord_client_id = ''" in text and "# discord_token = ''" in text
     assert "Ustawienia Melomancera" in text and "Melomancer settings" in text
+
+
+def test_the_template_is_cut_into_paragraphs_with_their_setting_names():
+    blocks = winmain.template_blocks()
+    names = [n for block in blocks for n in block[0]]
+    for wanted in ("discord_token", "discord_client_id", "admin_password", "host", "port", "data_dir", "music_dir",
+                   "auto_login", "ytdlp_enabled", "log_level"):
+        assert wanted in names, wanted
+    assert len(names) == len(set(names)), "a setting is shown once"
+    assert all(text.startswith("#") for _, text in blocks)
+
+
+def test_an_older_settings_file_gets_the_missing_settings_as_comments(tmp_path):
+    path = tmp_path / "config.toml"
+    old = "# my own notes\n# discord_token = ''\ndiscord_client_id = '123456789012345678'\nport = 9000\n"
+    path.write_text(old, encoding="utf-8")
+    added = winmain.sync_config(path, "0.7.0")
+    text = path.read_text(encoding="utf-8")
+    assert text.startswith(old.rstrip("\n"))                                  # what the person wrote is untouched
+    assert "auto_login" in added and "ytdlp_enabled" in added and "log_level" in added
+    assert "discord_token" not in added and "discord_client_id" not in added and "port" not in added  # already there
+    assert text.count("# discord_token = ''") == 1 and text.count("discord_client_id") == 1
+    assert "Added by Melomancer 0.7.0" in text and "# auto_login = true" in text
+    assert winmain.read_config(path) == {"discord_client_id": "123456789012345678", "port": 9000}   # still valid TOML
+    assert winmain.sync_config(path, "0.7.0") == []                           # a second start adds nothing
+
+
+def test_a_fresh_template_and_a_missing_file_need_no_sync(tmp_path):
+    path = tmp_path / "config.toml"
+    assert winmain.sync_config(path) == []
+    winmain.ensure_config(path)
+    assert winmain.sync_config(path) == [] and path.read_text(encoding="utf-8") == winmain.TEMPLATE
+
+
+def test_a_bom_is_ignored_and_a_wrong_encoding_gives_a_message(tmp_path):
+    path = tmp_path / "config.toml"
+    path.write_bytes(b"\xef\xbb\xbfport = 9001\n")                          # Notepad's "UTF-8 with BOM"
+    assert winmain.read_config(path) == {"port": 9001}
+    path.write_bytes("# zażółć\nport = 9002\n".encode("cp1250"))              # an old Notepad's "ANSI"
+    try:
+        winmain.read_config(path)
+    except SystemExit as exc:
+        assert "UTF-8" in str(exc)
+    else:
+        raise AssertionError("a file in the wrong encoding must give a message")
+
+
+def test_the_line_endings_of_the_persons_file_are_kept(tmp_path):
+    crlf = tmp_path / "crlf.toml"
+    crlf.write_bytes(b"# my notes\r\nport = 9000\r\n")                     # what Notepad writes
+    assert winmain.sync_config(crlf, "1.0")
+    data = crlf.read_bytes()
+    assert data.startswith(b"# my notes\r\nport = 9000\r\n\r\n# --- Dodane")
+    assert b"\r\r" not in data and data.count(b"\n") == data.count(b"\r\n")   # every line ends the same way, none doubled
+    assert winmain.read_config(crlf) == {"port": 9000} and winmain.sync_config(crlf, "1.0") == []
+    lf = tmp_path / "lf.toml"
+    lf.write_bytes(b"# my notes\nport = 9000\n")
+    winmain.sync_config(lf, "1.0")
+    assert b"\r" not in lf.read_bytes()

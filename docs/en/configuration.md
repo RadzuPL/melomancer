@@ -28,6 +28,7 @@ Everything is configured with environment variables. Only `DISCORD_TOKEN` and th
 | `COOKIE_SECURE` | `auto` | `auto` marks the login cookie as Secure when the panel is opened over https. `true` / `false` force it. |
 | `LOGIN_MAX_FAILURES` | `5` | Failed logins per user name or address before a temporary block. |
 | `LOGIN_WINDOW_SECONDS` | `300` | Length of that window and of the block. |
+| `AUTO_LOGIN` | `false` | Lets the administrator in without a password, for requests from this very computer only (loopback address, a loopback `Host`, no proxy headers). The [Windows package](windows.md) switches it on by itself; leave it off in a container, where it could not apply anyway. See [Security](security.md). |
 | `LOG_LEVEL` | `INFO` | `DEBUG`, `INFO`, `WARNING` or `ERROR`. |
 
 ## Data folder

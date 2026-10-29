@@ -30,6 +30,12 @@ FFMPEG_DOWNLOAD = "https://github.com/BtbN/FFmpeg-Builds/releases/download/lates
 FFMPEG_FALLBACK = "ffmpeg-master-latest-win64-lgpl-shared.zip"
 FFMPEG_RELEASE_NAME = re.compile(r"^ffmpeg-n(\d+)\.(\d+)-latest-win64-lgpl-shared-\d+\.\d+\.zip$")
 
+SETTINGS_CMD = r"""@echo off
+setlocal
+cd /d "%~dp0"
+"runtime\python.exe" -m app.winmain --edit-config
+"""
+
 CMD_FILE = r"""@echo off
 setlocal
 cd /d "%~dp0"
@@ -44,40 +50,46 @@ if errorlevel 1 (
 READ_ME = """Melomancer dla Windows (wersja eksperymentalna)
 ================================================
 
-1. Rozpakuj ten folder tam, gdzie ma zostać, na przykład do C:\\Melomancer (nie do Program Files). Zanim rozpakujesz
-   pobranego zipa, kliknij go prawym przyciskiem, wybierz Właściwości, zaznacz "Odblokuj" i OK. Wtedy Windows nie
-   będzie się pytał o każdy plik z osobna.
-2. Uruchom Melomancer.cmd. Otworzy się okno, a gdy serwer wstanie, przeglądarka pokaże panel pod adresem
+1. Rozpakuj ten folder tam, gdzie ma zostać, na przykład do C:\\Melomancer (nie do Program Files).
+2. Uruchom Melomancer.cmd. Windows zapyta "Nie można zweryfikować wydawcy", bo plik nie jest podpisany cyfrowo:
+   wybierz "Uruchom". Żeby nie pytał za każdym razem, odznacz "Zawsze pytaj przed otwarciem tego pliku" przed
+   kliknięciem "Uruchom". Otworzy się okno, a gdy serwer wstanie, przeglądarka pokaże panel pod adresem
    http://127.0.0.1:8080/. Zamknięcie okna zatrzymuje Melomancera.
-3. Pierwsze uruchomienie zapisuje plik ustawień i wypisuje, gdzie leży (%LOCALAPPDATA%\\Melomancer\\config.toml).
-   Wpisz tam token bota Discorda (instrukcja: https://github.com/RadzuPL/melomancer/blob/main/docs/pl/discord-bot.md),
-   zapisz plik i uruchom Melomancera ponownie. Bez tokena panel działa, a bot zostaje offline. Opcjonalnie dopisz
-   discord_client_id (Application ID bota): Ustawienia pokażą wtedy link "Dodaj bota do serwera".
-4. Bez hasła administratora w tym pliku Melomancer generuje losowe i pokazuje je raz w oknie.
-5. Twoje dane (baza i muzyka) są w %LOCALAPPDATA%\\Melomancer\\data.
-
-Plik nie jest podpisany cyfrowo, więc Windows pokaże ostrzeżenie "Nie można zweryfikować wydawcy" (albo "System
-Windows ochronił ten komputer"). Wybierz "Uruchom" (albo "Więcej informacji" i "Uruchom mimo to"). Licencje dołączonych
-programów są w folderze "licenses" i w THIRD_PARTY.md.
+3. Ustawienia są w pliku %LOCALAPPDATA%\\Melomancer\\config.toml (powstaje przy pierwszym uruchomieniu). Otworzysz go
+   skrótem "Ustawienia - Settings.cmd" z tego folderu. W pliku są wszystkie ustawienia z opisami po polsku i
+   angielsku: usuń # sprzed linii, zapisz plik i uruchom Melomancera ponownie. Najczęściej potrzebne:
+   discord_token (token bota Discorda, instrukcja:
+   https://github.com/RadzuPL/melomancer/blob/main/docs/pl/discord-bot.md) i discord_client_id (Application ID bota,
+   dzięki niemu Ustawienia w panelu pokażą link "Dodaj bota do serwera"). Bez tokena panel działa, a bot zostaje
+   offline. Ta sama lista z opisami jest w pliku config.example.toml w tym folderze. Gdy nowsza wersja doda
+   ustawienia, Melomancer dopisze je do Twojego pliku jako zakomentowane linie.
+4. Panel domyślnie wpuszcza ten komputer jako administratora bez hasła (auto_login = false w pliku włącza hasło;
+   wtedy bez hasła w pliku powstaje losowe, pokazane raz w oknie).
+5. Twoje dane (baza i muzyka) są w %LOCALAPPDATA%\\Melomancer\\data. Licencje dołączonych programów są w folderze
+   "licenses" i w THIRD_PARTY.md.
 
 
 Melomancer for Windows (experimental build)
 ===========================================
 
-1. Keep this folder where it is, for example in C:\\Melomancer (not in Program Files). Before you unpack the downloaded
-   zip, right-click it, choose Properties, tick "Unblock" and OK. Then Windows will not ask about every file.
-2. Start Melomancer.cmd. A window opens and, once the server is up, your browser opens the panel at
-   http://127.0.0.1:8080/. Closing the window stops Melomancer.
-3. The first start writes the settings file and tells you where it is (%LOCALAPPDATA%\\Melomancer\\config.toml).
-   Put your Discord bot token there (docs: https://github.com/RadzuPL/melomancer/blob/main/docs/en/discord-bot.md),
-   save, then start Melomancer again. Without a token the panel works and the bot stays offline. Optionally add
-   discord_client_id (the bot's Application ID): Settings then shows an "Add the bot to a server" link.
-4. Without an administrator password in that file a random one is generated and shown once in the window.
-5. Your data (database and music) is in %LOCALAPPDATA%\\Melomancer\\data.
-
-The file is not signed, so Windows shows "Unable to verify the publisher" (or "Windows protected your PC"). Choose
-"Run" (or "More info" and "Run anyway"). Licences of the bundled programs are in the folder "licenses" and in
-THIRD_PARTY.md.
+1. Keep this folder where it is, for example in C:\\Melomancer (not in Program Files).
+2. Start Melomancer.cmd. Windows asks "Unable to verify the publisher" because the file is not signed: choose
+   "Run". To stop it asking every time, untick "Always ask before opening this file" before you click "Run". A
+   window opens and, once the server is up, your browser opens the panel at http://127.0.0.1:8080/. Closing the
+   window stops Melomancer.
+3. The settings are in %LOCALAPPDATA%\\Melomancer\\config.toml (created on the first start). Open it with the shortcut
+   "Ustawienia - Settings.cmd" in this folder. It lists every setting, explained in Polish and English: remove the
+   # in front of a line, save the file and start Melomancer again. The ones you will most likely need:
+   discord_token (the bot token, docs:
+   https://github.com/RadzuPL/melomancer/blob/main/docs/en/discord-bot.md) and discord_client_id (the bot's
+   Application ID: with it Settings shows an "Add the bot to a server" link). Without a token the panel works and
+   the bot stays offline. The same list with the explanations is in config.example.toml in this folder. When a
+   newer version adds settings, Melomancer appends them to your file as commented lines.
+4. By default the panel lets this computer in as the administrator without a password (auto_login = false in the
+   file brings the password back; without a password in the file a random one is then generated and shown once in
+   the window).
+5. Your data (database and music) is in %LOCALAPPDATA%\\Melomancer\\data. Licences of the bundled programs are in
+   the folder "licenses" and in THIRD_PARTY.md.
 """
 
 
@@ -179,6 +191,10 @@ def package(version: str, tools: Path, out: Path, build: str = "", commit: str =
     if build:   # which build of the same version this is, shown in the console window (the version itself stays X.Y.Z)
         (root / "BUILD").write_text(f"build {build}" + (f", {commit}" if commit else "") + "\n", encoding="utf-8")
     (root / "Melomancer.cmd").write_text(CMD_FILE.replace("\n", "\r\n"), encoding="utf-8")
+    (root / "Ustawienia - Settings.cmd").write_text(SETTINGS_CMD.replace("\n", "\r\n"), encoding="utf-8")
+    sys.path.insert(0, str(ROOT))
+    from app import winmain   # the template that the program itself writes on the first start
+    (root / "config.example.toml").write_text(winmain.TEMPLATE, encoding="utf-8")
     (root / "README-WINDOWS.txt").write_text(READ_ME.replace("\n", "\r\n"), encoding="utf-8")
 
     out.mkdir(parents=True, exist_ok=True)

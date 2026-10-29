@@ -10,6 +10,7 @@ from pydantic import BaseModel, Field
 from .config import Settings
 from .db import tx
 from .deps import SESSION_COOKIE, current_user, get_settings, require_admin
+from .localaccess import is_local_request
 from .loudness import (BOOST_RANGE, CROSSFADE_RANGE, GLIDE_RANGE, SCRUB_RANGE, SILENCE_RANGE, TARGET_RANGE,
                        counts as loudness_counts)
 from .security import (MIN_PASSWORD_LENGTH, hash_password, new_session_token, sha256_hex, utc_string,
@@ -75,13 +76,44 @@ def login(body: LoginIn, request: Request, response: Response):
         if not ok or row["disabled"]:
             throttle.fail(*keys)
             raise HTTPException(401, "bad_credentials")
-        token, token_hash = new_session_token()
-        conn.execute("DELETE FROM sessions WHERE expires_at < ?", (utc_string(),))
-        conn.execute("INSERT INTO sessions(token_hash, user_id, expires_at) VALUES (?,?,?)",
-                     (token_hash, row["id"], utc_string(settings.session_hours)))
+        token = _start_session(conn, settings, row["id"])
     throttle.reset(*keys)
+    _set_session_cookie(response, settings, request, token)
+    return _public_user(row)
+
+
+def _start_session(conn: sqlite3.Connection, settings: Settings, user_id: int) -> str:
+    token, token_hash = new_session_token()
+    conn.execute("DELETE FROM sessions WHERE expires_at < ?", (utc_string(),))
+    conn.execute("INSERT INTO sessions(token_hash, user_id, expires_at) VALUES (?,?,?)",
+                 (token_hash, user_id, utc_string(settings.session_hours)))
+    return token
+
+
+def _set_session_cookie(response: Response, settings: Settings, request: Request, token: str) -> None:
     response.set_cookie(SESSION_COOKIE, token, max_age=settings.session_hours * 3600, httponly=True,
                         samesite="lax", secure=_secure_cookie(settings, request), path="/")
+
+
+def _local_login_allowed(request: Request) -> bool:
+    """AUTO_LOGIN is on and this request is provably from this computer (see app/localaccess.py)."""
+    return get_settings(request).auto_login and is_local_request(request.client.host if request.client else None,
+                                                                 request.headers)
+
+
+@router.post("/auth/local")
+def local_login(request: Request, response: Response):
+    """Signs this computer in as the first active administrator, without a password. Refused (403) unless AUTO_LOGIN is
+    on and the request comes from the loopback address with a loopback Host and no proxy headers."""
+    settings = get_settings(request)
+    if not _local_login_allowed(request):
+        raise HTTPException(403, "local_login_off")
+    with tx(settings.db_path) as conn:
+        row = conn.execute("SELECT * FROM users WHERE role='admin' AND disabled=0 ORDER BY id LIMIT 1").fetchone()
+        token = _start_session(conn, settings, row["id"]) if row else None
+    if token is None:
+        raise HTTPException(403, "local_login_off")
+    _set_session_cookie(response, settings, request, token)
     return _public_user(row)
 
 
@@ -218,6 +250,7 @@ def _system_info(request: Request) -> dict:
         "trim_silence": request.app.state.runtime.trim_silence,
         "silence_threshold": request.app.state.runtime.silence_db,
         "update_check": request.app.state.runtime.update_check,
+        "auto_login": _local_login_allowed(request),  # signing out would be pointless: the panel hides that item
         "settings_rev": request.app.state.runtime.rev,
         "loudness": loudness_counts(settings, request.app.state.runtime.silence_db),
     }

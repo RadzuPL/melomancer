@@ -100,23 +100,5 @@ jobs:
           url="https://github.com/${{ github.repository }}/releases/download/${TAG}/Melomancer-win64-${VERSION}.zip"
           gh api "repos/${{ github.repository }}/releases/tags/${TAG}" --jq '.id' | tr -d '\r' > release-id.txt
           gh api "repos/${{ github.repository }}/releases/tags/${TAG}" --jq '.body // ""' > release-body.md
-          WINDOWS_URL="$url" python - <<'PY'
-          import os, pathlib
-          p = pathlib.Path("release-body.md")
-          body = p.read_text(encoding="utf-8")
-          version, url = os.environ["VERSION"], os.environ["WINDOWS_URL"]
-          line = (f"- **Windows package:** [Melomancer-win64-{version}.zip]({url}) "
-                  "(experimental, not signed: unpack it and run Melomancer.cmd, see "
-                  "[docs/en/windows.md](https://github.com/RadzuPL/melomancer/blob/main/docs/en/windows.md))")
-          if "Melomancer-win64-" in body:
-              print("The notes already link the package.")
-          else:
-              lines = body.rstrip("\n").split("\n")
-              at = next((i for i, l in enumerate(lines) if l.startswith("- **Full changelog:**")), None)
-              if at is None:
-                  lines += ["", line] if lines != [""] else [line]
-              else:
-                  lines.insert(at, line)
-              p.write_text("\n".join(lines) + "\n", encoding="utf-8")
-          PY
+          python scripts/windows/release_link.py release-body.md "$VERSION" "$url"
           gh api -X PATCH "repos/${{ github.repository }}/releases/$(cat release-id.txt)" -F body=@release-body.md --jq '.html_url'

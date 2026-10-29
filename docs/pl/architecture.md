@@ -124,7 +124,7 @@ Wszystkie ścieżki są pod `/api`; żądania zmieniające stan wymagają nagł�
 
 | Obszar | Endpointy |
 |---|---|
-| Auth | `POST /auth/login`, `POST /auth/logout`, `GET/PATCH /auth/me`, `POST /auth/password` |
+| Auth | `POST /auth/login`, `POST /auth/local` (tylko z `AUTO_LOGIN`, z tego komputera: zob. Bezpieczeństwo), `POST /auth/logout`, `GET/PATCH /auth/me`, `POST /auth/password` |
 | Użytkownicy | `GET/POST /users`, `PATCH /users/{id}`, `PUT /users/{id}/guilds` |
 | Biblioteka | `GET /tracks`, `POST /tracks/upload`, `PATCH/DELETE /tracks/{id}`, `GET /tracks/{id}/usage`, `GET /tracks/{id}/stream`, `PUT /tracks/{id}/my-tags`, `GET /tags` |
 | Pobrania | `GET/POST /downloads` (lista niesie też postęp na żywo, upłynięte sekundy i pozostałą przerwę; `POST` przyjmuje `tags` i `my_tags`), `DELETE /downloads/{id}` |

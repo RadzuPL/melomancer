@@ -58,6 +58,7 @@ class Settings:
     max_upload_mb: int
     session_hours: int
     cookie_secure: str  # "auto" | "true" | "false"
+    auto_login: bool    # the administrator is let in without a password, for requests from this computer only
     ytdlp_enabled: bool
     ytdlp_allowed_hosts: tuple[str, ...]
     ytdlp_min_gap: int
@@ -97,6 +98,7 @@ class Settings:
             max_upload_mb=_env_int("MAX_UPLOAD_MB", 300, 1),
             session_hours=_env_int("SESSION_HOURS", 168, 1),
             cookie_secure=cookie_secure,
+            auto_login=_env_bool("AUTO_LOGIN", False),
             ytdlp_enabled=_env_bool("YTDLP_ENABLED", True),
             ytdlp_allowed_hosts=tuple(h.strip().lower() for h in hosts.split(",") if h.strip()),
             ytdlp_min_gap=_env_int("YTDLP_MIN_GAP_SECONDS", 20, 0),

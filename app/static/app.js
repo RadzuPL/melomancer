@@ -259,7 +259,11 @@ function errorText(err) {
 }
 const fail = (err) => toast(errorText(err), "err");
 
-async function api(method, path, body) {
+async function localLogin() {
+  try { await api("POST", "/api/auth/local", undefined, true); return true; } catch (_) { return false; }
+}
+
+async function api(method, path, body, retried = false) {
   const opts = { method, headers: { "X-Melomancer": "1" }, credentials: "same-origin" };
   if (body instanceof FormData) opts.body = body;
   else if (body !== undefined) { opts.headers["Content-Type"] = "application/json"; opts.body = JSON.stringify(body); }
@@ -267,7 +271,12 @@ async function api(method, path, body) {
   let data = null;
   try { data = await res.json(); } catch (_) { /* empty body */ }
   if (!res.ok) {
-    if (res.status === 401 && path !== "/api/auth/login") { state.user = null; stopPolling(); render(); }
+    // boot() asks /api/auth/me itself and decides what to show; every other 401 means the session is gone.
+    if (res.status === 401 && path !== "/api/auth/login" && !(method === "GET" && path === "/api/auth/me")) {
+      // On a desktop run the sign-in is automatic: a lapsed session is renewed and the request repeated once.
+      if (!retried && state.system && state.system.auto_login && await localLogin()) return api(method, path, body, true);
+      state.user = null; stopPolling(); render();
+    }
     const code = data && typeof data.detail === "string" ? data.detail : "http_" + res.status;
     const err = new Error(code);
     err.status = res.status;
@@ -503,9 +512,11 @@ function themeMenu() {
 
 function userMenu() {
   const trigger = h("button", { class: "btn small" }, state.user.username + " ▾");
+  // Signed in automatically (a desktop run): signing out would only be undone by the next page load.
+  const auto = !!(state.system && state.system.auto_login);
   return menu(trigger, () => [
     { label: tr("change_password"), onclick: accountDialog },
-    { label: tr("logout"), onclick: logout },
+    ...(auto ? [] : [{ label: tr("logout"), onclick: logout }]),
   ]);
 }
 
@@ -1662,7 +1673,8 @@ async function viewUsers(main) {
 async function boot() {
   state.lang = pref("lang") || ((navigator.language || "pl").toLowerCase().startsWith("pl") ? "pl" : "en");
   try {
-    state.user = await api("GET", "/api/auth/me");
+    try { state.user = await api("GET", "/api/auth/me"); }
+    catch (_) { state.user = await api("POST", "/api/auth/local"); }  // refused unless this is a desktop run on this computer
     state.lang = state.user.lang || state.lang;
     state.system = await api("GET", "/api/system");
   } catch (_) { state.user = null; }

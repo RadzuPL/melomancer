@@ -124,7 +124,7 @@ All paths are under `/api`; state-changing requests need the header `X-Melomance
 
 | Area | Endpoints |
 |---|---|
-| Auth | `POST /auth/login`, `POST /auth/logout`, `GET/PATCH /auth/me`, `POST /auth/password` |
+| Auth | `POST /auth/login`, `POST /auth/local` (only with `AUTO_LOGIN`, from this computer: see Security), `POST /auth/logout`, `GET/PATCH /auth/me`, `POST /auth/password` |
 | Users | `GET/POST /users`, `PATCH /users/{id}`, `PUT /users/{id}/guilds` |
 | Library | `GET /tracks`, `POST /tracks/upload`, `PATCH/DELETE /tracks/{id}`, `GET /tracks/{id}/usage`, `GET /tracks/{id}/stream`, `PUT /tracks/{id}/my-tags`, `GET /tags` |
 | Downloads | `GET/POST /downloads` (the list also carries live progress, elapsed seconds and the remaining pause; `POST` takes `tags` and `my_tags`), `DELETE /downloads/{id}` |

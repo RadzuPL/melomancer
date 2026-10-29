@@ -52,7 +52,7 @@ GUILDS = [{"id": "111", "name": "Guild A", "channels": [{"id": "1001", "name": "
 ROUTES = {
     "/api/auth/me": {"id": 1, "username": "admin", "role": "admin", "lang": "pl"},
     "/api/system": {"version": "1.2.3", "bot_status": "ready", "downloads_enabled": True,
-                    "download_hosts": ["youtube.com", "youtu.be"], "max_upload_mb": 300, "normalize": True, "normalize_target": -16.0, "normalize_max_boost": 6.0, "trim_silence": True, "silence_threshold": -50.0, "crossfade_seconds": 3.0, "scrub_seconds": 0.3, "volume_glide_seconds": 0.25, "update_check": True, "settings_rev": 1, "invite_url": "https://discord.com/oauth2/authorize?client_id=123456789012345678&scope=bot&permissions=3146752", "loudness": {"total": 12, "measured": 9, "waiting": 3}},
+                    "download_hosts": ["youtube.com", "youtu.be"], "max_upload_mb": 300, "normalize": True, "normalize_target": -16.0, "normalize_max_boost": 6.0, "trim_silence": True, "silence_threshold": -50.0, "crossfade_seconds": 3.0, "scrub_seconds": 0.3, "volume_glide_seconds": 0.25, "update_check": True, "auto_login": False, "settings_rev": 1, "invite_url": "https://discord.com/oauth2/authorize?client_id=123456789012345678&scope=bot&permissions=3146752", "loudness": {"total": 12, "measured": 9, "waiting": 3}},
     "/api/player/guilds": GUILDS,
     "/api/player/111/state": STATE,
     "/api/player/choice": {"guild": "111", "channels": {"111": "1002"}},
@@ -644,6 +644,44 @@ with sync_playwright() as p:
     assert page.locator("nav.tabs button:has-text('Player')").count() == 1, "language switch"
     assert page.locator("header.top button.ghost:has-text('EN')").count() == 1, "marker shows the current language"
     page.screenshot(path=shots + "player_en.png", full_page=True)
+
+    # a desktop run signs in by itself: no login page, no "log out", and a lapsed session is renewed
+    ROUTES["/api/system"]["auto_login"] = True
+    auto = {"in": False, "expire": False}
+    desk = browser.new_page(viewport={"width": 1280, "height": 900})
+    desk.on("pageerror", lambda e: errors.append("pageerror: " + str(e)))
+
+    def handle_desktop(route):
+        req = route.request
+        path = req.url.split("127.0.0.1:8099")[1].split("?")[0]
+        if req.method == "GET" and path == "/api/auth/me":
+            if not auto["in"]:
+                return route.fulfill(status=401, content_type="application/json", body='{"detail":"not_authenticated"}')
+        elif req.method == "POST" and path == "/api/auth/local":
+            calls.append("POST /api/auth/local")
+            auto["in"] = True
+            return route.fulfill(status=200, content_type="application/json", body=json.dumps(ROUTES["/api/auth/me"]))
+        elif req.method == "GET" and path == "/api/downloads" and auto["expire"]:
+            auto["expire"] = False
+            auto["in"] = False   # the session lapsed: the server answers 401 until the panel signs in again
+            return route.fulfill(status=401, content_type="application/json", body='{"detail":"not_authenticated"}')
+        return handle(route)
+
+    desk.route("**/api/**", handle_desktop)
+    desk.goto("http://127.0.0.1:8099/")
+    desk.wait_for_selector("header.top")
+    assert desk.locator(".login").count() == 0 and calls.count("POST /api/auth/local") == 1, "signed in without the login page"
+    desk.click("header.top button:has-text('admin')")
+    menu_text = desk.inner_text("header.top .menu")
+    assert "Zmień hasło" in menu_text and "Wyloguj" not in menu_text, menu_text
+    desk.keyboard.press("Escape")
+    auto["expire"] = True
+    desk.click("nav.tabs button:has-text('Pobieranie')")
+    desk.wait_for_timeout(800)
+    assert calls.count("POST /api/auth/local") == 2 and desk.locator(".login").count() == 0, "a lapsed session is renewed"
+    assert "Pobieranie" in desk.inner_text("main"), desk.inner_text("main")
+    ROUTES["/api/system"]["auto_login"] = False
+
     browser.close()
 
 print("calls:", sorted(set(calls)))
