@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import time
 from array import array
+from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
@@ -23,7 +24,7 @@ class FakeSource:
 
     def __init__(self, path, before_options=None, options=None):
         self.path, self.before_options, self.options = path, before_options, options
-        stem = path.rsplit("/", 1)[1].split(".")[0]
+        stem = Path(path).stem  # not rsplit("/"): paths have backslashes on Windows
         offset = float(before_options.split()[1]) if before_options else 0.0
         self.left = max(0, FRAMES.get(stem, DEFAULT_FRAMES) - int(offset * 50))
         self.frame = array("h", [(int(stem) + 1) * 1000]).tobytes() * (mixer_mod.FRAME_BYTES // 2)
@@ -102,7 +103,7 @@ def start(rig, **kw):
 
 
 def played_paths(rig):
-    return [src.path.rsplit("/", 1)[1] for src in CREATED]
+    return [Path(src.path).name for src in CREATED]
 
 
 def settle(rig):

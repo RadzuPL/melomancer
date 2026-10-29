@@ -5,12 +5,16 @@ import importlib.util
 from pathlib import Path
 
 SCRIPT = Path(__file__).resolve().parents[1] / "scripts" / "windows" / "build_package.py"
-spec = importlib.util.spec_from_file_location("build_package", SCRIPT)
-build_package = importlib.util.module_from_spec(spec)
-spec.loader.exec_module(build_package)
+build_package = None
+if SCRIPT.is_file():   # the Linux test image carries the tests and the app, not the scripts; the Windows job has both
+    spec = importlib.util.spec_from_file_location("build_package", SCRIPT)
+    build_package = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(build_package)
 
 
 def test_the_newest_release_branch_build_of_ffmpeg_is_chosen_over_master():
+    if build_package is None:
+        return
     names = ["ffmpeg-master-latest-win64-gpl.zip", "ffmpeg-master-latest-win64-lgpl-shared.zip",
              "ffmpeg-n7.1-latest-win64-lgpl-shared-7.1.zip", "ffmpeg-n8.0-latest-win64-lgpl-shared-8.0.zip",
              "ffmpeg-n8.0-latest-win64-lgpl-8.0.zip", "ffmpeg-n10.1-latest-win64-lgpl-shared-10.1.zip",
@@ -21,6 +25,8 @@ def test_the_newest_release_branch_build_of_ffmpeg_is_chosen_over_master():
 
 
 def test_the_embeddable_python_reads_its_search_path_from_the_pth_file():
+    if build_package is None:
+        return
     lines = build_package.pth_text(3, 12).splitlines()
     assert lines[0] == "python312.zip" and ".." in lines          # ".." is the folder that holds the app package
     assert "Lib\\site-packages" in lines and lines[-1] == "import site"
