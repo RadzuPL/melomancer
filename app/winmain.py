@@ -134,6 +134,11 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--no-browser", action="store_true", help="do not open the panel in the browser")
     args = parser.parse_args(argv)
 
+    # A path or a title with a letter the console's code page lacks must never stop the program, only print as "?".
+    for stream in (sys.stdout, sys.stderr):
+        if hasattr(stream, "reconfigure"):
+            stream.reconfigure(errors="replace")
+
     home = Path(__file__).resolve().parents[1]
     prepare_path(home, os.environ)
     read_version(home, os.environ)

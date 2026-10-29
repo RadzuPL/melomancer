@@ -80,6 +80,7 @@ def wait_for(what: str, probe, seconds: float):
 
 
 def main(archive: Path, version: str) -> int:
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")  # the runner's code page (cp1252) has no ż
     work = Path(tempfile.mkdtemp()) / "Muzyka Zażółć"
     with zipfile.ZipFile(archive) as zf:
         zf.extractall(work)
