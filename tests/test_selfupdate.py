@@ -148,6 +148,12 @@ def test_a_package_that_cannot_be_trusted_is_dropped_and_nothing_is_left_behind(
     assert (inst.root / "VERSION").read_text() == inst.current
 
 
+def test_a_package_of_an_older_release_without_the_helper_is_accepted(tmp_path):
+    """The swap is done by the helper of the version that runs, so the new package does not have to carry one."""
+    inst = installer(tmp_path, package_zip(skip=("app/swap.py",)))
+    assert run(inst)["state"] == "ready"
+
+
 def test_a_second_start_while_one_runs_is_refused_and_a_failed_one_may_be_repeated(tmp_path):
     gate = threading.Event()
     data = package_zip()

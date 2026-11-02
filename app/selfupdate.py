@@ -37,7 +37,10 @@ ASSET_NAME = "Melomancer-win64-{version}.zip"
 SPARE_BYTES = 300 * 1024 * 1024       # room to spare on the disk besides the files themselves
 CHUNK = 256 * 1024
 READ_TIMEOUT_SECONDS = 30
-REQUIRED_FILES = ("VERSION", "app/winmain.py", "app/swap.py", "runtime/python.exe", "runtime/pythonw.exe")
+# What a package folder holds. The running installation also needs swap.py (it does the swap); the NEW package need not
+# have it: the helper is always the one of the version being replaced, and older packages do not carry it.
+PACKAGE_FILES = ("VERSION", "app/winmain.py", "runtime/python.exe", "runtime/pythonw.exe")
+INSTALLED_FILES = PACKAGE_FILES + ("app/swap.py",)
 
 
 class InstallError(Exception):
@@ -53,7 +56,7 @@ def package_root() -> Path | None:
     if not hostenv.IS_WINDOWS:
         return None
     home = Path(__file__).resolve().parents[1]
-    return home if all((home / name).is_file() for name in REQUIRED_FILES) else None
+    return home if all((home / name).is_file() for name in INSTALLED_FILES) else None
 
 
 def find_package(release: dict, version: str) -> dict | None:
@@ -240,7 +243,7 @@ class Installer:
             raise InstallError("bad_package") from None
         except OSError as exc:
             raise InstallError("no_space" if exc.errno == errno.ENOSPC else "no_write_access") from None
-        if any(not (target / name).is_file() for name in REQUIRED_FILES):
+        if any(not (target / name).is_file() for name in PACKAGE_FILES):
             raise InstallError("bad_package")
         if (target / "VERSION").read_text(encoding="utf-8").strip() != version:
             raise InstallError("bad_package")
