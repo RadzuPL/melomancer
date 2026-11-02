@@ -185,7 +185,17 @@ def self_update(root: Path, work: Path) -> None:
         check(install["state"] == "ready" and install["version"] == newest, f"update test: the new version is downloaded, checked and unpacked ({install})")
         check((root.with_name("Melomancer.new") / "VERSION").read_text(encoding="utf-8").strip() == newest, "update test: it waits next to the program as Melomancer.new")
         check((root / "VERSION").read_text(encoding="utf-8").strip() == "0.0.1", "update test: the running version is untouched so far")
-        status, _ = client.json("POST", "/api/system/update/apply")
+        status, answer = client.json("POST", "/api/system/update/apply")
+        if status != 200:
+            print(f"apply answered {status}: {answer}", flush=True)
+            dump_update_state(root, local)
+            runner = local / "Melomancer" / "updates" / "runner"
+            print("--- the helper by hand ---")
+            for args in (["-c", "import sys; print(sys.path); import ctypes, urllib.request, argparse, json, subprocess; print('imports ok')"],
+                         ["swap.py", "--help"]):
+                result = subprocess.run([str(runner / "python.exe"), *args], cwd=runner, capture_output=True, encoding="utf-8", errors="replace", timeout=60)
+                print(result.returncode, result.stdout[-800:], result.stderr[-1500:])
+            print(sorted(p.name for p in runner.iterdir()) if runner.is_dir() else "(no runner folder)")
         check(status == 200, "update test: the swap was started")
         try:
             code = proc.wait(90)
