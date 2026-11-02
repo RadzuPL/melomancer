@@ -287,6 +287,8 @@ def run(args: argparse.Namespace, tray_mode: bool, has_console: bool) -> int:
     prepare_path(home, os.environ)
     read_version(home, os.environ)
 
+    lifecycle.set_launch_args([part for flag, value in (("--config", args.config), ("--host", args.host), ("--port", args.port))
+                               if value for part in (flag, str(value))])
     config = Path(args.config or os.environ.get("MELOMANCER_CONFIG") or default_config_path())
     created = ensure_config(config)
     added = sync_config(config, os.environ.get("APP_VERSION", ""))

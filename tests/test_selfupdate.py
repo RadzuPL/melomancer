@@ -272,11 +272,13 @@ class FakeOps(swap.Ops):
         self.messages: list[str] = []
         self.logged: list[str] = []
         self.killed = 0
+        self.launch_args: list = []
 
     def log(self, message): self.logged.append(message)
     def sleep(self, seconds): time.sleep(0.001)
     def wait_exit(self, pid, seconds): return self._exits
-    def start(self, root):
+    def start(self, root, launch_args=None):
+        self.launch_args.append(launch_args)
         self.started.append((root / "VERSION").read_text())
         return FakeProcess(alive=not (self._new_dies and len(self.started) == 1))
     def healthy(self, url, version): return self._healthy and self.started and self.started[-1] == version
@@ -301,8 +303,9 @@ def swap_job(tmp_path: Path, **overrides) -> swap.Job:
 
 
 def test_the_new_folder_takes_the_place_of_the_old_one_and_the_old_one_is_deleted(tmp_path):
-    job, ops = swap_job(tmp_path), FakeOps()
+    job, ops = swap_job(tmp_path, launch_args=["--port", "8123"]), FakeOps()
     assert swap.run_swap(job, ops) == 0
+    assert ops.launch_args == [["--port", "8123"]], "the new version listens where the old one did"
     assert (job.root / "VERSION").read_text() == "0.8.0" and not job.new.exists()
     assert not list(job.root.parent.glob("Melomancer.old*")) and ops.started == ["0.8.0"] and not ops.messages
     backups = list((job.data_dir / "backups").glob("melomancer-0.7.0-*.db"))
@@ -374,6 +377,6 @@ def test_a_path_with_polish_letters_does_not_stop_the_helper_on_a_cp1252_stream(
 
 def test_the_helper_reads_its_arguments(tmp_path):
     job = swap.parse(["--root", "R", "--new", "N", "--pid", "7", "--url", "http://x/", "--version", "1.2.3",
-                      "--old-version", "1.2.2", "--data", "D", "--log", "L"])
-    assert (job.root, job.new, job.pid, job.version, job.old_version, job.data_dir, job.log) == (
-        Path("R"), Path("N"), 7, "1.2.3", "1.2.2", Path("D"), Path("L"))
+                      "--old-version", "1.2.2", "--data", "D", "--log", "L", "--launch-arg=--port", "--launch-arg=9"])
+    assert (job.root, job.new, job.pid, job.version, job.old_version, job.data_dir, job.log, job.launch_args) == (
+        Path("R"), Path("N"), 7, "1.2.3", "1.2.2", Path("D"), Path("L"), ["--port", "9"])

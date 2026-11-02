@@ -262,6 +262,8 @@ class Installer:
             python = prepare_runner(self.root, self.work_dir)
             args = [str(python), str(python.with_name("swap.py")), "--root", str(self.root), "--new", str(self.new_dir),
                     "--pid", str(os.getpid()), "--url", self.url, "--version", str(version), "--old-version", self.current]
+            for value in lifecycle.launch_args():
+                args.append(f"--launch-arg={value}")   # the = form: a value may start with "--"
             if self.data_dir:
                 args += ["--data", str(self.data_dir)]
             if self.log_path:

@@ -24,7 +24,7 @@ import subprocess
 import sys
 import time
 import urllib.request
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Callable
 
@@ -67,6 +67,7 @@ class Job:
     wait_seconds: float = 90.0
     rename_tries: int = 60
     health_seconds: float = 120.0
+    launch_args: list[str] = field(default_factory=list)   # --config / --host / --port of the running program
 
 
 class Ops:
@@ -114,9 +115,10 @@ class Ops:
             time.sleep(0.2)
         return False
 
-    def start(self, root: Path):
+    def start(self, root: Path, launch_args: list[str] | None = None):
         python = root / "runtime" / ("pythonw.exe" if sys.platform == "win32" else "python3")
-        return popen_detached([str(python), "-m", "app.winmain", "--tray"], root)   # --tray: in the background, with the icon
+        # --tray: in the background, with the icon. --no-browser: the page that asked for the update reloads itself.
+        return popen_detached([str(python), "-m", "app.winmain", "--tray", "--no-browser", *(launch_args or [])], root)
 
     def healthy(self, url: str, version: str) -> bool:
         try:
@@ -209,7 +211,7 @@ def run_swap(job: Job, ops: Ops) -> int:
     old = free_name(root.with_name(root.name + ".old"))
     if not rename_with_retries(root, old, job.rename_tries, ops):
         ops.log("the program folder could not be renamed; the old version stays")
-        ops.start(root)
+        ops.start(root, job.launch_args)
         ops.notify("Melomancer", "Nie udało się podmienić folderu programu (może jest otwarty w Eksploratorze albo "
                    "skanuje go antywirus). Zostaje poprzednia wersja. / The program folder could not be replaced (an "
                    "Explorer window or a virus scanner may hold it). The old version stays.")
@@ -219,12 +221,12 @@ def run_swap(job: Job, ops: Ops) -> int:
     except OSError as exc:
         ops.log(f"the new folder could not take its place ({exc}); putting the old one back")
         os.rename(old, root)
-        ops.start(root)
+        ops.start(root, job.launch_args)
         ops.notify("Melomancer", "Aktualizacja się nie udała, wróciła poprzednia wersja. / The update failed, the old "
                    "version is back.")
         return 4
 
-    process = ops.start(root)
+    process = ops.start(root, job.launch_args)
     deadline = time.monotonic() + job.health_seconds
     while time.monotonic() < deadline:
         if ops.healthy(job.url, job.version):
@@ -240,7 +242,7 @@ def run_swap(job: Job, ops: Ops) -> int:
     ops.sleep(1.0)
     if rename_with_retries(root, failed, job.rename_tries, ops) and rename_with_retries(old, root, job.rename_tries, ops):
         shutil.rmtree(failed, ignore_errors=True)
-        ops.start(root)
+        ops.start(root, job.launch_args)
         ops.notify("Melomancer", "Nowa wersja nie wystartowała, wróciłem do poprzedniej. Szczegóły są w pliku update.log "
                    "w folderze z logami. / The new version did not start, the old one is back. Details are in update.log "
                    "in the logs folder.")
@@ -261,10 +263,11 @@ def parse(argv: list[str]) -> Job:
     parser.add_argument("--old-version", default="")
     parser.add_argument("--data")
     parser.add_argument("--log")
+    parser.add_argument("--launch-arg", action="append", default=[])
     args = parser.parse_args(argv)
     return Job(root=Path(args.root), new=Path(args.new), pid=args.pid, url=args.url, version=args.version,
                old_version=args.old_version, data_dir=Path(args.data) if args.data else None,
-               log=Path(args.log) if args.log else None)
+               log=Path(args.log) if args.log else None, launch_args=args.launch_arg)
 
 
 def main(argv: list[str] | None = None) -> int:
