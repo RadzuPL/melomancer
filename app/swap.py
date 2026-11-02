@@ -81,7 +81,10 @@ class Ops:
             except OSError:
                 pass
         if sys.stdout is not None:
-            print(line, flush=True)
+            try:
+                print(line, flush=True)
+            except (UnicodeError, OSError):   # a path with a Polish letter on a cp1252 stream must never stop an update
+                pass
 
     def sleep(self, seconds: float) -> None:
         time.sleep(seconds)
@@ -136,7 +139,10 @@ class Ops:
                 return
             except (AttributeError, OSError):
                 pass
-        print(f"{title}: {text}", file=sys.stderr)
+        try:
+            print(f"{title}: {text}", file=sys.stderr)
+        except (UnicodeError, OSError):
+            pass
 
 
 def free_name(base: Path) -> Path:

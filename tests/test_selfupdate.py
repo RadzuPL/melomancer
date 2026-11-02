@@ -363,6 +363,15 @@ def test_only_the_latest_database_copies_are_kept(tmp_path):
     assert len(names) == 2 and names[0].endswith("000003.db"), names
 
 
+def test_a_path_with_polish_letters_does_not_stop_the_helper_on_a_cp1252_stream(tmp_path, monkeypatch):
+    """Found by the Windows test: the console code page of the helper cannot write "ż", and the log line has the path."""
+    stream = io.TextIOWrapper(io.BytesIO(), encoding="cp1252", errors="strict")
+    monkeypatch.setattr(swap.sys, "stdout", stream)
+    log = tmp_path / "update.log"
+    swap.Ops(log).log("updating C:\\Users\\Łukasz\\Muzyka Zażółć")
+    assert "Zażółć" in log.read_text(encoding="utf-8")
+
+
 def test_the_helper_reads_its_arguments(tmp_path):
     job = swap.parse(["--root", "R", "--new", "N", "--pid", "7", "--url", "http://x/", "--version", "1.2.3",
                       "--old-version", "1.2.2", "--data", "D", "--log", "L"])
