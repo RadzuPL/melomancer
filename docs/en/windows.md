@@ -43,7 +43,7 @@ This is normal. Windows shows it for every program that has no paid publisher ce
 
 Instead, you may get a blue page "Windows protected your PC". Then click **More info**, then **Run anyway**.
 
-A few seconds later your browser opens the Melomancer page. You do not have to sign in. Melomancer runs **in the background**, without a window of its own: next to the clock (the bottom right corner of the screen) a blue icon with a musical note appears and a short message says "Melomancer is running". If you do not see the icon, click the arrow **^** next to the clock, because Windows likes to hide new icons. A small black window may have flashed for a moment: that is normal.
+A few seconds later your browser opens the Melomancer page. You do not have to sign in. Melomancer runs **in the background**, without a window of its own: next to the clock (the bottom right corner of the screen) a blue icon with a gear and a musical note appears and a short message says "Melomancer is running". If you do not see the icon, click the arrow **^** next to the clock, because Windows likes to hide new icons. A small black window may have flashed for a moment: that is normal.
 
 If the browser does not open by itself, right-click the icon next to the clock and choose **Open Melomancer**. You can also type this address into the address bar: http://127.0.0.1:8080/ (bookmark it, it will be handy).
 

@@ -43,7 +43,7 @@ To normalne. Windows pokazuje je przy każdym programie, który nie ma płatnego
 
 Zamiast tego może pojawić się niebieska strona „System Windows ochronił ten komputer". Wtedy kliknij **Więcej informacji**, a potem **Uruchom mimo to**.
 
-Po kilku sekundach otworzy się przeglądarka ze stroną Melomancera. Nie musisz się logować. Melomancer działa **w tle**, bez własnego okna: przy zegarze (prawy dolny róg ekranu) pojawi się niebieska ikona z nutą i krótki komunikat „Melomancer działa". Jeśli ikony nie widać, kliknij strzałkę **^** obok zegara, bo Windows lubi chować nowe ikony. Przez chwilę mogło mignąć małe czarne okienko: to normalne.
+Po kilku sekundach otworzy się przeglądarka ze stroną Melomancera. Nie musisz się logować. Melomancer działa **w tle**, bez własnego okna: przy zegarze (prawy dolny róg ekranu) pojawi się niebieska ikona z trybikiem i nutą i krótki komunikat „Melomancer działa". Jeśli ikony nie widać, kliknij strzałkę **^** obok zegara, bo Windows lubi chować nowe ikony. Przez chwilę mogło mignąć małe czarne okienko: to normalne.
 
 Gdyby przeglądarka sama się nie otworzyła, kliknij prawym przyciskiem ikonę przy zegarze i wybierz **Otwórz Melomancera**. Możesz też wpisać w pasku adresu http://127.0.0.1:8080/ (dodaj tę stronę do zakładek, przyda się na co dzień).
 

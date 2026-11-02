@@ -66,7 +66,7 @@ W skrócie:
 2. Kliknij dwukrotnie Melomancer.cmd. Windows zapyta "Nie można zweryfikować wydawcy": to normalne, bo program nie ma
    płatnego podpisu. Odznacz "Zawsze pytaj przed otwarciem tego pliku" i kliknij "Uruchom".
 3. Po kilku sekundach otworzy się przeglądarka ze stroną Melomancera (logować się nie trzeba), a przy zegarze
-   pojawi się niebieska ikona z nutą: Melomancer działa w tle. Prawy przycisk na ikonie otwiera menu (Otwórz
+   pojawi się niebieska ikona z trybikiem i nutą: Melomancer działa w tle. Prawy przycisk na ikonie otwiera menu (Otwórz
    Melomancera, Otwórz plik ustawień, Uruchamiaj z Windows, Zamknij Melomancera). Gdyby przeglądarka się nie
    otworzyła, wybierz z tego menu "Otwórz Melomancera" albo wpisz: http://127.0.0.1:8080/
 4. Dodaj muzykę w zakładce "Biblioteka" i zagraj ją w zakładce "Odtwarzacz" przyciskiem "Odtwarzaj tutaj".
@@ -92,7 +92,7 @@ In short:
 2. Double-click Melomancer.cmd. Windows asks "Unable to verify the publisher": that is normal, because the program
    has no paid signature. Untick "Always ask before opening this file" and click "Run".
 3. After a few seconds your browser opens the Melomancer page (you do not have to sign in) and a blue icon with a
-   musical note appears next to the clock: Melomancer runs in the background. A right click on the icon opens its
+   gear and a musical note appears next to the clock: Melomancer runs in the background. A right click on the icon opens its
    menu (Open Melomancer, Open the settings file, Start with Windows, Quit Melomancer). If the browser does not
    open, choose "Open Melomancer" from that menu or type: http://127.0.0.1:8080/
 4. Add music in the "Library" tab and play it in the "Player" tab with the "Play here" button.

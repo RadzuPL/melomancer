@@ -121,6 +121,9 @@ against demo data (English and Polish, light and dark; needs `playwright` and `p
 the panel or the architecture changes, and commit the files together. The one exception is
 `docs/img/windows-security-warning.png`, a real screenshot of a Windows window that cannot be generated.
 
+The icon (`app/static/icon.png`: the panel's favicon and the Windows tray icon) is built by `scripts/dev/make_icon.py` from the
+white gear in `scripts/dev/assets/`, placed on the blue tile because the white gear alone vanishes on a light background.
+
 A feature is not done until it is in `docs/en/` and `docs/pl/` (`usage.md` for what a person sees,
 `architecture.md` for how it works, `configuration.md` only for environment variables), in both language blocks of
 `README.md`, and, when a variable changes, in `unraid/my-melomancer.xml` and `.env.example`. Third-party software
