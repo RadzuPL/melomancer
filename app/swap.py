@@ -259,7 +259,13 @@ def parse(argv: list[str]) -> Job:
 
 def main(argv: list[str] | None = None) -> int:
     job = parse(sys.argv[1:] if argv is None else argv)
-    return run_swap(job, Ops(job.log))
+    ops = Ops(job.log)
+    try:
+        return run_swap(job, ops)
+    except BaseException:   # noqa: BLE001 - nobody watches this process: the log is the only place to say what happened
+        import traceback
+        ops.log("the update helper failed:\n" + traceback.format_exc())
+        raise
 
 
 if __name__ == "__main__":

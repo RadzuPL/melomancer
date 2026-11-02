@@ -192,7 +192,11 @@ def self_update(root: Path, work: Path) -> None:
         except subprocess.TimeoutExpired:
             raise SystemExit("FAIL update test: the old version did not close")
         check(code == 0, f"update test: the old version closed by itself (exit code {code})")
-        wait_for(f"version {newest} to answer on the same address", lambda: _version(url) == newest, 240)
+        try:
+            wait_for(f"version {newest} to answer on the same address", lambda: _version(url) == newest, 240)
+        except SystemExit:
+            dump_update_state(root, local)
+            raise
         check(_version(url) == newest, f"update test: the new version {newest} answers on the same address")
         check((root / "VERSION").read_text(encoding="utf-8").strip() == newest, "update test: the program folder holds the new version")
         wait_for("the old folder to be deleted", lambda: not root.with_name("Melomancer.old").exists(), 60)
@@ -210,6 +214,28 @@ def self_update(root: Path, work: Path) -> None:
             stop = ("import psutil; [psutil.Process(c.pid).terminate() for c in psutil.net_connections('tcp') "
                     f"if c.status == 'LISTEN' and c.laddr.port == {port} and c.pid]")
             subprocess.run([str(root / "runtime" / "python.exe"), "-c", stop], cwd=root, capture_output=True, timeout=60)
+
+
+def dump_update_state(root: Path, local: Path) -> None:
+    """Said before a failed update test ends: what the helper wrote and what is left on the disk."""
+    print("--- update.log ---")
+    log = local / "Melomancer" / "logs" / "update.log"
+    print(log.read_text(encoding="utf-8", errors="replace") if log.is_file() else "(no update.log)")
+    print("--- next to the program folder ---")
+    print(sorted(p.name for p in root.parent.iterdir()))
+    for name in ("VERSION",):
+        for folder in sorted(root.parent.glob("Melomancer*")):
+            marker = folder / name
+            print(f"{folder.name}/{name}: " + (marker.read_text(encoding="utf-8").strip() if marker.is_file() else "-"))
+    print("--- the updates folder ---")
+    updates = local / "Melomancer" / "updates"
+    print(sorted(str(p.relative_to(updates)) for p in updates.rglob("*") if p.is_file())[:20] if updates.is_dir() else "(none)")
+    print("--- melomancer.log (tail) ---")
+    main_log = local / "Melomancer" / "logs" / "melomancer.log"
+    if main_log.is_file():
+        print("\n".join(main_log.read_text(encoding="utf-8", errors="replace").splitlines()[-25:]))
+    print("--- pythonw processes ---")
+    print(subprocess.run(["tasklist", "/FI", "IMAGENAME eq pythonw.exe"], capture_output=True, encoding="utf-8", errors="replace").stdout)
 
 
 def _version(url: str) -> str | None:

@@ -19,6 +19,7 @@ import logging
 import os
 import shutil
 import threading
+import time
 import urllib.error
 import urllib.request
 import zipfile
@@ -265,7 +266,10 @@ class Installer:
                 args += ["--data", str(self.data_dir)]
             if self.log_path:
                 args += ["--log", str(self.log_path)]
-            self._spawn(args, python.parent, lifecycle.original_env())
+            helper = self._spawn(args, python.parent, lifecycle.original_env())
+            time.sleep(1.5)
+            if helper is not None and helper.poll() is not None:   # it would not outlive this program: do not close it
+                raise OSError(f"the update helper ended at once (exit code {helper.poll()})")
         except (OSError, shutil.Error):
             log.exception("The update helper could not be started")
             self._set(state="ready")   # nothing was changed: the person may try again
