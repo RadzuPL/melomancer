@@ -1585,25 +1585,29 @@ async function viewSettings(main) {
   const botState = system.bot_status === "ready"
     ? h("span", { class: "badge ok" }, system.bot_name ? tr("bot_running_as", { name: system.bot_name }) : tr("bot_running"))
     : h("span", { class: "badge " + (system.bot_status === "starting" ? "warn" : "bad") }, system.bot_status === "starting" ? tr("bot_connecting") : (system.bot_status === "disabled" ? tr("bot_not_connected") : botMessage(system)));
-  const botCard = system.bot_setup ? h("div", { class: "card" }, h("h2", {}, tr("bot_card")),
-    h("p", {}, botState),
-    h("details", { class: "botsteps", open: !system.bot_token_set },
-      h("summary", {}, tr("bot_help_title")),
-      h("ol", {}, h("li", {}, tr("bot_help_1"), " ", h("a", { href: "https://discord.com/developers/applications", target: "_blank", rel: "noopener noreferrer" }, tr("bot_portal"))),
-        h("li", {}, tr("bot_help_2")), h("li", {}, tr("bot_help_3")), h("li", {}, tr("bot_help_4"))),
-      h("a", { class: "small", href: "https://github.com/RadzuPL/melomancer/blob/main/docs/" + state.lang + "/discord-bot.md", target: "_blank", rel: "noopener noreferrer" }, tr("bot_help_more"))),
-    h("div", { class: "botform" },
-      h("label", {}, tr("bot_token_label"), tokenIn),
-      h("label", {}, tr("bot_client_label"), clientIn),
-      h("div", { class: "row" },
-        h("button", { class: "btn primary", type: "button", onclick: (e) => {
-          const body = botBody();
-          if (!Object.keys(body).length) { toast(tr("err.nothing_to_change"), "err"); return; }
-          saveBot(body, e);
-        } }, tr("bot_save")),
-        system.bot_token_set ? h("button", { class: "btn", type: "button", onclick: async (e) => { if (await confirmDialog(tr("bot_remove_confirm"), true)) saveBot({ token: "" }, e); } }, tr("bot_remove")) : null,
-        system.invite_url ? h("a", { class: "btn", href: system.invite_url, target: "_blank", rel: "noopener noreferrer", title: tr("invite_hint") }, "➕ " + tr("invite_bot")) : null),
-      h("div", { class: "muted small" }, tr("bot_saved_where")))) : null;
+  // Once the bot runs the card shrinks to one line (status and a "change" link): it is only needed to set up or to change.
+  const botDone = system.bot_status === "ready" && system.bot_token_set;
+  const botCard = system.bot_setup ? h("div", { class: "card botcard" },
+    h("div", { class: "cardhead" }, h("h2", {}, tr("bot_card")), botState),
+    h("details", { class: "botmore", open: !botDone },
+      h("summary", {}, tr(system.bot_token_set ? "bot_change" : "bot_paste")),
+      h("details", { class: "botsteps", open: !system.bot_token_set },
+        h("summary", {}, tr("bot_help_title")),
+        h("ol", {}, h("li", {}, tr("bot_help_1"), " ", h("a", { href: "https://discord.com/developers/applications", target: "_blank", rel: "noopener noreferrer" }, tr("bot_portal"))),
+          h("li", {}, tr("bot_help_2")), h("li", {}, tr("bot_help_3")), h("li", {}, tr("bot_help_4"))),
+        h("a", { class: "small", href: "https://github.com/RadzuPL/melomancer/blob/main/docs/" + state.lang + "/discord-bot.md", target: "_blank", rel: "noopener noreferrer" }, tr("bot_help_more"))),
+      h("div", { class: "botform" },
+        h("label", {}, tr("bot_token_label"), tokenIn),
+        h("label", {}, tr("bot_client_label"), clientIn),
+        h("div", { class: "row" },
+          h("button", { class: "btn primary", type: "button", onclick: (e) => {
+            const body = botBody();
+            if (!Object.keys(body).length) { toast(tr("err.nothing_to_change"), "err"); return; }
+            saveBot(body, e);
+          } }, tr("bot_save")),
+          system.bot_token_set ? h("button", { class: "btn", type: "button", onclick: async (e) => { if (await confirmDialog(tr("bot_remove_confirm"), true)) saveBot({ token: "" }, e); } }, tr("bot_remove")) : null,
+          system.invite_url ? h("a", { class: "btn", href: system.invite_url, target: "_blank", rel: "noopener noreferrer", title: tr("invite_hint") }, "➕ " + tr("invite_bot")) : null),
+        h("div", { class: "muted small" }, tr("bot_saved_where"))))) : null;
   // The bot logs in a moment after saving: look again until the page stops saying "connecting".
   if (botCard && system.bot_status === "starting") {
     setTimeout(() => { if (state.tab === "settings" && document.body.contains(botCard)) refresh(); }, 1500);

@@ -65,7 +65,7 @@ Dokładniej o panelu: [Obsługa panelu](usage.md).
 
 1. Załóż bota i skopiuj te dwie rzeczy według instrukcji: [Tworzenie bota Discord](discord-bot.md) (kroki 1 do 4).
 2. W panelu Melomancera wejdź w **Ustawienia**. Na samej górze jest karta **Bot Discord**. (Dopóki bot nie ma tokena, na stronie **Odtwarzacz** widać też żółty pasek z przyciskiem **Połącz bota**, który prowadzi w to samo miejsce.)
-3. Wklej **token** i **Application ID** w dwa pola i kliknij **Zapisz i połącz**. Nic nie trzeba zamykać ani uruchamiać od nowa: po kilku sekundach karta pokaże **Bot działa jako** i nazwę Twojego bota.
+3. Wklej **token** i **Application ID** w dwa pola i kliknij **Zapisz i połącz**. Nic nie trzeba zamykać ani uruchamiać od nowa: po kilku sekundach karta pokaże **Bot działa jako** i nazwę Twojego bota, a sama zwinie się do jednej linii. Żeby później zmienić token, kliknij w niej **Zmień token lub Application ID.
 4. Kliknij **Dodaj bota do serwera** (przycisk jest obok **Zapisz i połącz**) i wybierz swój serwer Discorda (potrzebujesz tam uprawnienia do zarządzania serwerem).
 5. W zakładce **Odtwarzacz** wybierz **Serwer** i **Kanał głosowy**, kliknij **Połącz**, a potem swoją playlistę.
 

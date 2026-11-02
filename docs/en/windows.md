@@ -65,7 +65,7 @@ To play music in a Discord voice channel you need a bot of your own: a robot acc
 
 1. Create the bot and copy those two things following the guide [Creating the Discord bot](discord-bot.md) (steps 1 to 4).
 2. In the Melomancer panel open **Settings**. At the very top is the **Discord bot** card. (While the bot has no token, the **Player** page also shows a yellow bar with a **Connect the bot** button that leads to the same place.)
-3. Paste the **token** and the **Application ID** into the two fields and click **Save and connect**. There is nothing to close or restart: after a few seconds the card says **The bot is running as** and the name of your bot.
+3. Paste the **token** and the **Application ID** into the two fields and click **Save and connect**. There is nothing to close or restart: after a few seconds the card says **The bot is running as** and the name of your bot, and shrinks to a single line. To change the token later, click **Change the token or the Application ID** in it.
 4. Click **Add the bot to a server** (the button is next to **Save and connect**) and pick your Discord server (you need the permission to manage that server).
 5. In the **Player** tab choose the **Server** and the **Voice channel**, click **Connect**, then your playlist.
 

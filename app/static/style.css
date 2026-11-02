@@ -317,6 +317,10 @@ input.timefield { width: 8rem; }
 .volume .voltrack { min-width: 0; }
 
 /* Setting up the Discord bot (desktop run) */
+.cardhead { display: flex; align-items: center; gap: .8rem; flex-wrap: wrap; margin-bottom: .6rem; }
+.cardhead h2 { margin: 0; }
+.botmore > summary { cursor: pointer; color: var(--accent); width: fit-content; }
+.botmore[open] > summary { margin-bottom: .6rem; }
 .botform { display: grid; gap: .8rem; max-width: 36rem; margin-top: .8rem; }
 .botform label { display: grid; gap: .3rem; }
 .botsteps { margin: 0 0 .4rem; }

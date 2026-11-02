@@ -724,6 +724,11 @@ with sync_playwright() as p:
     desk.click(".botform button:has-text('Zapisz i połącz')")
     desk.wait_for_selector(".badge.ok:has-text('Bot działa jako Melo')", timeout=10000)
     assert json.loads(bodies["/api/system/bot"]) == {"token": TOKEN, "client_id": "123456789012345678"}, bodies["/api/system/bot"]
+    assert desk.locator("details.botmore").get_attribute("open") is None, "once the bot runs the card shrinks to one line"
+    assert desk.locator(".botcard").bounding_box()["height"] < 140, desk.locator(".botcard").bounding_box()
+    assert "Zmień token lub Application ID" in desk.inner_text(".botcard summary")
+    desk.screenshot(path=f"{shots}bot-setup-done.png", full_page=True)
+    desk.click("details.botmore > summary")
     assert TOKEN not in desk.content() and desk.locator(".botform input[type=password]").input_value() == "", "the token is never shown again"
     assert "Zapisany" in desk.locator(".botform input[type=password]").get_attribute("placeholder")
     assert desk.locator("details.botsteps").get_attribute("open") is None, "the steps fold once there is a token"
@@ -734,6 +739,7 @@ with sync_playwright() as p:
     desk.wait_for_timeout(500)
     assert json.loads(bodies["/api/system/bot"]) == {"client_id": "999999999999999999"}, bodies["/api/system/bot"]
     assert desk.locator(".botform a.btn").get_attribute("href").endswith("client_id=999999999999999999&scope=bot&permissions=3146752")
+    desk.click("details.botmore > summary")   # the card shrank again after the save
     desk.click(".botform button:has-text('Usuń token')")
     desk.click(".dialog button:has-text('OK')")
     desk.wait_for_selector(".badge.bad")
