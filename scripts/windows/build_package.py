@@ -31,20 +31,26 @@ FFMPEG_FALLBACK = "ffmpeg-master-latest-win64-lgpl-shared.zip"
 FFMPEG_RELEASE_NAME = re.compile(r"^ffmpeg-n(\d+)\.(\d+)-latest-win64-lgpl-shared-\d+\.\d+\.zip$")
 
 SETTINGS_CMD = r"""@echo off
-setlocal
 cd /d "%~dp0"
-"runtime\python.exe" -m app.winmain --edit-config
+start "" "runtime\pythonw.exe" -m app.winmain --edit-config
 """
 
-CMD_FILE = r"""@echo off
+DEBUG_CMD = r"""@echo off
 setlocal
 cd /d "%~dp0"
-"runtime\python.exe" -m app.winmain %*
+echo Melomancer w trybie diagnostycznym (to okno zostaje otwarte) / Melomancer in diagnostic mode (this window stays open)
+"runtime\python.exe" -m app.winmain --console
 if errorlevel 1 (
   echo.
   echo Melomancer stopped with an error. The messages above say why.
-  pause
 )
+pause
+"""
+
+# The normal start: no console window. `start` hands over to pythonw, so this window closes at once.
+CMD_FILE = r"""@echo off
+cd /d "%~dp0"
+start "" "runtime\pythonw.exe" -m app.winmain
 """
 
 READ_ME = """Melomancer dla Windows (wersja testowa)
@@ -193,6 +199,7 @@ def package(version: str, tools: Path, out: Path, build: str = "", commit: str =
         (root / "BUILD").write_text(f"build {build}" + (f", {commit}" if commit else "") + "\n", encoding="utf-8")
     (root / "Melomancer.cmd").write_text(CMD_FILE.replace("\n", "\r\n"), encoding="utf-8")
     (root / "Ustawienia - Settings.cmd").write_text(SETTINGS_CMD.replace("\n", "\r\n"), encoding="utf-8")
+    (root / "Diagnostyka - Diagnostics.cmd").write_text(DEBUG_CMD.replace("\n", "\r\n"), encoding="utf-8")
     sys.path.insert(0, str(ROOT))
     from app import winmain   # the template that the program itself writes on the first start
     (root / "config.example.toml").write_text(winmain.TEMPLATE, encoding="utf-8")

@@ -237,6 +237,15 @@ def open_browser_when_ready(url: str, timeout: float = 90.0) -> None:
             time.sleep(0.5)
 
 
+def report_error(message: str, tray_mode: bool) -> None:
+    """Says why the start failed: on the console, or in a window when there is no console."""
+    if tray_mode:
+        from . import tray
+        tray.message_box("Melomancer", message)
+    else:
+        print(message, file=sys.stderr)
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="melomancer", description="Melomancer: music for tabletop RPG sessions.")
     parser.add_argument("--config", help="path of config.toml (default: next to the data folder)")
@@ -244,12 +253,30 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--port", help=f"port (default {DEFAULT_PORT})")
     parser.add_argument("--no-browser", action="store_true", help="do not open the panel in the browser")
     parser.add_argument("--edit-config", action="store_true", help="open the settings file in Notepad and exit")
+    parser.add_argument("--console", action="store_true", help="stay in this console window instead of the tray icon")
+    parser.add_argument("--tray", action="store_true", help="show the tray icon even when started from a console")
     args = parser.parse_args(argv)
+
+    # Started with pythonw (no console window) there is no stdout: that is the background mode, with the tray icon.
+    has_console = sys.stdout is not None
+    tray_mode = args.tray or (not args.console and not has_console)
 
     # A path or a title with a letter the console's code page lacks must never stop the program, only print as "?".
     for stream in (sys.stdout, sys.stderr):
         if hasattr(stream, "reconfigure"):
             stream.reconfigure(errors="replace")
+
+    try:
+        return run(args, tray_mode, has_console)
+    except SystemExit as exc:
+        if isinstance(exc.code, str):   # our own messages (a broken settings file, a bad port)
+            report_error(exc.code, tray_mode)
+            return 1
+        raise
+
+
+def run(args: argparse.Namespace, tray_mode: bool, has_console: bool) -> int:
+    from . import tray
 
     logging.getLogger("asyncio").addFilter(QuietConnectionResets())
 
@@ -271,23 +298,58 @@ def main(argv: list[str] | None = None) -> int:
     auto_login_note = decide_auto_login(host, os.environ)
 
     url = f"http://{'127.0.0.1' if host in ('0.0.0.0', '::') else host}:{port}/"
+    version = os.environ.get("APP_VERSION", "dev")
     build = read_build(home)
-    print(f"Melomancer {os.environ.get('APP_VERSION', 'dev')}" + (f" ({build})" if build else ""))
-    print(f"Settings file: {config}" + ("  (created now, edit it to add your Discord bot token)" if created else ""))
+    logs_dir = config.parent / "logs"
+    log_path = tray.setup_logging(logs_dir, os.environ.get("LOG_LEVEL", "INFO"), console=has_console and not tray_mode)
+    launcher_log = logging.getLogger(tray.LAUNCHER_LOGGER)
+
+    def say(message: str) -> None:
+        launcher_log.info(message)
+        if has_console:
+            print(message)
+
+    # Only one Melomancer at a time: a second start just opens the panel of the first one.
+    instance = tray.SingleInstance()
+    if instance.already_running:
+        say("Melomancer is already running, opening its panel.")
+        if not args.no_browser:
+            webbrowser.open(url)
+        return 0
+
+    say(f"Melomancer {version}" + (f" ({build})" if build else ""))
+    say(f"Settings file: {config}" + ("  (created now, edit it to add your Discord bot token)" if created else ""))
+    say(f"Log file: {log_path}")
     if added:
-        print("New settings were added to it as comments: " + ", ".join(added) + ".")
-    print(f"Panel: {url}   (Ctrl+C or closing this window stops it)")
+        say("New settings were added to it as comments: " + ", ".join(added) + ".")
+    if tray_mode:
+        say(f"Panel: {url}   (the icon next to the clock has the menu, Quit is there)")
+    else:
+        say(f"Panel: {url}   (Ctrl+C or closing this window stops it)")
     if auto_login_note:
-        print("Note: " + auto_login_note)
+        say("Note: " + auto_login_note)
     elif os.environ.get("AUTO_LOGIN") == "true":
-        print("The panel lets this computer in as the administrator without a password (auto_login = false in the "
-              "settings file turns that off).")
+        say("The panel lets this computer in as the administrator without a password (auto_login = false in the "
+            "settings file turns that off).")
+
+    if tray_mode:
+        server = tray.ServerThread(host, port)
+        server.start()
+        try:
+            if not server.wait_started(60):
+                launcher_log.error("The server did not start: %r", server.error)
+                tray.message_box("Melomancer", tray.start_failed_text(url, log_path))
+                return 1
+            return tray.run_tray(url=url, version=version, home=home, config=config, logs_dir=logs_dir, server=server,
+                                 open_browser=not args.no_browser)
+        finally:
+            server.stop()
 
     if not args.no_browser:
         threading.Thread(target=open_browser_when_ready, args=(url,), daemon=True).start()
 
     import uvicorn  # imported late: --help and the config handling work without the web stack
-    uvicorn.run("app.main:app_factory", factory=True, host=host, port=port, log_level="warning")
+    uvicorn.run("app.main:app_factory", factory=True, host=host, port=port, log_config=None, log_level="warning")
     return 0
 
 

@@ -6,3 +6,5 @@ discord.py[voice]>=2.7.1,<3
 davey
 yt-dlp[default]>=2025.11.12
 psutil>=5.9; sys_platform == "win32"
+pystray>=0.19.5; sys_platform == "win32"
+Pillow>=10; sys_platform == "win32"

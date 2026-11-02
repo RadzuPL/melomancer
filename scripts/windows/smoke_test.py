@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import http.cookiejar
 import json
+import os
 import subprocess
 import sys
 import tempfile
@@ -79,6 +80,64 @@ def wait_for(what: str, probe, seconds: float):
     raise SystemExit(f"FAIL: {what} did not happen within {seconds:.0f} s")
 
 
+def healthy(url: str) -> bool:
+    try:
+        with urllib.request.urlopen(url + "api/health", timeout=3) as response:
+            return response.status == 200
+    except OSError:
+        return False
+
+
+def signatures(root: Path) -> None:
+    """Information, not a check: is the bundled Python signed by its publisher? That decides how scary Windows looks."""
+    for relative in ("runtime/pythonw.exe", "runtime/python.exe", "bin/deno.exe", "bin/ffmpeg.exe"):
+        path = root / relative
+        script = (f"$s = Get-AuthenticodeSignature -FilePath '{path}'; "
+                  "Write-Output ('signature ' + '" + relative + "' + ': ' + $s.Status + ' | ' + $s.SignerCertificate.Subject)")
+        out = subprocess.run(["powershell", "-NoProfile", "-Command", script], capture_output=True, encoding="utf-8",
+                             errors="replace", timeout=60).stdout.strip()
+        print(out or f"signature {relative}: could not be read", flush=True)
+
+
+def background_mode(root: Path, work: Path) -> None:
+    """The way a person starts it: pythonw, no console window, the icon next to the clock."""
+    local = work / "lokalne dane Zażółć"
+    config = local / "Melomancer" / "config.toml"
+    env = {k: v for k, v in os.environ.items() if k not in ("APP_VERSION", "DATA_DIR", "AUTO_LOGIN", "MELOMANCER_CONFIG")}
+    env.update(LOCALAPPDATA=str(local), ADMIN_PASSWORD=PASSWORD)
+    url = "http://127.0.0.1:18082/"
+    args = [str(root / "runtime" / "pythonw.exe"), "-m", "app.winmain", "--no-browser", "--port", "18082"]
+    proc = subprocess.Popen(args, cwd=root, env=env)
+    try:
+        wait_for("the background mode to answer", lambda: healthy(url), 90)
+        check(proc.poll() is None, "it runs in the background (pythonw, no console window)")
+        logfile = local / "Melomancer" / "logs" / "melomancer.log"
+        text = logfile.read_text(encoding="utf-8", errors="replace") if logfile.is_file() else ""
+        check("Panel: " + url in text and "Log file:" in text, "the log file in the data folder says what it did")
+        check(config.is_file(), "the settings file was created next to it (LOCALAPPDATA with Polish letters)")
+        for _ in range(60):   # up to 30 s: the icon either appears or the log says why it could not
+            seen = logfile.read_text(encoding="utf-8", errors="replace")
+            if "Tray icon ready" in seen or "tray icon" in seen.lower() and ("not available" in seen or "failed" in seen):
+                break
+            time.sleep(0.5)
+        text = logfile.read_text(encoding="utf-8", errors="replace")
+        print("tray icon: " + ("shown" if "Tray icon ready" in text else "not available in this CI session (the server runs anyway)"), flush=True)
+        again = subprocess.run(args, cwd=root, env=env, timeout=60)
+        check(again.returncode == 0 and healthy(url), "a second start does not start a second copy, it opens the first")
+        check("already running" in logfile.read_text(encoding="utf-8", errors="replace"), "the log says so")
+    finally:
+        proc.terminate()
+        try:
+            proc.wait(15)
+        except subprocess.TimeoutExpired:
+            proc.kill()
+    check(not healthy(url), "after it is closed the panel does not answer any more")
+    code = ("from app import tray; name = 'MelomancerSmokeTest'; tray.set_autostart(True, 'x', name); on = tray.autostart_enabled(name); "
+            "tray.set_autostart(False, '', name); print('autostart', on, tray.autostart_enabled(name))")
+    out = run([root / "runtime" / "python.exe", "-c", code], cwd=root).stdout
+    check("autostart True False" in out, "start with Windows can be switched on and off in the user's own Run key")
+
+
 def main(archive: Path, version: str) -> int:
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")  # the runner's code page (cp1252) has no ż
     work = Path(tempfile.mkdtemp()) / "Muzyka Zażółć"
@@ -89,7 +148,7 @@ def main(archive: Path, version: str) -> int:
     check(py.is_file() and ffmpeg.is_file(), f"package unpacked under {work}")
 
     # ---- what a person finds in the folder ----
-    for name in ("Melomancer.cmd", "Ustawienia - Settings.cmd", "README-WINDOWS.txt", "config.example.toml", "THIRD_PARTY.md"):
+    for name in ("Melomancer.cmd", "Ustawienia - Settings.cmd", "Diagnostyka - Diagnostics.cmd", "README-WINDOWS.txt", "config.example.toml", "THIRD_PARTY.md"):
         check((root / name).is_file(), f"{name} is in the package")
     readme = (root / "README-WINDOWS.txt").read_text(encoding="utf-8")
     check("Zawsze pytaj przed otwarciem" in readme and "Always ask before opening" in readme
@@ -106,6 +165,8 @@ def main(archive: Path, version: str) -> int:
     check("discord_client_id" in added and "auto_login" in added and "discord_token" not in added and "port" not in added.split("added:")[1].split(","),
           f"missing settings are appended, existing ones are not repeated ({added.strip()})")
     check("Dodane przez Melomancera 1.0" in older.read_text(encoding="utf-8"), "the appended part is readable UTF-8")
+
+    signatures(root)
 
     # ---- the bundled Python and its libraries ----
     out = run([py, "-c", (
@@ -172,6 +233,7 @@ def main(archive: Path, version: str) -> int:
         log.close()
         print("--- server log (tail) ---")
         print("\n".join((work / "server.log").read_text(encoding="utf-8", errors="replace").splitlines()[-40:]))
+    background_mode(root, work)
     print("smoke test passed")
     return 0
 
