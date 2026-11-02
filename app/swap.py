@@ -41,7 +41,11 @@ def popen_detached(args: list[str], cwd: Path, env: dict[str, str] | None = None
     flags = DETACHED
     if sys.platform == "win32":
         flags |= getattr(subprocess, "CREATE_BREAKAWAY_FROM_JOB", 0)
-    options = dict(cwd=cwd, env=env, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, close_fds=True)
+    # No redirected standard streams on Windows: pythonw then has none (sys.stdout is None), which is how the launcher
+    # knows that it runs in the background and shows the tray icon. A stream to NUL would look like a console.
+    options = dict(cwd=cwd, env=env, close_fds=True)
+    if sys.platform != "win32":
+        options.update(stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     try:
         return subprocess.Popen(args, creationflags=flags, **options)
     except OSError:
@@ -112,7 +116,7 @@ class Ops:
 
     def start(self, root: Path):
         python = root / "runtime" / ("pythonw.exe" if sys.platform == "win32" else "python3")
-        return popen_detached([str(python), "-m", "app.winmain"], root)
+        return popen_detached([str(python), "-m", "app.winmain", "--tray"], root)   # --tray: in the background, with the icon
 
     def healthy(self, url: str, version: str) -> bool:
         try:
