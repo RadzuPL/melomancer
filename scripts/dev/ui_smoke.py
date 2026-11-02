@@ -113,12 +113,27 @@ with sync_playwright() as p:
     page.on("console", lambda m: errors.append("console." + m.type + ": " + m.text) if m.type in ("error", "warning") else None)
     page.on("dialog", lambda d: (errors.append("DIALOG: " + d.message), d.dismiss()))
 
+    botmock = {"gets": 0}   # the mocked bot logs in a few looks after its token was saved
+
     def handle(route):
         req = route.request
         path = req.url.split("127.0.0.1:8099")[1].split("?")[0]
         calls.append(req.method + " " + path)
         if req.method != "GET":
             bodies[path] = req.post_data
+        if req.method == "PUT" and path == "/api/system/bot":
+            body = json.loads(req.post_data)
+            info = ROUTES["/api/system"]
+            if "token" in body:
+                info.update(bot_token_set=bool(body["token"]), bot_status="starting" if body["token"] else "disabled", bot_name=None)
+                botmock["gets"] = 0
+            if "client_id" in body:
+                info["bot_client_id"] = body["client_id"]
+            return route.fulfill(status=200, content_type="application/json", body=json.dumps(info))
+        if req.method == "GET" and path == "/api/system" and ROUTES[path].get("bot_status") == "starting":
+            botmock["gets"] += 1
+            if botmock["gets"] > 2:
+                ROUTES[path].update(bot_status="ready", bot_name="Melo")
         if req.method == "GET" and path.endswith("/stream"):
             rng = req.headers.get("range")
             if rng:
@@ -681,6 +696,69 @@ with sync_playwright() as p:
     assert calls.count("POST /api/auth/local") == 2 and desk.locator(".login").count() == 0, "a lapsed session is renewed"
     assert "Pobieranie" in desk.inner_text("main"), desk.inner_text("main")
     ROUTES["/api/system"]["auto_login"] = False
+
+    # ---- a desktop run: the bot is set up from the panel, no file, no restart ----
+    TOKEN = ".".join(["MTIzNDU2Nzg5MDEyMzQ1Njc4OQ", "GabcDE", "abcdefghijklmnopqrstuvwxyz0123456789"])   # in parts: not a real token
+    saved_system = dict(ROUTES["/api/system"])
+    ROUTES["/api/system"].update(bot_setup=True, bot_status="disabled", bot_token_set=False, bot_client_id="", bot_name=None, invite_url=None)
+    desk.click("nav.tabs button:has-text('Odtwarzacz')")
+    desk.wait_for_selector(".notice")
+    notice = desk.inner_text(".notice")
+    assert "Bot Discord nie jest jeszcze połączony" in notice and "DISCORD_TOKEN" not in notice, notice
+    desk.click(".notice button:has-text('Połącz bota')")
+    desk.wait_for_selector(".botform")
+    assert desk.locator("details.botsteps").get_attribute("open") is not None, "the steps are open while there is no token"
+    steps = desk.inner_text("details.botsteps")
+    assert "Reset Token" in steps and "Application ID" in steps, steps
+    link = desk.locator("details.botsteps a").first
+    assert link.get_attribute("href") == "https://discord.com/developers/applications" and "noopener" in link.get_attribute("rel")
+    assert desk.locator(".botform input[type=password]").count() == 1, "the token is typed into a password field"
+    desk.screenshot(path=f"{shots}bot-setup.png", full_page=True)
+    before = calls.count("PUT /api/system/bot")
+    desk.click(".botform button:has-text('Zapisz i połącz')")
+    desk.wait_for_timeout(300)
+    assert calls.count("PUT /api/system/bot") == before, "nothing typed, nothing sent"
+    assert "Nie ma czego zapisać" in desk.inner_text("body")
+    desk.locator(".botform input[type=password]").fill(TOKEN)
+    desk.locator(".botform input[inputmode=numeric]").fill("123456789012345678")
+    desk.click(".botform button:has-text('Zapisz i połącz')")
+    desk.wait_for_selector(".badge.ok:has-text('Bot działa jako Melo')", timeout=10000)
+    assert json.loads(bodies["/api/system/bot"]) == {"token": TOKEN, "client_id": "123456789012345678"}, bodies["/api/system/bot"]
+    assert desk.locator("details.botmore").get_attribute("open") is None, "once the bot runs the card shrinks to one line"
+    assert desk.locator(".botcard").bounding_box()["height"] < 140, desk.locator(".botcard").bounding_box()
+    assert "Zmień token lub Application ID" in desk.inner_text(".botcard summary")
+    desk.screenshot(path=f"{shots}bot-setup-done.png", full_page=True)
+    desk.click("details.botmore > summary")
+    assert TOKEN not in desk.content() and desk.locator(".botform input[type=password]").input_value() == "", "the token is never shown again"
+    assert "Zapisany" in desk.locator(".botform input[type=password]").get_attribute("placeholder")
+    assert desk.locator("details.botsteps").get_attribute("open") is None, "the steps fold once there is a token"
+    # a second save with only a changed Application ID leaves the token out
+    ROUTES["/api/system"]["invite_url"] = "https://discord.com/oauth2/authorize?client_id=999999999999999999&scope=bot&permissions=3146752"
+    desk.locator(".botform input[inputmode=numeric]").fill("999999999999999999")
+    desk.click(".botform button:has-text('Zapisz i połącz')")
+    desk.wait_for_timeout(500)
+    assert json.loads(bodies["/api/system/bot"]) == {"client_id": "999999999999999999"}, bodies["/api/system/bot"]
+    assert desk.locator(".botform a.btn").get_attribute("href").endswith("client_id=999999999999999999&scope=bot&permissions=3146752")
+    desk.click("details.botmore > summary")   # the card shrank again after the save
+    desk.click(".botform button:has-text('Usuń token')")
+    desk.click(".dialog button:has-text('OK')")
+    desk.wait_for_selector(".badge.bad")
+    assert json.loads(bodies["/api/system/bot"]) == {"token": ""}, bodies["/api/system/bot"]
+    assert "Bot nie jest jeszcze połączony" in desk.inner_text(".badge.bad")
+    # a rejected token is explained in words that fit a desktop run
+    ROUTES["/api/system"].update(bot_status="login_failed", bot_token_set=True)
+    desk.click("nav.tabs button:has-text('Odtwarzacz')")
+    desk.wait_for_selector(".notice")
+    assert "zakładki Bot" in desk.inner_text(".notice") and "DISCORD_TOKEN" not in desk.inner_text(".notice")
+    ROUTES["/api/system"].clear()
+    ROUTES["/api/system"].update(saved_system)
+
+    # in a container the card does not exist and the old wording stays
+    ROUTES["/api/system"].update(bot_status="disabled", bot_token_set=False)
+    desk.click("nav.tabs button:has-text('Ustawienia')")
+    desk.wait_for_selector(".tile")
+    assert desk.locator(".botform").count() == 0 and "DISCORD_TOKEN" in desk.inner_text(".tile.bad"), desk.inner_text("main")
+    ROUTES["/api/system"].update(saved_system)
 
     browser.close()
 

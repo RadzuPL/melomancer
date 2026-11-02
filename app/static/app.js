@@ -50,6 +50,13 @@ function tr(key, vars) {
 }
 const t = tr;
 
+// What the bot's state means for this person. On a desktop run the token is pasted in Settings, so the messages say that
+// instead of naming a container variable.
+function botMessage(system) {
+  const own = system.bot_setup && ["disabled", "login_failed", "error"].includes(system.bot_status);
+  return tr((own ? "botd." : "bot.") + system.bot_status);
+}
+
 function pref(key, value) {
   try {
     if (value === undefined) return localStorage.getItem("melomancer." + key) || "";
@@ -599,7 +606,10 @@ async function viewPlayer(main) {
   const connectBtn = h("button", { class: "btn primary", onclick: toggleConnect });
   const localBtn = h("button", { class: "btn primary", onclick: toggleLocal });
   const localHint = h("p", { class: "muted small hidden" }, tr("local_hint"));
-  const notice = system.bot_status !== "ready" ? h("div", { class: "notice" }, tr("bot." + system.bot_status)) : null;
+  const notice = system.bot_status !== "ready" ? h("div", { class: "notice" }, botMessage(system),
+    system.bot_setup && state.user.role === "admin" && system.bot_status !== "starting"
+      ? h("div", {}, h("button", { class: "btn primary small", type: "button", onclick: () => { state.tab = "settings"; stopPolling(); render(); } }, tr("bot_connect_now")))
+      : null) : null;
   const titleEl = h("div", { class: "title" });
   const subEl = h("div", { class: "muted small" });
   let seeking = false;
@@ -1555,6 +1565,53 @@ async function viewSettings(main) {
       tr("update_checked", { time: new Date(upd.checked_at * 1000).toLocaleString(state.lang === "pl" ? "pl-PL" : "en-GB") })));
   }
   const loud = system.loudness;
+
+  // The bot's token and Application ID, only on a desktop run (in a container they are deployment variables).
+  const tokenIn = h("input", { type: "password", autocomplete: "off", spellcheck: false, "aria-label": tr("bot_token_label"),
+    placeholder: system.bot_token_set ? tr("bot_token_saved") : tr("bot_token_placeholder") });
+  const clientIn = h("input", { type: "text", inputmode: "numeric", autocomplete: "off", "aria-label": tr("bot_client_label"),
+    placeholder: tr("bot_client_placeholder"), value: system.bot_client_id || "" });
+  const saveBot = async (body, e) => {
+    if (e) e.target.disabled = true;
+    try { state.system = await api("PUT", "/api/system/bot", body); toast(tr("saved"), "ok"); } catch (err) { fail(err); }
+    refresh();
+  };
+  const botBody = () => {
+    const body = {};
+    if (tokenIn.value.trim()) body.token = tokenIn.value;
+    if (clientIn.value.trim() !== (system.bot_client_id || "")) body.client_id = clientIn.value;
+    return body;
+  };
+  const botState = system.bot_status === "ready"
+    ? h("span", { class: "badge ok" }, system.bot_name ? tr("bot_running_as", { name: system.bot_name }) : tr("bot_running"))
+    : h("span", { class: "badge " + (system.bot_status === "starting" ? "warn" : "bad") }, system.bot_status === "starting" ? tr("bot_connecting") : (system.bot_status === "disabled" ? tr("bot_not_connected") : botMessage(system)));
+  // Once the bot runs the card shrinks to one line (status and a "change" link): it is only needed to set up or to change.
+  const botDone = system.bot_status === "ready" && system.bot_token_set;
+  const botCard = system.bot_setup ? h("div", { class: "card botcard" },
+    h("div", { class: "cardhead" }, h("h2", {}, tr("bot_card")), botState),
+    h("details", { class: "botmore", open: !botDone },
+      h("summary", {}, tr(system.bot_token_set ? "bot_change" : "bot_paste")),
+      h("details", { class: "botsteps", open: !system.bot_token_set },
+        h("summary", {}, tr("bot_help_title")),
+        h("ol", {}, h("li", {}, tr("bot_help_1"), " ", h("a", { href: "https://discord.com/developers/applications", target: "_blank", rel: "noopener noreferrer" }, tr("bot_portal"))),
+          h("li", {}, tr("bot_help_2")), h("li", {}, tr("bot_help_3")), h("li", {}, tr("bot_help_4"))),
+        h("a", { class: "small", href: "https://github.com/RadzuPL/melomancer/blob/main/docs/" + state.lang + "/discord-bot.md", target: "_blank", rel: "noopener noreferrer" }, tr("bot_help_more"))),
+      h("div", { class: "botform" },
+        h("label", {}, tr("bot_token_label"), tokenIn),
+        h("label", {}, tr("bot_client_label"), clientIn),
+        h("div", { class: "row" },
+          h("button", { class: "btn primary", type: "button", onclick: (e) => {
+            const body = botBody();
+            if (!Object.keys(body).length) { toast(tr("err.nothing_to_change"), "err"); return; }
+            saveBot(body, e);
+          } }, tr("bot_save")),
+          system.bot_token_set ? h("button", { class: "btn", type: "button", onclick: async (e) => { if (await confirmDialog(tr("bot_remove_confirm"), true)) saveBot({ token: "" }, e); } }, tr("bot_remove")) : null,
+          system.invite_url ? h("a", { class: "btn", href: system.invite_url, target: "_blank", rel: "noopener noreferrer", title: tr("invite_hint") }, "➕ " + tr("invite_bot")) : null),
+        h("div", { class: "muted small" }, tr("bot_saved_where"))))) : null;
+  // The bot logs in a moment after saving: look again until the page stops saying "connecting".
+  if (botCard && system.bot_status === "starting") {
+    setTimeout(() => { if (state.tab === "settings" && document.body.contains(botCard)) refresh(); }, 1500);
+  }
   // Bot, CPU and memory as tiles; the charts show the last three minutes, as the server remembers them.
   const cpuVal = h("div", { class: "value" }, "–");
   const cpuSub = h("div", { class: "sub" });
@@ -1569,7 +1626,7 @@ async function viewSettings(main) {
   const botTile = h("div", { class: "tile" + (running ? " ok" : " bad") },
     h("div", { class: "label" }, tr("tile_bot")),
     h("div", { class: "value" }, tr(running ? "tile_bot_ok" : "tile_bot_down")),
-    h("div", { class: "sub" }, running ? "Melomancer " + system.version : tr("bot." + system.bot_status)),
+    h("div", { class: "sub" }, running ? "Melomancer " + system.version : botMessage(system)),
     running ? null : h("div", { class: "sub" }, "Melomancer " + system.version),
     system.invite_url ? h("a", { class: "btn small", href: system.invite_url, target: "_blank", rel: "noopener noreferrer", title: tr("invite_hint") }, "➕ " + tr("invite_bot")) : null);
   const tickLoad = async () => {
@@ -1591,7 +1648,7 @@ async function viewSettings(main) {
   tickLoad();
   const loadTimer = setInterval(() => { if (!document.body.contains(cpuVal)) clearInterval(loadTimer); else tickLoad(); }, 3000);
 
-  put(main, 
+  put(main, botCard,
     h("div", { class: "card" }, h("h2", {}, tr("system")),
       h("div", { class: "tiles" }, botTile, cpuTile, memTile), loadHint,
       h("h3", {}, tr("section_loudness")),

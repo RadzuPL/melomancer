@@ -66,12 +66,12 @@ W skrócie:
 2. Kliknij dwukrotnie Melomancer.cmd. Windows zapyta "Nie można zweryfikować wydawcy": to normalne, bo program nie ma
    płatnego podpisu. Odznacz "Zawsze pytaj przed otwarciem tego pliku" i kliknij "Uruchom".
 3. Po kilku sekundach otworzy się przeglądarka ze stroną Melomancera (logować się nie trzeba), a przy zegarze
-   pojawi się niebieska ikona z nutą: Melomancer działa w tle. Prawy przycisk na ikonie otwiera menu (Otwórz
+   pojawi się niebieska ikona z trybikiem i nutą: Melomancer działa w tle. Prawy przycisk na ikonie otwiera menu (Otwórz
    Melomancera, Otwórz plik ustawień, Uruchamiaj z Windows, Zamknij Melomancera). Gdyby przeglądarka się nie
    otworzyła, wybierz z tego menu "Otwórz Melomancera" albo wpisz: http://127.0.0.1:8080/
 4. Dodaj muzykę w zakładce "Biblioteka" i zagraj ją w zakładce "Odtwarzacz" przyciskiem "Odtwarzaj tutaj".
-5. Muzyka na Discordzie: kliknij dwukrotnie "Ustawienia - Settings.cmd", wpisz token i Application ID swojego bota
-   (instrukcja w pełnym opisie) i uruchom Melomancera ponownie.
+5. Muzyka na Discordzie: w panelu wejdź w "Ustawienia", w karcie "Bot Discord" wklej token i Application ID swojego
+   bota (instrukcja w pełnym opisie) i kliknij "Zapisz i połącz". Nic nie trzeba uruchamiać od nowa.
 
 Twoje ustawienia i muzyka leżą w %LOCALAPPDATA%\\Melomancer, poza tym folderem, więc aktualizacja polega na
 rozpakowaniu nowej wersji do nowego folderu. Żeby wyłączyć Melomancera, wybierz z menu ikony "Zamknij Melomancera".
@@ -92,12 +92,12 @@ In short:
 2. Double-click Melomancer.cmd. Windows asks "Unable to verify the publisher": that is normal, because the program
    has no paid signature. Untick "Always ask before opening this file" and click "Run".
 3. After a few seconds your browser opens the Melomancer page (you do not have to sign in) and a blue icon with a
-   musical note appears next to the clock: Melomancer runs in the background. A right click on the icon opens its
+   gear and a musical note appears next to the clock: Melomancer runs in the background. A right click on the icon opens its
    menu (Open Melomancer, Open the settings file, Start with Windows, Quit Melomancer). If the browser does not
    open, choose "Open Melomancer" from that menu or type: http://127.0.0.1:8080/
 4. Add music in the "Library" tab and play it in the "Player" tab with the "Play here" button.
-5. Music on Discord: double-click "Ustawienia - Settings.cmd", enter the token and the Application ID of your bot
-   (see the full guide) and start Melomancer again.
+5. Music on Discord: in the panel open "Settings", paste the token and the Application ID of your bot into the
+   "Discord bot" card (see the full guide) and click "Save and connect". There is nothing to restart.
 
 Your settings and music live in %LOCALAPPDATA%\\Melomancer, outside this folder, so updating means unpacking the new
 version into a new folder. To switch Melomancer off choose "Quit Melomancer" from the icon menu. If something does

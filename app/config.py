@@ -70,6 +70,7 @@ class Settings:
     login_window_seconds: int
     log_level: str
     version: str
+    config_file: str = ""  # the settings file of a desktop run (set by the launcher); empty in a container
 
     @property
     def invite_url(self) -> str | None:
@@ -110,6 +111,7 @@ class Settings:
             login_window_seconds=_env_int("LOGIN_WINDOW_SECONDS", 300, 10),
             log_level=os.getenv("LOG_LEVEL", "INFO").strip().upper() or "INFO",
             version=os.getenv("APP_VERSION", "dev").strip() or "dev",
+            config_file=os.getenv("MELOMANCER_CONFIG", "").strip(),
         )
 
     @property

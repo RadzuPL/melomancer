@@ -183,21 +183,14 @@ class ServerThread(threading.Thread):
 
 # ---- the icon ----------------------------------------------------------------------------------------------------------
 
-def make_icon_image(size: int = 64):
-    """A blue rounded square with a white eighth note, drawn here so that there is no image file to ship.
+ICON_FILE = Path(__file__).resolve().parent / "static" / "icon.png"   # the same picture as the panel's favicon
 
-    Drawn four times larger and scaled down, so that the small tray size has smooth edges."""
-    from PIL import Image, ImageDraw
-    big = size * 4
-    scale = big / 64
-    image = Image.new("RGBA", (big, big), (0, 0, 0, 0))
-    draw = ImageDraw.Draw(image)
-    draw.rounded_rectangle((2 * scale, 2 * scale, 62 * scale, 62 * scale), radius=14 * scale, fill=(22, 104, 220, 255))
-    draw.ellipse((15 * scale, 37 * scale, 32 * scale, 50 * scale), fill="white")
-    draw.rectangle((28 * scale, 13 * scale, 33 * scale, 44 * scale), fill="white")
-    draw.polygon([(33 * scale, 13 * scale), (47 * scale, 22 * scale), (47 * scale, 31 * scale), (33 * scale, 24 * scale)],
-                 fill="white")
-    return image.resize((size, size), Image.LANCZOS)
+
+def make_icon_image(size: int = 64):
+    """The tray icon: the blue tile with the gear and the note (app/static/icon.png, made by scripts/dev/make_icon.py)."""
+    from PIL import Image
+    with Image.open(ICON_FILE) as source:
+        return source.convert("RGBA").resize((size, size), Image.LANCZOS)
 
 
 def open_path(path: Path) -> None:

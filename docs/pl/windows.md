@@ -43,7 +43,7 @@ To normalne. Windows pokazuje je przy każdym programie, który nie ma płatnego
 
 Zamiast tego może pojawić się niebieska strona „System Windows ochronił ten komputer". Wtedy kliknij **Więcej informacji**, a potem **Uruchom mimo to**.
 
-Po kilku sekundach otworzy się przeglądarka ze stroną Melomancera. Nie musisz się logować. Melomancer działa **w tle**, bez własnego okna: przy zegarze (prawy dolny róg ekranu) pojawi się niebieska ikona z nutą i krótki komunikat „Melomancer działa". Jeśli ikony nie widać, kliknij strzałkę **^** obok zegara, bo Windows lubi chować nowe ikony. Przez chwilę mogło mignąć małe czarne okienko: to normalne.
+Po kilku sekundach otworzy się przeglądarka ze stroną Melomancera. Nie musisz się logować. Melomancer działa **w tle**, bez własnego okna: przy zegarze (prawy dolny róg ekranu) pojawi się niebieska ikona z trybikiem i nutą i krótki komunikat „Melomancer działa". Jeśli ikony nie widać, kliknij strzałkę **^** obok zegara, bo Windows lubi chować nowe ikony. Przez chwilę mogło mignąć małe czarne okienko: to normalne.
 
 Gdyby przeglądarka sama się nie otworzyła, kliknij prawym przyciskiem ikonę przy zegarze i wybierz **Otwórz Melomancera**. Możesz też wpisać w pasku adresu http://127.0.0.1:8080/ (dodaj tę stronę do zakładek, przyda się na co dzień).
 
@@ -64,27 +64,14 @@ Dokładniej o panelu: [Obsługa panelu](usage.md).
 - **Application ID** to długi numer Twojej aplikacji.
 
 1. Załóż bota i skopiuj te dwie rzeczy według instrukcji: [Tworzenie bota Discord](discord-bot.md) (kroki 1 do 4).
-2. W folderze Melomancera kliknij dwukrotnie **Ustawienia - Settings.cmd** (albo kliknij prawym przyciskiem ikonę przy zegarze i wybierz **Otwórz plik ustawień**). Otworzy się Notatnik z plikiem ustawień.
-3. Znajdź dwie linie, które wyglądają tak (na początku mają znak `#`, który znaczy „ta linia jest tylko opisem, program ją pomija"):
+2. W panelu Melomancera wejdź w **Ustawienia**. Na samej górze jest karta **Bot Discord**. (Dopóki bot nie ma tokena, na stronie **Odtwarzacz** widać też żółty pasek z przyciskiem **Połącz bota**, który prowadzi w to samo miejsce.)
+3. Wklej **token** i **Application ID** w dwa pola i kliknij **Zapisz i połącz**. Nic nie trzeba zamykać ani uruchamiać od nowa: po kilku sekundach karta pokaże **Bot działa jako** i nazwę Twojego bota, a sama zwinie się do jednej linii. Żeby później zmienić token, kliknij w niej **Zmień token lub Application ID.
+4. Kliknij **Dodaj bota do serwera** (przycisk jest obok **Zapisz i połącz**) i wybierz swój serwer Discorda (potrzebujesz tam uprawnienia do zarządzania serwerem).
+5. W zakładce **Odtwarzacz** wybierz **Serwer** i **Kanał głosowy**, kliknij **Połącz**, a potem swoją playlistę.
 
-   ```
-   # discord_token = ''
-   # discord_client_id = ''
-   ```
+Panel zapisuje obie wartości w pliku ustawień na tym komputerze, więc przetrwają ponowne uruchomienie. Samego tokena panel nigdy nie pokazuje: w polu zobaczysz tylko, że jest zapisany. Jeśli pomylisz się i wkleisz Application ID zamiast tokena, panel to rozpozna i powie, czego brakuje. **Usuń token** wyłącza bota.
 
-4. Usuń `#` i spację za nim, a swoje wartości wklej **między apostrofy** (apostrofów nie usuwaj):
-
-   ```
-   discord_token = 'tutaj-wklej-token'
-   discord_client_id = '123456789012345678'
-   ```
-
-5. Zapisz plik (Ctrl+S) i zamknij Notatnik.
-6. Zamknij Melomancera (prawy przycisk na ikonie przy zegarze, **Zamknij Melomancera**) i uruchom **Melomancer.cmd** jeszcze raz.
-7. W panelu wejdź w **Ustawienia**. Zobaczysz, że bot **Działa**, i przycisk **Dodaj bota do serwera**. Kliknij go i wybierz swój serwer Discorda (potrzebujesz tam uprawnienia do zarządzania serwerem).
-8. W zakładce **Odtwarzacz** wybierz **Serwer** i **Kanał głosowy**, kliknij **Połącz**, a potem swoją playlistę.
-
-**Token trzymaj w tajemnicy**: nie wysyłaj go nikomu ani nie wklejaj w wiadomościach i zrzutach ekranu. Jeśli wycieknie, w Developer Portal kliknij **Reset Token** i wpisz nowy do pliku.
+**Token trzymaj w tajemnicy**: nie wysyłaj go nikomu ani nie wklejaj w wiadomościach i zrzutach ekranu. Jeśli wycieknie, w Developer Portal kliknij **Reset Token** i wklej nowy w Ustawieniach.
 
 ## Na co dzień
 
@@ -118,7 +105,7 @@ Zamknij Melomancera (ikona przy zegarze, **Zamknij Melomancera**). Jeśli używa
 | Nic się nie dzieje po uruchomieniu i nie ma ikony przy zegarze | Uruchom **Diagnostyka - Diagnostics.cmd** z folderu Melomancera. Pokaże czarne okno z komunikatami, które mówią, co jest nie tak. |
 | Przeglądarka się nie otwiera | Kliknij prawym przyciskiem ikonę przy zegarze i wybierz **Otwórz Melomancera** albo wpisz sam adres http://127.0.0.1:8080/ |
 | Panel nie chce się otworzyć, a okno mówi o zajętym adresie | Inny program używa tego samego „portu". Zobacz [szczegóły dla zaawansowanych](windows-advanced.md#problemy). |
-| Bot pokazuje „Nie działa" | Pewnie brakuje tokena w pliku ustawień albo jest błędny. Wklej go jeszcze raz (krok 5) i uruchom Melomancera ponownie. |
+| Bot pokazuje „Nie działa" albo „Discord odrzucił token" | Brakuje tokena albo jest błędny. Wklej go jeszcze raz w **Ustawienia**, **Bot Discord**: musi to być token z zakładki **Bot** (po **Reset Token**), nie Application ID ani Client Secret. |
 | W Odtwarzaczu nie ma serwerów | Bot nie jest jeszcze na Twoim serwerze: w **Ustawieniach** użyj **Dodaj bota do serwera**. |
 | Bot jest na kanale, ale nie słychać muzyki | Sprawdź, czy bot ma na tym kanale prawo mówić (uprawnienia kanału na Discordzie). |
 | Pobieranie z YouTube nie działa | YouTube często coś zmienia. Zaktualizuj Melomancera do najnowszej wersji. |

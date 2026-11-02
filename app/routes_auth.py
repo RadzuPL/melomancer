@@ -2,11 +2,14 @@
 from __future__ import annotations
 
 import sqlite3
+from dataclasses import replace
+from pathlib import Path
 from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from pydantic import BaseModel, Field
 
+from . import botsetup
 from .config import Settings
 from .db import tx
 from .deps import SESSION_COOKIE, current_user, get_settings, require_admin
@@ -237,6 +240,10 @@ def _system_info(request: Request) -> dict:
     return {
         "version": settings.version,
         "bot_status": request.app.state.bot.status,
+        "bot_name": getattr(request.app.state.bot, "name", None),
+        "bot_setup": bool(settings.config_file),        # a desktop run: the token can be set here, not only in a file
+        "bot_token_set": bool(settings.discord_token),  # the token itself never leaves the server
+        "bot_client_id": settings.discord_client_id,
         "invite_url": settings.invite_url,
         "downloads_enabled": settings.ytdlp_enabled,
         "download_hosts": list(settings.ytdlp_allowed_hosts),
@@ -303,4 +310,37 @@ def patch_system(body: SystemPatch, request: Request, _: dict = Depends(require_
         request.app.state.updates.wake()  # switched on: look soon instead of at the next round
     request.app.state.loudness.wake()  # a changed threshold means the library is measured again
     request.app.state.bot.refresh_settings()
+    return _system_info(request)
+
+
+class BotSetupIn(BaseModel):
+    # No length or pattern rules here on purpose: a validation error of the framework repeats the rejected value, and
+    # this one may be the bot token. The checks are in botsetup and answer with short codes only.
+    token: str | None = None
+    client_id: str | None = None
+
+
+@router.put("/system/bot")
+async def put_system_bot(body: BotSetupIn, request: Request, _: dict = Depends(require_admin)):
+    """Desktop run: stores the bot token and the Application ID in the settings file and applies them at once.
+
+    A field that is left out stays as it is; an empty string removes the value.
+    """
+    settings = get_settings(request)
+    if not settings.config_file:
+        raise HTTPException(409, "bot_setup_unavailable")
+    changes: dict[str, str] = {}
+    try:
+        if body.token is not None:
+            changes["discord_token"] = botsetup.check_token(body.token)
+        if body.client_id is not None:
+            changes["discord_client_id"] = botsetup.check_client_id(body.client_id)
+        if not changes:
+            raise HTTPException(400, "nothing_to_change")
+        botsetup.set_config_values(Path(settings.config_file), changes)
+    except botsetup.SetupError as exc:
+        raise HTTPException(422 if exc.code != "config_write_failed" else 500, exc.code) from None
+    updated = replace(settings, **{k: v for k, v in changes.items()})
+    request.app.state.settings = updated
+    await request.app.state.bot.reconfigure(updated)
     return _system_info(request)

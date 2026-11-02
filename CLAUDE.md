@@ -67,6 +67,9 @@ UI changes are checked: extend its mock data and assertions with every UI change
 
 - Tuning lives in the panel (Settings tab, stored in the `app_settings` table), not in container variables. A new
   environment variable needs a good reason: it is deployment (paths, token, limits), never taste.
+  The one deployment value the panel may also set is the Discord bot token and Application ID on a desktop (Windows)
+  run: `app/botsetup.py` writes them into `config.toml` and `BotManager.reconfigure` applies them at once. In a
+  container they stay variables, and the token is write-only everywhere (never in a response, a log or a validation error).
 - Tracks are one shared library. Sets, folders and playlists are private to their owner (an administrator sees all);
   someone else's id answers 404, never 403. Personal tags are private to their user.
 - Deleting a track keeps its row (a "tombstone") so playlists show a greyed entry; the same file uploaded again
@@ -117,6 +120,9 @@ diagrams (English and Polish from one source) and `scripts/dev/screenshots.py` t
 against demo data (English and Polish, light and dark; needs `playwright` and `pillow`). Run them again after the look of
 the panel or the architecture changes, and commit the files together. The one exception is
 `docs/img/windows-security-warning.png`, a real screenshot of a Windows window that cannot be generated.
+
+The icon (`app/static/icon.png`: the panel's favicon and the Windows tray icon) is built by `scripts/dev/make_icon.py` from the
+white gear in `scripts/dev/assets/`, placed on the blue tile because the white gear alone vanishes on a light background.
 
 A feature is not done until it is in `docs/en/` and `docs/pl/` (`usage.md` for what a person sees,
 `architecture.md` for how it works, `configuration.md` only for environment variables), in both language blocks of

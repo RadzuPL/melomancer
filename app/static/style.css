@@ -315,3 +315,15 @@ input.timefield { width: 8rem; }
 .voltick .tick.major { height: 9px; opacity: .95; }
 .volume .vollabel { flex: none; width: 3.4rem; text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .volume .voltrack { min-width: 0; }
+
+/* Setting up the Discord bot (desktop run) */
+.cardhead { display: flex; align-items: center; gap: .8rem; flex-wrap: wrap; margin-bottom: .6rem; }
+.cardhead h2 { margin: 0; }
+.botmore > summary { cursor: pointer; color: var(--accent); width: fit-content; }
+.botmore[open] > summary { margin-bottom: .6rem; }
+.botform { display: grid; gap: .8rem; max-width: 36rem; margin-top: .8rem; }
+.botform label { display: grid; gap: .3rem; }
+.botsteps { margin: 0 0 .4rem; }
+.botsteps summary { cursor: pointer; font-weight: 600; }
+.botsteps ol { margin: .6rem 0; padding-left: 1.4rem; display: grid; gap: .3rem; }
+.notice .btn { margin-top: .5rem; }
