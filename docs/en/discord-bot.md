@@ -14,7 +14,7 @@ Melomancer needs its own bot account. This takes about five minutes and you do i
 
 1. In the left sidebar open **Bot**.
 2. Click **Reset Token** and confirm. Copy the token that appears, Discord shows it only once.
-3. Put it into the container as `DISCORD_TOKEN` (see [Installation](installation.md)).
+3. Put it into the container as `DISCORD_TOKEN` (see [Installation](installation.md)). On Windows, in the package that needs no Docker, you paste it in the panel instead: **Settings**, the **Discord bot** card (see [Melomancer on Windows](windows.md)).
 
 Optionally put the Application ID from step 1 into the container as `DISCORD_CLIENT_ID` as well. The **Settings** tab then shows the invite link of step 4 ready made, next to the bot status.
 

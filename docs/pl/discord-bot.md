@@ -14,7 +14,7 @@ Melomancer potrzebuje własnego konta bota. To około pięciu minut pracy, robis
 
 1. W lewym menu otwórz **Bot**.
 2. Kliknij **Reset Token** i potwierdź. Skopiuj token, który się pojawi, Discord pokazuje go tylko raz.
-3. Wpisz go do kontenera jako `DISCORD_TOKEN` (zobacz [Instalacja](installation.md)).
+3. Wpisz go do kontenera jako `DISCORD_TOKEN` (zobacz [Instalacja](installation.md)). Na Windowsie, w paczce bez Dockera, wklejasz go w panelu: **Ustawienia**, karta **Bot Discord** (zobacz [Melomancer na Windowsie](windows.md)).
 
 Opcjonalnie wpisz też Application ID z kroku 1 do kontenera jako `DISCORD_CLIENT_ID`. Wtedy zakładka **Ustawienia** pokazuje gotowy link zaproszenia z kroku 4, obok stanu bota.
 

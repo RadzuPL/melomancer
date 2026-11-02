@@ -70,8 +70,8 @@ W skrócie:
    Melomancera, Otwórz plik ustawień, Uruchamiaj z Windows, Zamknij Melomancera). Gdyby przeglądarka się nie
    otworzyła, wybierz z tego menu "Otwórz Melomancera" albo wpisz: http://127.0.0.1:8080/
 4. Dodaj muzykę w zakładce "Biblioteka" i zagraj ją w zakładce "Odtwarzacz" przyciskiem "Odtwarzaj tutaj".
-5. Muzyka na Discordzie: kliknij dwukrotnie "Ustawienia - Settings.cmd", wpisz token i Application ID swojego bota
-   (instrukcja w pełnym opisie) i uruchom Melomancera ponownie.
+5. Muzyka na Discordzie: w panelu wejdź w "Ustawienia", w karcie "Bot Discord" wklej token i Application ID swojego
+   bota (instrukcja w pełnym opisie) i kliknij "Zapisz i połącz". Nic nie trzeba uruchamiać od nowa.
 
 Twoje ustawienia i muzyka leżą w %LOCALAPPDATA%\\Melomancer, poza tym folderem, więc aktualizacja polega na
 rozpakowaniu nowej wersji do nowego folderu. Żeby wyłączyć Melomancera, wybierz z menu ikony "Zamknij Melomancera".
@@ -96,8 +96,8 @@ In short:
    menu (Open Melomancer, Open the settings file, Start with Windows, Quit Melomancer). If the browser does not
    open, choose "Open Melomancer" from that menu or type: http://127.0.0.1:8080/
 4. Add music in the "Library" tab and play it in the "Player" tab with the "Play here" button.
-5. Music on Discord: double-click "Ustawienia - Settings.cmd", enter the token and the Application ID of your bot
-   (see the full guide) and start Melomancer again.
+5. Music on Discord: in the panel open "Settings", paste the token and the Application ID of your bot into the
+   "Discord bot" card (see the full guide) and click "Save and connect". There is nothing to restart.
 
 Your settings and music live in %LOCALAPPDATA%\\Melomancer, outside this folder, so updating means unpacking the new
 version into a new folder. To switch Melomancer off choose "Quit Melomancer" from the icon menu. If something does

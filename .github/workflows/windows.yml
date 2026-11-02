@@ -124,7 +124,7 @@ jobs:
         run: |
           python - <<'PY'
           lines = [l for l in open("smoke.log", encoding="utf-8", errors="replace").read().splitlines()
-                   if l.startswith(("ok   ", "python ", "discord ", "yt-dlp ", "opus ", "ffmpeg version", "ffprobe version", "deno ", "package:", "signature ", "tray icon:", "autostart "))]
+                   if l.startswith(("ok   ", "python ", "discord ", "yt-dlp ", "opus ", "ffmpeg version", "ffprobe version", "deno ", "package:", "signature ", "tray icon:", "autostart ", "bot status"))]
           text = "\n".join(lines).replace("%", "%25").replace("\r", "%0D").replace("\n", "%0A")
           print(f"::notice title=Windows package smoke test passed::{text}")
           PY

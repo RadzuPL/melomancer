@@ -29,7 +29,7 @@ A self-hosted **music player for tabletop RPG sessions**, with a web panel. It p
 
 ### Where it runs
 
-Melomancer is meant to run as a container (Docker, Docker Compose, Unraid). There is also an experimental package for a Windows 10 or 11 computer, without Docker: unpack it, start `Melomancer.cmd`, and the panel opens in your browser. It is attached to every release; how to try it: [docs/en/windows.md](docs/en/windows.md).
+Melomancer is meant to run as a container (Docker, Docker Compose, Unraid). There is also an experimental package for a Windows 10 or 11 computer, without Docker: unpack it, start `Melomancer.cmd`, and the panel opens in your browser (the bot token is pasted in the panel, in Settings). It is attached to every release; how to try it: [docs/en/windows.md](docs/en/windows.md).
 
 ### Quick start
 
@@ -108,7 +108,7 @@ Własny **odtwarzacz muzyki na sesje RPG** z panelem webowym. Gra w samym panelu
 
 ### Gdzie to działa
 
-Melomancer jest przeznaczony do uruchamiania jako kontener (Docker, Docker Compose, Unraid). Jest też eksperymentalna paczka dla komputera z Windows 10 lub 11, bez Dockera: rozpakowujesz, uruchamiasz `Melomancer.cmd`, a panel otwiera się w przeglądarce. Jest dołączona do każdego wydania; jak ją wypróbować: [docs/pl/windows.md](docs/pl/windows.md).
+Melomancer jest przeznaczony do uruchamiania jako kontener (Docker, Docker Compose, Unraid). Jest też eksperymentalna paczka dla komputera z Windows 10 lub 11, bez Dockera: rozpakowujesz, uruchamiasz `Melomancer.cmd`, a panel otwiera się w przeglądarce (token bota wklejasz w panelu, w Ustawieniach). Jest dołączona do każdego wydania; jak ją wypróbować: [docs/pl/windows.md](docs/pl/windows.md).
 
 ### Szybki start
 

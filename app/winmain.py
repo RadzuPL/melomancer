@@ -39,9 +39,10 @@ TEMPLATE = """\
 # Ścieżki Windows w pojedynczych cudzysłowach / use single quotes for Windows paths: 'D:\\Music\\Melomancer'
 
 # Token bota z https://discord.com/developers/applications (jak go zdobyć: docs/pl/discord-bot.md).
-# Bez tokena panel działa, a bot zostaje offline.
+# Bez tokena panel działa, a bot zostaje offline. Token i Application ID możesz też wkleić w panelu: Ustawienia.
 # Bot token from https://discord.com/developers/applications (how to get it: docs/en/discord-bot.md).
-# Without it the panel works and the bot stays offline.
+# Without it the panel works and the bot stays offline. You can also paste the token and the Application ID in
+# the panel: Settings.
 # discord_token = ''
 
 # Application ID bota (Developer Portal, General Information). Dzięki niemu Ustawienia pokazują link "Dodaj bota do serwera".
@@ -291,6 +292,7 @@ def run(args: argparse.Namespace, tray_mode: bool, has_console: bool) -> int:
         print(f"Settings file: {config}")
         open_in_editor(config)
         return 0
+    os.environ["MELOMANCER_CONFIG"] = str(config)   # the panel writes the bot token here (see app/botsetup.py)
     values = read_config(config)
     host = args.host or str(values.get("host") or DEFAULT_HOST)
     port = parse_port(args.port or values.get("port") or DEFAULT_PORT)

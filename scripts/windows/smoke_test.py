@@ -20,12 +20,17 @@ import time
 import urllib.error
 import urllib.request
 import uuid
+try:
+    import tomllib
+except ImportError:   # Python before 3.11
+    tomllib = None
 import zipfile
 from pathlib import Path
 
 PORT = 18080
 BASE = f"http://127.0.0.1:{PORT}"
 PASSWORD = "smoke-test-password-1"
+FAKE_TOKEN = ".".join(["MTIzNDU2Nzg5MDEyMzQ1Njc4OQ", "GabcDE", "abcdefghijklmnopqrstuvwxyz0123456789"])   # in parts: not a real token
 POLISH = "Zażółć gęślą jaźń"
 
 
@@ -205,6 +210,25 @@ def main(archive: Path, version: str) -> int:
         status, _ = client.json("POST", "/api/auth/login", {"username": "admin", "password": PASSWORD})
         check(status == 200, "the administrator can log in")
 
+        # ---- the bot is set up from the panel: the token goes into config.toml and the bot logs in without a restart ----
+        status, info = client.json("GET", "/api/system")
+        check(info["bot_setup"] is True and info["bot_token_set"] is False, "the panel offers the bot setup (the launcher knows the settings file)")
+        status, info = client.json("PUT", "/api/system/bot", {"token": FAKE_TOKEN, "client_id": "123456789012345678"})
+        check(status == 200 and info["bot_token_set"] is True and FAKE_TOKEN not in json.dumps(info), f"the token is accepted and never sent back ({status})")
+        raw = config.read_bytes()
+        check(f"discord_token = '{FAKE_TOKEN}'".encode() in raw and b"discord_client_id = '123456789012345678'" in raw,
+              "the token and the Application ID are in config.toml")
+        check(b"\n" not in raw.replace(b"\r\n", b""), "the file kept its Windows line endings")
+        if tomllib:
+            check(tomllib.loads(raw.decode("utf-8-sig"))["discord_token"] == FAKE_TOKEN, "config.toml still parses")
+        status, info = client.json("PUT", "/api/system/bot", {"token": "123456789012345678"})
+        check(status == 422 and info["detail"] == "token_is_app_id", "the Application ID pasted as a token is named, not saved")
+        answer = wait_for("the bot to answer Discord", lambda: (client.json("GET", "/api/system")[1]["bot_status"] != "starting") or None, 60)
+        print("bot status after the fake token: " + client.json("GET", "/api/system")[1]["bot_status"] + " (login_failed with a network)", flush=True)
+        status, info = client.json("PUT", "/api/system/bot", {"token": ""})
+        check(status == 200 and info["bot_token_set"] is False and info["bot_status"] == "disabled", "removing the token switches the bot off")
+        check(b"discord_token = ''" in config.read_bytes(), "the settings file keeps an empty token line")
+
         tone = work / "tone.wav"
         run([ffmpeg, "-y", "-loglevel", "error", "-f", "lavfi", "-i", "sine=frequency=440:duration=3",
              "-metadata", f"title={POLISH}", tone])
@@ -231,6 +255,7 @@ def main(archive: Path, version: str) -> int:
         except subprocess.TimeoutExpired:
             server.kill()
         log.close()
+        check(FAKE_TOKEN not in (work / "server.log").read_text(encoding="utf-8", errors="replace"), "the token is not in the log")
         print("--- server log (tail) ---")
         print("\n".join((work / "server.log").read_text(encoding="utf-8", errors="replace").splitlines()[-40:]))
     background_mode(root, work)

@@ -507,7 +507,8 @@ class BotManager:
         self.status = "disabled"  # disabled | starting | ready | login_failed | error
         self.loop: asyncio.AbstractEventLoop | None = None
         self._players: dict[int, GuildPlayer] = {}
-        self._tasks: list[asyncio.Task] = []
+        self._run_task: asyncio.Task | None = None
+        self._janitor_task: asyncio.Task | None = None
 
     # ---- lifecycle -------------------------------------------------------
 
@@ -523,29 +524,74 @@ class BotManager:
         if not self.settings.discord_token:
             log.warning("DISCORD_TOKEN is not set: the panel runs, but the bot stays offline.")
             return
-        self.client = MelomancerClient(self)
-        self.status = "starting"
-        self._tasks.append(asyncio.create_task(self._run(), name="discord-client"))
-        self._tasks.append(asyncio.create_task(self._janitor(), name="voice-janitor"))
+        self._launch()
 
-    async def _run(self) -> None:
-        assert self.client is not None
+    def _launch(self) -> None:
+        """Starts logging in with the configured token (the connection is made in the background)."""
+        client = MelomancerClient(self)
+        self.client = client
+        self.status = "starting"
+        self._run_task = asyncio.create_task(self._run(client, self.settings.discord_token), name="discord-client")
+        if self._janitor_task is None or self._janitor_task.done():
+            self._janitor_task = asyncio.create_task(self._janitor(), name="voice-janitor")
+
+    async def _run(self, client: MelomancerClient, token: str) -> None:
         try:
-            await self.client.start(self.settings.discord_token)
+            await client.start(token)
         except discord.LoginFailure:
-            self.status = "login_failed"
+            if client is self.client:   # not a client that was replaced while it was logging in
+                self.status = "login_failed"
             log.error("Discord rejected the bot token (DISCORD_TOKEN).")
         except asyncio.CancelledError:
             raise
         except Exception:  # noqa: BLE001
-            self.status = "error"
+            if client is self.client:
+                self.status = "error"
             log.exception("The Discord client stopped unexpectedly")
 
     async def stop(self) -> None:
-        for task in self._tasks:
-            task.cancel()
+        for task in (self._run_task, self._janitor_task):
+            if task:
+                task.cancel()
         if self.client:
             await self.client.close()
+
+    async def reconfigure(self, settings: Settings) -> None:
+        """The token or the Application ID was changed in the panel: apply it now, without a restart.
+
+        A new token closes the old connection (and leaves the voice channels) and logs in again; the result shows in
+        `status` a moment later. A changed Application ID only changes the invite link.
+        """
+        token_changed = settings.discord_token != self.settings.discord_token
+        self.settings = settings
+        if not token_changed:
+            return
+        for player in list(self._players.values()):
+            try:
+                await player.disconnect()
+            except Exception:  # noqa: BLE001
+                log.exception("Could not leave a voice channel while changing the bot token")
+        self._players.clear()
+        task, client = self._run_task, self.client
+        self._run_task, self.client = None, None
+        if task:
+            task.cancel()
+        if client:
+            try:
+                await client.close()
+            except Exception:  # noqa: BLE001
+                log.exception("Could not close the old Discord connection")
+        if settings.discord_token:
+            self._launch()
+        else:
+            self.status = "disabled"
+            log.info("The bot token was removed: the bot is off.")
+
+    @property
+    def name(self) -> str | None:
+        """The bot's account name once it has logged in."""
+        user = self.client.user if self.client and self.status == "ready" else None
+        return str(user.name) if user else None
 
     async def _janitor(self) -> None:
         """Leave voice channels that have had no human in them for IDLE_LEAVE_MINUTES."""

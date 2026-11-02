@@ -64,27 +64,14 @@ To play music in a Discord voice channel you need a bot of your own: a robot acc
 - The **Application ID**: a long number that identifies your application.
 
 1. Create the bot and copy those two things following the guide [Creating the Discord bot](discord-bot.md) (steps 1 to 4).
-2. In the Melomancer folder double-click **Ustawienia - Settings.cmd** (or right-click the icon next to the clock and choose **Open the settings file**). Notepad opens with the settings file.
-3. Find these two lines (they start with `#`, which means "this line is only a description, the program skips it"):
+2. In the Melomancer panel open **Settings**. At the very top is the **Discord bot** card. (While the bot has no token, the **Player** page also shows a yellow bar with a **Connect the bot** button that leads to the same place.)
+3. Paste the **token** and the **Application ID** into the two fields and click **Save and connect**. There is nothing to close or restart: after a few seconds the card says **The bot is running as** and the name of your bot.
+4. Click **Add the bot to a server** (the button is next to **Save and connect**) and pick your Discord server (you need the permission to manage that server).
+5. In the **Player** tab choose the **Server** and the **Voice channel**, click **Connect**, then your playlist.
 
-   ```
-   # discord_token = ''
-   # discord_client_id = ''
-   ```
+The panel stores both values in the settings file on this computer, so they survive a restart. The panel never shows the token itself: the field only tells you that one is saved. If you paste the Application ID instead of the token, the panel recognises it and tells you what is missing. **Remove the token** switches the bot off.
 
-4. Remove the `#` and the space after it, and paste your values **between the apostrophes** (do not remove the apostrophes):
-
-   ```
-   discord_token = 'paste-the-token-here'
-   discord_client_id = '123456789012345678'
-   ```
-
-5. Save the file (Ctrl+S) and close Notepad.
-6. Quit Melomancer (right-click the icon next to the clock, **Quit Melomancer**) and start **Melomancer.cmd** again.
-7. In the panel open **Settings**. You will see that the bot is **Running**, and a button **Add the bot to a server**. Click it and pick your Discord server (you need the permission to manage that server).
-8. In the **Player** tab choose the **Server** and the **Voice channel**, click **Connect**, then your playlist.
-
-**Keep the token secret**: do not send it to anyone and do not paste it in messages or screenshots. If it ever leaks, click **Reset Token** in the Developer Portal and put the new one in the file.
+**Keep the token secret**: do not send it to anyone and do not paste it in messages or screenshots. If it ever leaks, click **Reset Token** in the Developer Portal and paste the new one in Settings.
 
 ## Every day
 
@@ -118,7 +105,7 @@ Quit Melomancer (the icon next to the clock, **Quit Melomancer**). If you used *
 | Nothing happens after the start and there is no icon next to the clock | Start **Diagnostyka - Diagnostics.cmd** from the Melomancer folder. It shows a black window with messages that say what is wrong. |
 | The browser does not open | Right-click the icon next to the clock and choose **Open Melomancer**, or type the address http://127.0.0.1:8080/ yourself. |
 | The page does not open and the window talks about an address in use | Another program uses the same "port". See the [details for advanced users](windows-advanced.md#problems). |
-| The bot shows "Not running" | Most likely the token is missing from the settings file or is wrong. Paste it again (step 5) and start Melomancer again. |
+| The bot shows "Not running" or "Discord rejected the token" | The token is missing or wrong. Paste it again in **Settings**, **Discord bot**: it must be the token from the **Bot** tab (after **Reset Token**), not the Application ID or the Client Secret. |
 | The Player has no servers | The bot is not on your server yet: in **Settings** use **Add the bot to a server**. |
 | The bot is in the channel but there is no sound | Check that the bot may speak in that channel (the channel permissions in Discord). |
 | Downloading from YouTube does not work | YouTube changes things often. Update Melomancer to the newest version. |

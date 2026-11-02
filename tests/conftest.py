@@ -48,6 +48,9 @@ class FakeBot:
     async def start(self): ...
     async def stop(self): ...
 
+    async def reconfigure(self, settings):
+        self.applied = settings   # what the panel's bot setup handed over
+
     def refresh_settings(self):
         self.settings_refreshed = getattr(self, "settings_refreshed", 0) + 1
 
