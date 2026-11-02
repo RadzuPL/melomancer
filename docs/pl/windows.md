@@ -43,9 +43,9 @@ To normalne. Windows pokazuje je przy każdym programie, który nie ma płatnego
 
 Zamiast tego może pojawić się niebieska strona „System Windows ochronił ten komputer". Wtedy kliknij **Więcej informacji**, a potem **Uruchom mimo to**.
 
-Po chwili otworzy się **czarne okno** z napisami. To właśnie działa Melomancer: **nie zamykaj go, dopóki słuchasz muzyki**. Po kilku sekundach otworzy się też przeglądarka ze stroną Melomancera. Nie musisz się logować.
+Po kilku sekundach otworzy się przeglądarka ze stroną Melomancera. Nie musisz się logować. Melomancer działa **w tle**, bez własnego okna: przy zegarze (prawy dolny róg ekranu) pojawi się niebieska ikona z nutą i krótki komunikat „Melomancer działa". Jeśli ikony nie widać, kliknij strzałkę **^** obok zegara, bo Windows lubi chować nowe ikony. Przez chwilę mogło mignąć małe czarne okienko: to normalne.
 
-Gdyby przeglądarka sama się nie otworzyła, wpisz w pasku adresu: http://127.0.0.1:8080/ (i dodaj tę stronę do zakładek, przyda się na co dzień).
+Gdyby przeglądarka sama się nie otworzyła, kliknij prawym przyciskiem ikonę przy zegarze i wybierz **Otwórz Melomancera**. Możesz też wpisać w pasku adresu http://127.0.0.1:8080/ (dodaj tę stronę do zakładek, przyda się na co dzień).
 
 ## Krok 4. Dodaj muzykę i zagraj
 
@@ -64,7 +64,7 @@ Dokładniej o panelu: [Obsługa panelu](usage.md).
 - **Application ID** to długi numer Twojej aplikacji.
 
 1. Załóż bota i skopiuj te dwie rzeczy według instrukcji: [Tworzenie bota Discord](discord-bot.md) (kroki 1 do 4).
-2. W folderze Melomancera kliknij dwukrotnie **Ustawienia - Settings.cmd**. Otworzy się Notatnik z plikiem ustawień.
+2. W folderze Melomancera kliknij dwukrotnie **Ustawienia - Settings.cmd** (albo kliknij prawym przyciskiem ikonę przy zegarze i wybierz **Otwórz plik ustawień**). Otworzy się Notatnik z plikiem ustawień.
 3. Znajdź dwie linie, które wyglądają tak (na początku mają znak `#`, który znaczy „ta linia jest tylko opisem, program ją pomija"):
 
    ```
@@ -80,7 +80,7 @@ Dokładniej o panelu: [Obsługa panelu](usage.md).
    ```
 
 5. Zapisz plik (Ctrl+S) i zamknij Notatnik.
-6. Zamknij czarne okno Melomancera i uruchom **Melomancer.cmd** jeszcze raz. W oknie pojawi się napis, że bot się zalogował.
+6. Zamknij Melomancera (prawy przycisk na ikonie przy zegarze, **Zamknij Melomancera**) i uruchom **Melomancer.cmd** jeszcze raz.
 7. W panelu wejdź w **Ustawienia**. Zobaczysz, że bot **Działa**, i przycisk **Dodaj bota do serwera**. Kliknij go i wybierz swój serwer Discorda (potrzebujesz tam uprawnienia do zarządzania serwerem).
 8. W zakładce **Odtwarzacz** wybierz **Serwer** i **Kanał głosowy**, kliknij **Połącz**, a potem swoją playlistę.
 
@@ -88,15 +88,16 @@ Dokładniej o panelu: [Obsługa panelu](usage.md).
 
 ## Na co dzień
 
-- **Start:** kliknij dwukrotnie **Melomancer.cmd** i poczekaj, aż otworzy się przeglądarka.
-- **Czarne okno** możesz zminimalizować, ale nie zamykaj go. Zamknięcie okna wyłącza Melomancera i muzyka przestaje grać.
-- **Koniec:** zamknij czarne okno.
+- **Start:** kliknij dwukrotnie **Melomancer.cmd** i poczekaj, aż otworzy się przeglądarka. Jeśli Melomancer już działa, drugi start tylko otworzy jego stronę.
+- **Ikona przy zegarze** ma menu (kliknij ją prawym przyciskiem): **Otwórz Melomancera**, **Otwórz plik ustawień**, **Pokaż pliki z logami**, **Uruchamiaj z Windows** (zaznacz, jeśli ma startować sam po włączeniu komputera) i **Zamknij Melomancera**.
+- Zamknięcie karty przeglądarki **nie** wyłącza Melomancera. Ale muzyka puszczana przyciskiem **Odtwarzaj tutaj** gra tylko, dopóki ta karta jest otwarta; do bota na Discordzie karta nie jest potrzebna.
+- **Koniec:** prawy przycisk na ikonie, **Zamknij Melomancera**.
 
 ## Aktualizacja
 
 W panelu, w **Ustawieniach** w grupie **Aktualizacje**, zobaczysz napis „Dostępna aktualizacja", gdy jest nowa wersja. Żeby ją zainstalować:
 
-1. Zamknij czarne okno.
+1. Zamknij Melomancera (ikona przy zegarze, **Zamknij Melomancera**).
 2. Pobierz nową paczkę (krok 1) i rozpakuj ją do **nowego** folderu, na przykład `C:\Melomancer-2` (krok 2).
 3. Uruchom **Melomancer.cmd** z nowego folderu (Windows znów zapyta o zgodę, bo to nowe miejsce, krok 3).
 4. Gdy wszystko działa, stary folder możesz skasować.
@@ -105,7 +106,7 @@ Twoja muzyka, playlisty i ustawienia **zostają**, bo leżą w innym miejscu ni�
 
 ## Usuwanie
 
-Zamknij czarne okno i skasuj folder z programem. To wszystko. Jeśli chcesz usunąć też swoją bibliotekę i ustawienia, skasuj folder `C:\Users\TwojaNazwa\AppData\Local\Melomancer` (żeby go znaleźć, naciśnij Win+R, wpisz `%LOCALAPPDATA%` i naciśnij Enter). **Uwaga: to kasuje wgraną muzykę i playlisty**, więc najpierw skopiuj, co chcesz zachować.
+Zamknij Melomancera (ikona przy zegarze, **Zamknij Melomancera**). Jeśli używałeś **Uruchamiaj z Windows**, najpierw odznacz tę pozycję w menu ikony. Potem skasuj folder z programem. To wszystko. Jeśli chcesz usunąć też swoją bibliotekę i ustawienia, skasuj folder `C:\Users\TwojaNazwa\AppData\Local\Melomancer` (żeby go znaleźć, naciśnij Win+R, wpisz `%LOCALAPPDATA%` i naciśnij Enter). **Uwaga: to kasuje wgraną muzykę i playlisty**, więc najpierw skopiuj, co chcesz zachować.
 
 ## Kiedy coś nie działa
 
@@ -113,15 +114,16 @@ Zamknij czarne okno i skasuj folder z programem. To wszystko. Jeśli chcesz usun
 |---|---|
 | Windows pyta o wydawcę za każdym razem | W tym oknie odznacz **Zawsze pytaj przed otwarciem tego pliku**, zanim klikniesz **Uruchom**. |
 | Windows albo antywirus blokuje plik albo wrzuca go do kwarantanny | Program nie ma cyfrowego podpisu, więc zdarza się, że jest blokowany po omacku. Zezwól na ten folder w antywirusie albo w Zabezpieczeniach Windows. |
-| Czarne okno pokazuje błąd i czeka | Przeczytaj, co pisze. Najczęściej to literówka w pliku ustawień: popraw ją albo skasuj plik `config.toml` (program zrobi nowy przy następnym starcie). |
-| Przeglądarka się nie otwiera | Wpisz sam adres http://127.0.0.1:8080/ |
+| Pojawia się okienko „Melomancer nie mógł wystartować" | Przeczytaj, co pisze. Najczęściej to inny program zajmujący ten sam adres albo literówka w pliku ustawień: popraw ją albo skasuj plik `config.toml` (program zrobi nowy przy następnym starcie). |
+| Nic się nie dzieje po uruchomieniu i nie ma ikony przy zegarze | Uruchom **Diagnostyka - Diagnostics.cmd** z folderu Melomancera. Pokaże czarne okno z komunikatami, które mówią, co jest nie tak. |
+| Przeglądarka się nie otwiera | Kliknij prawym przyciskiem ikonę przy zegarze i wybierz **Otwórz Melomancera** albo wpisz sam adres http://127.0.0.1:8080/ |
 | Panel nie chce się otworzyć, a okno mówi o zajętym adresie | Inny program używa tego samego „portu". Zobacz [szczegóły dla zaawansowanych](windows-advanced.md#problemy). |
-| Bot pokazuje „Nie działa" | Pewnie brakuje tokena w pliku ustawień albo jest błędny. Wklej go jeszcze raz (krok 5). |
+| Bot pokazuje „Nie działa" | Pewnie brakuje tokena w pliku ustawień albo jest błędny. Wklej go jeszcze raz (krok 5) i uruchom Melomancera ponownie. |
 | W Odtwarzaczu nie ma serwerów | Bot nie jest jeszcze na Twoim serwerze: w **Ustawieniach** użyj **Dodaj bota do serwera**. |
 | Bot jest na kanale, ale nie słychać muzyki | Sprawdź, czy bot ma na tym kanale prawo mówić (uprawnienia kanału na Discordzie). |
 | Pobieranie z YouTube nie działa | YouTube często coś zmienia. Zaktualizuj Melomancera do najnowszej wersji. |
 
-Coś innego? Zgłoś to na https://github.com/RadzuPL/melomancer/issues: napisz, co robiłeś, jaką wersję pokazuje pierwsza linia czarnego okna, i dołącz kilka ostatnich linii tego okna. **Nigdy nie dołączaj tokena.**
+Coś innego? Zgłoś to na https://github.com/RadzuPL/melomancer/issues: napisz, co robiłeś, jaką wersję pokazuje menu ikony przy zegarze (pierwsza pozycja od dołu) i dołącz kilka ostatnich linii pliku z logami (menu ikony, **Pokaż pliki z logami**, plik `melomancer.log`). **Nigdy nie dołączaj tokena.**
 
 ## Dla zaawansowanych
 

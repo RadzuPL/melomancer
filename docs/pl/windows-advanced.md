@@ -31,6 +31,7 @@ Działa też każda inna zmienna z [Konfiguracji](configuration.md), zapisana ma
 | Program | Folder, który rozpakowałeś (można go skasować i podmienić) |
 | Plik ustawień | `%LOCALAPPDATA%\Melomancer\config.toml` |
 | Baza danych i, domyślnie, muzyka | `%LOCALAPPDATA%\Melomancer\data` |
+| Logi (obracane, 1 MB, 3 kopie) | `%LOCALAPPDATA%\Melomancer\logs\melomancer.log` |
 
 `%LOCALAPPDATA%` to `C:\Users\<Ty>\AppData\Local`. Żeby trzymać muzykę gdzie indziej (na większym dysku), skopiuj zawartość `data\music` do nowego folderu, ustaw w `music_dir` jego ścieżkę i uruchom ponownie.
 
@@ -40,16 +41,20 @@ Domyślnie panel wpuszcza **ten komputer** jako administratora bez hasła (`auto
 
 Odmowa następuje niezależnie od pliku, chyba że spełnione jest wszystko naraz: panel nasłuchuje tylko na `127.0.0.1` (`host = '0.0.0.0'` wyłącza tryb, a okno o tym informuje), żądanie przychodzi z adresu pętli zwrotnej, jego nagłówek `Host` to `127.0.0.1` lub `localhost` (strona z innego serwisu, która kieruje własną nazwę na Twój komputer, jest odrzucana) i nie ma na nim nagłówków proxy ani tunelu. Tunel Cloudflare albo reverse proxy na tym samym komputerze nie wejdzie więc bez hasła. Czego to nie zatrzyma: każdy program i każde inne konto Windows na tym komputerze może otworzyć panel jako administrator. Na komputerze, z którego korzysta kilka osób, ustaw `auto_login = false`. Szczegóły: [Bezpieczeństwo](security.md).
 
-## Start razem z Windows
+## Tryb w tle i uruchamianie razem z Windows
 
-Melomancer nie ma jeszcze własnego autostartu. Żeby startował po zalogowaniu do Windows: naciśnij Win+R, wpisz `shell:startup` i naciśnij Enter, potem włóż do otwartego folderu skrót do `Melomancer.cmd` (kliknij `Melomancer.cmd` prawym przyciskiem, **Pokaż więcej opcji**, **Utwórz skrót**, potem przenieś skrót tam). Czarne okno będzie się otwierać przy każdym zalogowaniu.
+`Melomancer.cmd` uruchamia `runtime\pythonw.exe -m app.winmain` (bez okna konsoli) i od razu się zamyka. Program działa w tle jako ikona przy zegarze (`pystray`); serwer webowy pracuje w wątku obok niej. Naraz działa jedna kopia (nazwany mutex sesji użytkownika): drugi start tylko otwiera panel pierwszej.
+
+Pozycja **Uruchamiaj z Windows** w menu ikony zapisuje wartość `Melomancer` w kluczu `HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Run` (własny klucz użytkownika, bez uprawnień administratora). Polecenie to `"<folder>\runtime\pythonw.exe" -m app.winmain --no-browser`, więc przy logowaniu nie otwiera się przeglądarka. Jeśli folder przeniesiesz albo rozpakujesz nowszą paczkę gdzie indziej, a pozycja jest zaznaczona, Melomancer przy następnym starcie poprawia wpis tak, żeby wskazywał na ten folder.
+
+Opcje linii poleceń (`runtime\python.exe -m app.winmain ...`): `--console` zostaje w oknie konsoli zamiast w ikonie (to robi `Diagnostyka - Diagnostics.cmd`), `--tray` pokazuje ikonę także przy starcie z konsoli, `--no-browser`, `--port`, `--host`, `--config <plik>`, `--edit-config`.
 
 ## Czym różni się od kontenera
 
 - Panel domyślnie nasłuchuje na 127.0.0.1 i nie ma tunelu. **Odtwarzaj tutaj** działa jak dotąd.
 - Utworu, który jest właśnie odtwarzany lub streamowany, nie da się w tej chwili skasować z dysku w Windows: znika z biblioteki, zostaje wpis w logu, a plik zostaje w folderze z muzyką.
 - Kafelki obciążenia w Ustawieniach pokazują proces Melomancera i jego programy ffmpeg (nie ma kontenera do pomiaru), a „Dostępna aktualizacja" każe pobrać nowszą paczkę zamiast aktualizować obraz.
-- Czarne okno może pokazywać nieszkodliwe komunikaty ze stosu webowego; komunikat Windows „połączenie zostało gwałtownie zamknięte", który pojawia się, gdy przeglądarka zrywa połączenie, jest ukryty.
+- Komunikaty ze stosu webowego trafiają do pliku z logami (i do okna w trybie diagnostycznym); komunikat Windows „połączenie zostało gwałtownie zamknięte", który pojawia się, gdy przeglądarka zrywa połączenie, jest ukryty.
 
 ## Problemy
 
@@ -58,7 +63,9 @@ Melomancer nie ma jeszcze własnego autostartu. Żeby startował po zalogowaniu 
 | `... is not valid TOML` | Któraś linia w `config.toml` jest źle zapisana (na przykład brakuje cudzysłowu). Popraw ją albo skasuj plik, żeby powstał nowy. |
 | `... is not saved as UTF-8` | W Notatniku użyj **Zapisz jako** i wybierz kodowanie **UTF-8**. |
 | Okno mówi o zajętym adresie | Inny program używa portu 8080. Ustaw `port = 8081` w `config.toml` i otwórz http://127.0.0.1:8081/. |
-| `DISCORD_TOKEN is not set` | W `config.toml` brakuje tokena. |
+| `DISCORD_TOKEN is not set` (w logu) | W `config.toml` brakuje tokena. |
+| Okienko „Melomancer nie mógł wystartować" | Zwykle zajęty adres albo błąd w `config.toml`; szczegóły w logu. Zob. też wiersze `... is not valid TOML` i zajętego adresu wyżej: bez konsoli komunikaty pokazuje okienko, a pełny tekst jest w `melomancer.log`. |
+| Brak ikony przy zegarze | Windows mógł ją schować pod strzałką **^**. Jeśli jej nie ma w ogóle, uruchom `Diagnostyka - Diagnostics.cmd` (tryb konsolowy, bez ikony) i sprawdź komunikaty; `melomancer.log` zawiera wtedy wpis o ikonie. |
 | Bot się loguje, ale milczy | Zob. [Tworzenie bota Discord](discord-bot.md) i [Rozwiązywanie problemów](troubleshooting.md). Okno wypisuje `Voice connection complete`, gdy połączenie działa. |
 | Pobieranie nie działa | Zaktualizuj do najnowszego wydania (co poniedziałek wychodzi nowe z najnowszym yt-dlp); pamiętaj o `ytdlp_daily_limit` i `ytdlp_min_gap_seconds`. |
 | Antywirus wrzuca pliki do kwarantanny | Paczka jest niepodpisana, a niektóre antywirusy oznaczają takie programy. Zezwól na folder albo użyj kontenera. |
