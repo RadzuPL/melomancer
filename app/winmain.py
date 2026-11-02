@@ -24,6 +24,7 @@ import webbrowser
 from pathlib import Path
 from typing import Any, MutableMapping
 
+from . import lifecycle
 from .hostenv import default_config_path
 
 DEFAULT_HOST = "127.0.0.1"
@@ -281,6 +282,7 @@ def run(args: argparse.Namespace, tray_mode: bool, has_console: bool) -> int:
 
     logging.getLogger("asyncio").addFilter(QuietConnectionResets())
 
+    lifecycle.set_original_env(os.environ)   # before the settings file, the version and the tools are added to it
     home = Path(__file__).resolve().parents[1]
     prepare_path(home, os.environ)
     read_version(home, os.environ)
@@ -300,6 +302,7 @@ def run(args: argparse.Namespace, tray_mode: bool, has_console: bool) -> int:
     auto_login_note = decide_auto_login(host, os.environ)
 
     url = f"http://{'127.0.0.1' if host in ('0.0.0.0', '::') else host}:{port}/"
+    os.environ["MELOMANCER_URL"] = url   # where the update installer looks to see that the new version has started
     version = os.environ.get("APP_VERSION", "dev")
     build = read_build(home)
     logs_dir = config.parent / "logs"
@@ -336,6 +339,7 @@ def run(args: argparse.Namespace, tray_mode: bool, has_console: bool) -> int:
 
     if tray_mode:
         server = tray.ServerThread(host, port)
+        lifecycle.set_quit_hook(server.request_quit)
         server.start()
         try:
             if not server.wait_started(60):
@@ -351,7 +355,12 @@ def run(args: argparse.Namespace, tray_mode: bool, has_console: bool) -> int:
         threading.Thread(target=open_browser_when_ready, args=(url,), daemon=True).start()
 
     import uvicorn  # imported late: --help and the config handling work without the web stack
-    uvicorn.run("app.main:app_factory", factory=True, host=host, port=port, log_config=None, log_level="warning")
+    server = uvicorn.Server(uvicorn.Config("app.main:app_factory", factory=True, host=host, port=port, log_config=None,
+                                           log_level="warning"))
+    lifecycle.set_quit_hook(lambda: setattr(server, "should_exit", True))
+    server.run()
+    if not server.started:   # what uvicorn.run does for a start that failed (an address in use)
+        sys.exit(3)
     return 0
 
 

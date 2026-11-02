@@ -157,6 +157,7 @@ class ServerThread(threading.Thread):
                                 log_level="warning")
         self.server = uvicorn.Server(config)
         self.error: BaseException | None = None
+        self.quitting = False   # ended on purpose (an update), not by a failure: the icon closes without an error window
 
     def run(self) -> None:
         try:
@@ -179,6 +180,11 @@ class ServerThread(threading.Thread):
     def stop(self, timeout: float = 20.0) -> None:
         self.server.should_exit = True
         self.join(timeout)
+
+    def request_quit(self) -> None:
+        """Ends the program from inside (the update installer): the server stops and the icon follows."""
+        self.quitting = True
+        self.server.should_exit = True
 
 
 # ---- the icon ----------------------------------------------------------------------------------------------------------
@@ -254,7 +260,10 @@ def run_tray(*, url: str, version: str, home: Path, config: Path, logs_dir: Path
             webbrowser.open(url)
         while server.is_alive() and not stopping.is_set():
             time.sleep(1)
-        if not stopping.is_set():   # the server ended by itself
+        if server.quitting and not stopping.is_set():
+            log.info("Closing the icon: Melomancer was asked to end")
+            _icon.stop()
+        elif not stopping.is_set():   # the server ended by itself
             log.error("The server is gone, closing the icon")
             message_box("Melomancer", text["stopped"])
             _icon.stop()

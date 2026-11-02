@@ -61,3 +61,64 @@ def test_the_switch_is_a_setting_and_survives_a_restart(env):
     runtime.load()
     assert runtime.update_check is False
     assert env.client.patch("/api/system", json={"update_check": "maybe"}).status_code == 422
+
+
+# ---- installing from the panel (the Windows package) -----------------------------------------------------------------
+
+def use_installer(env, tmp_path, **options):
+    """A made-up Windows package folder and GitHub, so that the installer runs here."""
+    from .test_selfupdate import installer, package_zip
+    data = package_zip("0.6.30")
+    inst = installer(tmp_path, data, rel={**release_of(data), "tag_name": "v0.6.30"}, current="0.6.28", **options)
+    env.app.state.installer = inst
+    return inst
+
+
+def release_of(data):
+    from .test_selfupdate import release
+    return release(data, tag="v0.6.30", url="https://github.com/RadzuPL/melomancer/releases/download/v0.6.30/Melomancer-win64-0.6.30.zip")
+
+
+def test_in_a_container_nothing_can_be_installed(env):
+    use_checker(env, [{"tag_name": "v0.6.30", "draft": False, "prerelease": False}])
+    assert login(env, "admin").status_code == 200
+    status = env.client.post("/api/system/update/check").json()
+    assert status["available"] is True and status["installable"] is False and status["install"]["available"] is False
+    res = env.client.post("/api/system/update/install")
+    assert res.status_code == 409 and res.json()["detail"] == "update_unavailable"
+    res = env.client.post("/api/system/update/apply")
+    assert res.status_code == 409 and res.json()["detail"] == "not_ready"
+
+
+def test_the_update_is_downloaded_from_the_panel_and_then_applied(env, tmp_path):
+    import threading
+    ended = threading.Event()
+    inst = use_installer(env, tmp_path, quit_event=ended, spawned=[])
+    use_checker(env, [{"tag_name": "v0.6.30", "draft": False, "prerelease": False}])
+    assert login(env, "admin").status_code == 200
+    status = env.client.post("/api/system/update/check").json()
+    assert status["installable"] is True and status["install"]["state"] == "idle"
+    assert env.client.post("/api/system/update/apply").json()["detail"] == "not_ready"
+
+    started = env.client.post("/api/system/update/install")
+    assert started.status_code == 200
+    inst._thread.join(20)
+    ready = env.client.get("/api/system/update").json()
+    assert ready["install"]["state"] == "ready" and ready["install"]["version"] == "0.6.30"
+
+    assert env.client.post("/api/system/update/apply").status_code == 200
+    assert ended.wait(5), "applying ends the program"
+    assert env.client.get("/api/system/update").json()["install"]["state"] == "applying"
+    assert env.client.post("/api/system/update/install").json()["detail"] == "busy"
+
+
+def test_only_an_administrator_may_install_and_only_with_the_header(env, tmp_path):
+    use_installer(env, tmp_path, spawned=[])
+    make_user(env, "olga")
+    assert login(env, "olga").status_code == 200
+    assert env.client.post("/api/system/update/install").status_code == 403
+    assert env.client.post("/api/system/update/apply").status_code == 403
+    assert login(env, "admin").status_code == 200
+    assert env.client.post("/api/system/update/install", headers={"X-Melomancer": ""}).status_code == 403
+    env.client.cookies.clear()
+    assert env.client.post("/api/system/update/install").status_code == 401

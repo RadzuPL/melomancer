@@ -53,7 +53,7 @@ Opcje linii poleceń (`runtime\python.exe -m app.winmain ...`): `--console` zost
 
 - Panel domyślnie nasłuchuje na 127.0.0.1 i nie ma tunelu. **Odtwarzaj tutaj** działa jak dotąd.
 - Utworu, który jest właśnie odtwarzany lub streamowany, nie da się w tej chwili skasować z dysku w Windows: znika z biblioteki, zostaje wpis w logu, a plik zostaje w folderze z muzyką.
-- Kafelki obciążenia w Ustawieniach pokazują proces Melomancera i jego programy ffmpeg (nie ma kontenera do pomiaru), a „Dostępna aktualizacja" każe pobrać nowszą paczkę zamiast aktualizować obraz.
+- Kafelki obciążenia w Ustawieniach pokazują proces Melomancera i jego programy ffmpeg (nie ma kontenera do pomiaru), a przy „Dostępna aktualizacja" jest przycisk **Pobierz i zainstaluj**, który aktualizuje paczkę zamiast obrazu kontenera (jak to działa: [Aktualizacja paczki dla Windows](architecture.md#aktualizacja-paczki-dla-windows)).
 - Komunikaty ze stosu webowego trafiają do pliku z logami (i do okna w trybie diagnostycznym); komunikat Windows „połączenie zostało gwałtownie zamknięte", który pojawia się, gdy przeglądarka zrywa połączenie, jest ukryty.
 
 ## Problemy
@@ -63,6 +63,7 @@ Opcje linii poleceń (`runtime\python.exe -m app.winmain ...`): `--console` zost
 | `... is not valid TOML` | Któraś linia w `config.toml` jest źle zapisana (na przykład brakuje cudzysłowu). Popraw ją albo skasuj plik, żeby powstał nowy. |
 | `... is not saved as UTF-8` | W Notatniku użyj **Zapisz jako** i wybierz kodowanie **UTF-8**. |
 | Okno mówi o zajętym adresie | Inny program używa portu 8080. Ustaw `port = 8081` w `config.toml` i otwórz http://127.0.0.1:8081/. |
+| Aktualizacja z panelu kończy się komunikatem | Kod z panelu mówi, co jest nie tak (brak miejsca, brak uprawnień do zapisu obok folderu, suma kontrolna, paczka jeszcze się buduje). Szczegóły są w `update.log` w folderze z logami; po nieudanej podmianie poprzednia wersja wraca sama, a kopie bazy leżą w `data\backups`. Zawsze można zaktualizować ręcznie (rozpakować paczkę do nowego folderu). |
 | `DISCORD_TOKEN is not set` (w logu) | W `config.toml` brakuje tokena. |
 | Okienko „Melomancer nie mógł wystartować" | Zwykle zajęty adres albo błąd w `config.toml`; szczegóły w logu. Zob. też wiersze `... is not valid TOML` i zajętego adresu wyżej: bez konsoli komunikaty pokazuje okienko, a pełny tekst jest w `melomancer.log`. |
 | Brak ikony przy zegarze | Windows mógł ją schować pod strzałką **^**. Jeśli jej nie ma w ogóle, uruchom `Diagnostyka - Diagnostics.cmd` (tryb konsolowy, bez ikony) i sprawdź komunikaty; `melomancer.log` zawiera wtedy wpis o ikonie. |

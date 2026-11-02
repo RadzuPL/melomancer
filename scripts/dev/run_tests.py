@@ -37,25 +37,29 @@ def main(names):
         for test_name, test in list(vars(module).items()):
             if not (test_name.startswith("test_") and callable(test)):
                 continue
-            tmp, patch = pathlib.Path(tempfile.mkdtemp()), MonkeyPatch()
-            builtin = {"tmp_path": tmp, "monkeypatch": patch}
-            kwargs = {}
-            for parameter, spec in inspect.signature(test).parameters.items():
-                if parameter in builtin:
-                    kwargs[parameter] = builtin[parameter]
-                elif parameter in vars(module) and spec.default is inspect.Parameter.empty:
-                    fixture = vars(module)[parameter]
-                    kwargs[parameter] = fixture(**{q: builtin[q] for q in inspect.signature(fixture).parameters})
-            try:
-                test(**kwargs)
-                passed += 1
-                print("ok  ", test_name)
-            except Exception:  # noqa: BLE001
-                failed += 1
-                print("FAIL", test_name)
-                traceback.print_exc()
-            finally:
-                patch.restore()
+            names, values = getattr(test, "_params", ([], [()]))   # @pytest.mark.parametrize, see stubs/pytest.py
+            for case in values:
+                case = case if len(names) > 1 else (case,)
+                label = test_name + (f"[{', '.join(map(str, case))[:40]}]" if names else "")
+                tmp, patch = pathlib.Path(tempfile.mkdtemp()), MonkeyPatch()
+                builtin = {"tmp_path": tmp, "monkeypatch": patch, **dict(zip(names, case))}
+                kwargs = {}
+                for parameter, spec in inspect.signature(test).parameters.items():
+                    if parameter in builtin:
+                        kwargs[parameter] = builtin[parameter]
+                    elif parameter in vars(module) and spec.default is inspect.Parameter.empty:
+                        fixture = vars(module)[parameter]
+                        kwargs[parameter] = fixture(**{q: builtin[q] for q in inspect.signature(fixture).parameters})
+                try:
+                    test(**kwargs)
+                    passed += 1
+                    print("ok  ", label)
+                except Exception:  # noqa: BLE001
+                    failed += 1
+                    print("FAIL", label)
+                    traceback.print_exc()
+                finally:
+                    patch.restore()
     print(f"{passed} passed, {failed} failed")
     return 1 if failed else 0
 

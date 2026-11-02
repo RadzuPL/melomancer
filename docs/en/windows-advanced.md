@@ -53,7 +53,7 @@ Command line options (`runtime\python.exe -m app.winmain ...`): `--console` stay
 
 - The panel listens on 127.0.0.1 by default and there is no tunnel. **Play here** works as before.
 - A track that is being played or streamed at that moment cannot be deleted from disk on Windows: it disappears from the library, a note is logged and the file stays in the music folder.
-- The load tiles in Settings show the Melomancer process and its ffmpeg programs (there is no container to measure), and "Update available" tells you to download the newer package instead of updating an image.
+- The load tiles in Settings show the Melomancer process and its ffmpeg programs (there is no container to measure), and "Update available" comes with a **Download and install** button that updates the package instead of a container image (how it works: [Updating the Windows package](architecture.md#updating-the-windows-package)).
 - Messages from the web stack go to the log file (and to the window in the diagnostic mode); the Windows "connection was reset" message that appears when a browser drops a connection is hidden.
 
 ## Problems
@@ -63,6 +63,7 @@ Command line options (`runtime\python.exe -m app.winmain ...`): `--console` stay
 | `... is not valid TOML` | A line in `config.toml` is written wrongly (a missing quote, for example). Fix it, or delete the file to get a fresh one. |
 | `... is not saved as UTF-8` | In Notepad use **Save As** and choose the encoding **UTF-8**. |
 | The window talks about an address already in use | Another program uses port 8080. Set `port = 8081` in `config.toml` and open http://127.0.0.1:8081/. |
+| The update from the panel ends with a message | The code in the panel says what is wrong (no room, no permission to write next to the folder, the checksum, the package still being built). The details are in `update.log` in the logs folder; after a failed swap the old version comes back by itself, and copies of the database are in `data\backups`. You can always update by hand (unpack the package into a new folder). |
 | `DISCORD_TOKEN is not set` (in the log) | The token is missing from `config.toml`. |
 | A window "Melomancer could not start" | Usually a taken address or a mistake in `config.toml`; the details are in the log. See also the rows `... is not valid TOML` and the address in use above: with no console a window shows the message and the full text is in `melomancer.log`. |
 | No icon next to the clock | Windows may have hidden it under the arrow **^**. If it is not there at all, start `Diagnostyka - Diagnostics.cmd` (console mode, no icon) and read the messages; `melomancer.log` has an entry about the icon then. |

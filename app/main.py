@@ -18,6 +18,7 @@ from .deps import csrf_guard
 from .downloader import Downloader
 from .loudness import LoudnessWorker, RuntimeSettings
 from .player import BotManager
+from .selfupdate import Installer, create as create_installer
 from .sysload import LoadMonitor
 from .security import LoginThrottle, MIN_PASSWORD_LENGTH, hash_password
 from .updates import UpdateChecker
@@ -57,7 +58,8 @@ def bootstrap_admin(settings: Settings) -> None:
 
 
 def create_app(settings: Settings | None = None, bot=None, downloader: Downloader | None = None,
-               loudness: LoudnessWorker | None = None, updates: UpdateChecker | None = None) -> FastAPI:
+               loudness: LoudnessWorker | None = None, updates: UpdateChecker | None = None,
+               installer: Installer | None = None) -> FastAPI:
     settings = settings or Settings.from_env()
     logging.basicConfig(level=getattr(logging, settings.log_level, logging.INFO),
                         format="%(asctime)s %(levelname)s %(name)s: %(message)s")
@@ -94,6 +96,7 @@ def create_app(settings: Settings | None = None, bot=None, downloader: Downloade
     app.state.loudness = loudness or LoudnessWorker(settings, app.state.runtime)
     app.state.load = LoadMonitor()
     app.state.updates = updates or UpdateChecker(settings, app.state.runtime)
+    app.state.installer = installer or create_installer(settings)
     app.state.downloader = downloader or Downloader(settings)
     app.state.throttle = LoginThrottle(settings.login_max_failures, settings.login_window_seconds)
 

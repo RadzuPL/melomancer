@@ -18,6 +18,7 @@ from .loudness import (BOOST_RANGE, CROSSFADE_RANGE, GLIDE_RANGE, SCRUB_RANGE, S
                        counts as loudness_counts)
 from .security import (MIN_PASSWORD_LENGTH, hash_password, new_session_token, sha256_hex, utc_string,
                        verify_password)
+from .selfupdate import InstallError
 
 router = APIRouter(prefix="/api")
 
@@ -274,16 +275,43 @@ def system_load(request: Request, _: dict = Depends(require_admin)):
     return request.app.state.load.snapshot()
 
 
+def _update_status(request: Request, status: dict) -> dict:
+    """The look at GitHub plus, in the Windows package, what the installer is doing (see selfupdate.py)."""
+    installer = request.app.state.installer
+    return {**status, "installable": installer.available and status["available"], "install": installer.status()}
+
+
 @router.get("/system/update")
 def system_update(request: Request, _: dict = Depends(require_admin)):
     """What the last look at the newest GitHub release found, for the Settings tab."""
-    return request.app.state.updates.status()
+    return _update_status(request, request.app.state.updates.status())
 
 
 @router.post("/system/update/check")
 def system_update_check(request: Request, _: dict = Depends(require_admin)):
     """Asks GitHub right now (the switch only governs the automatic checks)."""
-    return request.app.state.updates.check(force=True)
+    return _update_status(request, request.app.state.updates.check(force=True))
+
+
+@router.post("/system/update/install")
+def system_update_install(request: Request, _: dict = Depends(require_admin)):
+    """Windows package: downloads the newest version and unpacks it next to the program (a background job: poll
+    GET /system/update). Nothing is replaced yet."""
+    try:
+        request.app.state.installer.start()
+    except InstallError as exc:
+        raise HTTPException(409, exc.code) from None
+    return _update_status(request, request.app.state.updates.status())
+
+
+@router.post("/system/update/apply")
+def system_update_apply(request: Request, _: dict = Depends(require_admin)):
+    """Windows package: closes Melomancer, swaps the folder for the unpacked one and starts it again."""
+    try:
+        request.app.state.installer.apply()
+    except InstallError as exc:
+        raise HTTPException(409, exc.code) from None
+    return _update_status(request, request.app.state.updates.status())
 
 
 class SystemPatch(BaseModel):
