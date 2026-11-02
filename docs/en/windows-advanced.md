@@ -31,6 +31,7 @@ Every other variable from [Configuration](configuration.md) works too, written i
 | The program | The folder you unpacked (can be deleted and replaced) |
 | Settings file | `%LOCALAPPDATA%\Melomancer\config.toml` |
 | Database and, by default, the music | `%LOCALAPPDATA%\Melomancer\data` |
+| Log (rotated, 1 MB, 3 copies) | `%LOCALAPPDATA%\Melomancer\logs\melomancer.log` |
 
 `%LOCALAPPDATA%` is `C:\Users\<you>\AppData\Local`. To keep the music elsewhere (a bigger disk), copy the contents of `data\music` to the new folder, set `music_dir` to it and start again.
 
@@ -40,16 +41,20 @@ By default the panel lets **this computer** in as the administrator without a pa
 
 It is refused, whatever the file says, unless all of this holds: the panel listens on `127.0.0.1` only (`host = '0.0.0.0'` switches it off and the window says so), the request comes from the loopback address, its `Host` header is `127.0.0.1` or `localhost` (a web page on another site that points its own name at your computer is refused), and there is no proxy or tunnel header on it. A Cloudflare Tunnel or a reverse proxy on the same computer therefore never gets in without a password. What it does not stop: any program, or any other Windows account, on this computer can open the panel as the administrator. On a computer that several people use, set `auto_login = false`. Details: [Security](security.md).
 
-## Start with Windows
+## Background mode and start with Windows
 
-Melomancer has no autostart of its own yet. To start it when you sign in to Windows: press Win+R, type `shell:startup` and press Enter, then put a shortcut to `Melomancer.cmd` in the folder that opens (right-click `Melomancer.cmd`, **Show more options**, **Create shortcut**, then move the shortcut there). The black window opens at every sign-in.
+`Melomancer.cmd` starts `runtime\pythonw.exe -m app.winmain` (no console window) and closes at once. The program runs in the background as an icon next to the clock (`pystray`); the web server runs in a thread beside it. One copy runs at a time (a named mutex of the user's session): a second start only opens the panel of the first.
+
+The menu item **Start with Windows** writes the value `Melomancer` into `HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Run` (the user's own key, no administrator rights). The command is `"<folder>\runtime\pythonw.exe" -m app.winmain --no-browser`, so the browser does not open at sign-in. If you move the folder, or unpack a newer package elsewhere, and the item is ticked, Melomancer corrects the entry at its next start so that it points to that folder.
+
+Command line options (`runtime\python.exe -m app.winmain ...`): `--console` stays in the console window instead of the icon (that is what `Diagnostyka - Diagnostics.cmd` does), `--tray` shows the icon even when started from a console, `--no-browser`, `--port`, `--host`, `--config <file>`, `--edit-config`.
 
 ## What is different from the container
 
 - The panel listens on 127.0.0.1 by default and there is no tunnel. **Play here** works as before.
 - A track that is being played or streamed at that moment cannot be deleted from disk on Windows: it disappears from the library, a note is logged and the file stays in the music folder.
 - The load tiles in Settings show the Melomancer process and its ffmpeg programs (there is no container to measure), and "Update available" tells you to download the newer package instead of updating an image.
-- The black window may show harmless messages from the web stack; the Windows "connection was reset" message that appears when a browser drops a connection is hidden.
+- Messages from the web stack go to the log file (and to the window in the diagnostic mode); the Windows "connection was reset" message that appears when a browser drops a connection is hidden.
 
 ## Problems
 
@@ -58,7 +63,9 @@ Melomancer has no autostart of its own yet. To start it when you sign in to Wind
 | `... is not valid TOML` | A line in `config.toml` is written wrongly (a missing quote, for example). Fix it, or delete the file to get a fresh one. |
 | `... is not saved as UTF-8` | In Notepad use **Save As** and choose the encoding **UTF-8**. |
 | The window talks about an address already in use | Another program uses port 8080. Set `port = 8081` in `config.toml` and open http://127.0.0.1:8081/. |
-| `DISCORD_TOKEN is not set` | The token is missing from `config.toml`. |
+| `DISCORD_TOKEN is not set` (in the log) | The token is missing from `config.toml`. |
+| A window "Melomancer could not start" | Usually a taken address or a mistake in `config.toml`; the details are in the log. See also the rows `... is not valid TOML` and the address in use above: with no console a window shows the message and the full text is in `melomancer.log`. |
+| No icon next to the clock | Windows may have hidden it under the arrow **^**. If it is not there at all, start `Diagnostyka - Diagnostics.cmd` (console mode, no icon) and read the messages; `melomancer.log` has an entry about the icon then. |
 | The bot logs in but is silent | See [Creating the Discord bot](discord-bot.md) and [Troubleshooting](troubleshooting.md). The window prints `Voice connection complete` when the connection works. |
 | Downloads fail | Update to the newest release (a new one is made every Monday with the newest yt-dlp); mind `ytdlp_daily_limit` and `ytdlp_min_gap_seconds`. |
 | The antivirus quarantines files | The package is unsigned and some antivirus programs flag unsigned programs. Allow the folder, or use the container. |

@@ -43,9 +43,9 @@ This is normal. Windows shows it for every program that has no paid publisher ce
 
 Instead, you may get a blue page "Windows protected your PC". Then click **More info**, then **Run anyway**.
 
-After a moment a **black window** with text opens. That is Melomancer running: **do not close it while you listen to music**. A few seconds later your browser opens the Melomancer page. You do not have to sign in.
+A few seconds later your browser opens the Melomancer page. You do not have to sign in. Melomancer runs **in the background**, without a window of its own: next to the clock (the bottom right corner of the screen) a blue icon with a musical note appears and a short message says "Melomancer is running". If you do not see the icon, click the arrow **^** next to the clock, because Windows likes to hide new icons. A small black window may have flashed for a moment: that is normal.
 
-If the browser does not open by itself, type this address into its address bar: http://127.0.0.1:8080/ (and bookmark it, it will be handy).
+If the browser does not open by itself, right-click the icon next to the clock and choose **Open Melomancer**. You can also type this address into the address bar: http://127.0.0.1:8080/ (bookmark it, it will be handy).
 
 ## Step 4. Add music and play
 
@@ -64,7 +64,7 @@ To play music in a Discord voice channel you need a bot of your own: a robot acc
 - The **Application ID**: a long number that identifies your application.
 
 1. Create the bot and copy those two things following the guide [Creating the Discord bot](discord-bot.md) (steps 1 to 4).
-2. In the Melomancer folder double-click **Ustawienia - Settings.cmd**. Notepad opens with the settings file.
+2. In the Melomancer folder double-click **Ustawienia - Settings.cmd** (or right-click the icon next to the clock and choose **Open the settings file**). Notepad opens with the settings file.
 3. Find these two lines (they start with `#`, which means "this line is only a description, the program skips it"):
 
    ```
@@ -80,7 +80,7 @@ To play music in a Discord voice channel you need a bot of your own: a robot acc
    ```
 
 5. Save the file (Ctrl+S) and close Notepad.
-6. Close the black Melomancer window and start **Melomancer.cmd** again. The window shows a line saying the bot logged in.
+6. Quit Melomancer (right-click the icon next to the clock, **Quit Melomancer**) and start **Melomancer.cmd** again.
 7. In the panel open **Settings**. You will see that the bot is **Running**, and a button **Add the bot to a server**. Click it and pick your Discord server (you need the permission to manage that server).
 8. In the **Player** tab choose the **Server** and the **Voice channel**, click **Connect**, then your playlist.
 
@@ -88,15 +88,16 @@ To play music in a Discord voice channel you need a bot of your own: a robot acc
 
 ## Every day
 
-- **Start:** double-click **Melomancer.cmd** and wait for the browser to open.
-- You can minimize the **black window**, but do not close it. Closing it switches Melomancer off and the music stops.
-- **To finish:** close the black window.
+- **Start:** double-click **Melomancer.cmd** and wait for the browser to open. If Melomancer is already running, a second start only opens its page.
+- **The icon next to the clock** has a menu (right-click it): **Open Melomancer**, **Open the settings file**, **Show the log files**, **Start with Windows** (tick it if Melomancer should start by itself when you switch the computer on) and **Quit Melomancer**.
+- Closing the browser tab does **not** switch Melomancer off. But music started with **Play here** plays only while that tab is open; the Discord bot does not need the tab.
+- **To finish:** right-click the icon, **Quit Melomancer**.
 
 ## Updating
 
 In the panel, in **Settings** in the group **Updates**, you will see "Update available" when there is a new version. To install it:
 
-1. Close the black window.
+1. Quit Melomancer (the icon next to the clock, **Quit Melomancer**).
 2. Download the new package (step 1) and unpack it into a **new** folder, for example `C:\Melomancer-2` (step 2).
 3. Start **Melomancer.cmd** from the new folder (Windows asks for permission again, because it is a new place, step 3).
 4. When everything works, you can delete the old folder.
@@ -105,7 +106,7 @@ Your music, playlists and settings **stay**, because they live in a different pl
 
 ## Removing
 
-Close the black window and delete the program folder. That is all. To remove your library and settings too, delete the folder `C:\Users\YourName\AppData\Local\Melomancer` (to find it, press Win+R, type `%LOCALAPPDATA%` and press Enter). **Careful: that deletes the music you uploaded and the playlists**, so copy what you want to keep first.
+Quit Melomancer (the icon next to the clock, **Quit Melomancer**). If you used **Start with Windows**, untick it in the icon menu first. Then delete the program folder. That is all. To remove your library and settings too, delete the folder `C:\Users\YourName\AppData\Local\Melomancer` (to find it, press Win+R, type `%LOCALAPPDATA%` and press Enter). **Careful: that deletes the music you uploaded and the playlists**, so copy what you want to keep first.
 
 ## When something does not work
 
@@ -113,15 +114,16 @@ Close the black window and delete the program folder. That is all. To remove you
 |---|---|
 | Windows asks about the publisher every time | In that window untick **Always ask before opening this file** before you click **Run**. |
 | Windows or the antivirus blocks the file or puts it in quarantine | The program has no digital signature, so it is sometimes blocked by mistake. Allow this folder in your antivirus or in Windows Security. |
-| The black window shows an error and waits | Read what it says. Most often it is a typing mistake in the settings file: fix it, or delete the file `config.toml` (the program makes a new one at the next start). |
-| The browser does not open | Type the address http://127.0.0.1:8080/ yourself. |
+| A window "Melomancer could not start" appears | Read what it says. Most often another program uses the same address, or there is a typing mistake in the settings file: fix it, or delete the file `config.toml` (the program makes a new one at the next start). |
+| Nothing happens after the start and there is no icon next to the clock | Start **Diagnostyka - Diagnostics.cmd** from the Melomancer folder. It shows a black window with messages that say what is wrong. |
+| The browser does not open | Right-click the icon next to the clock and choose **Open Melomancer**, or type the address http://127.0.0.1:8080/ yourself. |
 | The page does not open and the window talks about an address in use | Another program uses the same "port". See the [details for advanced users](windows-advanced.md#problems). |
-| The bot shows "Not running" | Most likely the token is missing from the settings file or is wrong. Paste it again (step 5). |
+| The bot shows "Not running" | Most likely the token is missing from the settings file or is wrong. Paste it again (step 5) and start Melomancer again. |
 | The Player has no servers | The bot is not on your server yet: in **Settings** use **Add the bot to a server**. |
 | The bot is in the channel but there is no sound | Check that the bot may speak in that channel (the channel permissions in Discord). |
 | Downloading from YouTube does not work | YouTube changes things often. Update Melomancer to the newest version. |
 
-Something else? Report it at https://github.com/RadzuPL/melomancer/issues: say what you did, which version the first line of the black window shows, and include the last few lines of that window. **Never include the token.**
+Something else? Report it at https://github.com/RadzuPL/melomancer/issues: say what you did, which version the icon menu next to the clock shows (the item above Quit), and include the last few lines of the log file (icon menu, **Show the log files**, the file `melomancer.log`). **Never include the token.**
 
 ## For advanced users
 

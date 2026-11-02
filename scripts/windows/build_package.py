@@ -31,20 +31,26 @@ FFMPEG_FALLBACK = "ffmpeg-master-latest-win64-lgpl-shared.zip"
 FFMPEG_RELEASE_NAME = re.compile(r"^ffmpeg-n(\d+)\.(\d+)-latest-win64-lgpl-shared-\d+\.\d+\.zip$")
 
 SETTINGS_CMD = r"""@echo off
-setlocal
 cd /d "%~dp0"
-"runtime\python.exe" -m app.winmain --edit-config
+start "" "runtime\pythonw.exe" -m app.winmain --edit-config
 """
 
-CMD_FILE = r"""@echo off
+DEBUG_CMD = r"""@echo off
 setlocal
 cd /d "%~dp0"
-"runtime\python.exe" -m app.winmain %*
+echo Melomancer w trybie diagnostycznym (to okno zostaje otwarte) / Melomancer in diagnostic mode (this window stays open)
+"runtime\python.exe" -m app.winmain --console
 if errorlevel 1 (
   echo.
   echo Melomancer stopped with an error. The messages above say why.
-  pause
 )
+pause
+"""
+
+# The normal start: no console window. `start` hands over to pythonw, so this window closes at once.
+CMD_FILE = r"""@echo off
+cd /d "%~dp0"
+start "" "runtime\pythonw.exe" -m app.winmain
 """
 
 READ_ME = """Melomancer dla Windows (wersja testowa)
@@ -59,14 +65,17 @@ W skrócie:
    uruchamiaj programu z wnętrza zipa).
 2. Kliknij dwukrotnie Melomancer.cmd. Windows zapyta "Nie można zweryfikować wydawcy": to normalne, bo program nie ma
    płatnego podpisu. Odznacz "Zawsze pytaj przed otwarciem tego pliku" i kliknij "Uruchom".
-3. Otworzy się czarne okno (to działa Melomancer, nie zamykaj go, dopóki słuchasz) i przeglądarka ze stroną
-   Melomancera. Logować się nie trzeba. Gdyby przeglądarka się nie otworzyła, wpisz: http://127.0.0.1:8080/
+3. Po kilku sekundach otworzy się przeglądarka ze stroną Melomancera (logować się nie trzeba), a przy zegarze
+   pojawi się niebieska ikona z nutą: Melomancer działa w tle. Prawy przycisk na ikonie otwiera menu (Otwórz
+   Melomancera, Otwórz plik ustawień, Uruchamiaj z Windows, Zamknij Melomancera). Gdyby przeglądarka się nie
+   otworzyła, wybierz z tego menu "Otwórz Melomancera" albo wpisz: http://127.0.0.1:8080/
 4. Dodaj muzykę w zakładce "Biblioteka" i zagraj ją w zakładce "Odtwarzacz" przyciskiem "Odtwarzaj tutaj".
 5. Muzyka na Discordzie: kliknij dwukrotnie "Ustawienia - Settings.cmd", wpisz token i Application ID swojego bota
    (instrukcja w pełnym opisie) i uruchom Melomancera ponownie.
 
 Twoje ustawienia i muzyka leżą w %LOCALAPPDATA%\\Melomancer, poza tym folderem, więc aktualizacja polega na
-rozpakowaniu nowej wersji do nowego folderu. Zamknięcie czarnego okna wyłącza Melomancera. Licencje dołączonych
+rozpakowaniu nowej wersji do nowego folderu. Żeby wyłączyć Melomancera, wybierz z menu ikony "Zamknij Melomancera".
+Gdy coś nie działa, uruchom "Diagnostyka - Diagnostics.cmd" (pokazuje komunikaty w oknie). Licencje dołączonych
 programów są w folderze "licenses" i w THIRD_PARTY.md.
 
 
@@ -82,14 +91,17 @@ In short:
    the program from inside the zip).
 2. Double-click Melomancer.cmd. Windows asks "Unable to verify the publisher": that is normal, because the program
    has no paid signature. Untick "Always ask before opening this file" and click "Run".
-3. A black window opens (that is Melomancer running, do not close it while you listen) and your browser opens the
-   Melomancer page. You do not have to sign in. If the browser does not open, type: http://127.0.0.1:8080/
+3. After a few seconds your browser opens the Melomancer page (you do not have to sign in) and a blue icon with a
+   musical note appears next to the clock: Melomancer runs in the background. A right click on the icon opens its
+   menu (Open Melomancer, Open the settings file, Start with Windows, Quit Melomancer). If the browser does not
+   open, choose "Open Melomancer" from that menu or type: http://127.0.0.1:8080/
 4. Add music in the "Library" tab and play it in the "Player" tab with the "Play here" button.
 5. Music on Discord: double-click "Ustawienia - Settings.cmd", enter the token and the Application ID of your bot
    (see the full guide) and start Melomancer again.
 
 Your settings and music live in %LOCALAPPDATA%\\Melomancer, outside this folder, so updating means unpacking the new
-version into a new folder. Closing the black window switches Melomancer off. Licences of the bundled programs are in
+version into a new folder. To switch Melomancer off choose "Quit Melomancer" from the icon menu. If something does
+not work, start "Diagnostyka - Diagnostics.cmd" (it shows the messages in a window). Licences of the bundled programs are in
 the folder "licenses" and in THIRD_PARTY.md.
 """
 
@@ -193,6 +205,7 @@ def package(version: str, tools: Path, out: Path, build: str = "", commit: str =
         (root / "BUILD").write_text(f"build {build}" + (f", {commit}" if commit else "") + "\n", encoding="utf-8")
     (root / "Melomancer.cmd").write_text(CMD_FILE.replace("\n", "\r\n"), encoding="utf-8")
     (root / "Ustawienia - Settings.cmd").write_text(SETTINGS_CMD.replace("\n", "\r\n"), encoding="utf-8")
+    (root / "Diagnostyka - Diagnostics.cmd").write_text(DEBUG_CMD.replace("\n", "\r\n"), encoding="utf-8")
     sys.path.insert(0, str(ROOT))
     from app import winmain   # the template that the program itself writes on the first start
     (root / "config.example.toml").write_text(winmain.TEMPLATE, encoding="utf-8")
