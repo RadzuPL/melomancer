@@ -13,3 +13,17 @@ class _Raises:
 def approx(v, **k): return _Approx(v, **k)
 def raises(exc): return _Raises(exc)
 def fixture(f=None, **k): return f if f else (lambda g: g)
+
+
+class _Mark:
+    @staticmethod
+    def parametrize(names, values):
+        names = [n.strip() for n in names.split(",")] if isinstance(names, str) else list(names)
+
+        def decorate(function):
+            function._params = (names, list(values))   # read by scripts/dev/run_tests.py
+            return function
+        return decorate
+
+
+mark = _Mark()

@@ -50,11 +50,12 @@ def check(condition: bool, message: str) -> None:
 
 
 class Client:
-    def __init__(self) -> None:
+    def __init__(self, base: str = "") -> None:
+        self.base = base or BASE
         self.opener = urllib.request.build_opener(urllib.request.HTTPCookieProcessor(http.cookiejar.CookieJar()))
 
     def call(self, method: str, path: str, body: bytes | None = None, headers: dict | None = None) -> tuple[int, bytes]:
-        request = urllib.request.Request(BASE + path, data=body, method=method,
+        request = urllib.request.Request(self.base + path, data=body, method=method,
                                          headers={"X-Melomancer": "1", **(headers or {})})
         try:
             with self.opener.open(request, timeout=30) as response:
@@ -141,6 +142,118 @@ def background_mode(root: Path, work: Path) -> None:
             "tray.set_autostart(False, '', name); print('autostart', on, tray.autostart_enabled(name))")
     out = run([root / "runtime" / "python.exe", "-c", code], cwd=root).stdout
     check("autostart True False" in out, "start with Windows can be switched on and off in the user's own Run key")
+
+
+def self_update(root: Path, work: Path) -> None:
+    """The update from the panel, for real: this package pretends to be version 0.0.1, downloads the newest release from
+    GitHub, swaps its own folder for it and the new version answers on the same port."""
+    port = 18083
+    url = f"http://127.0.0.1:{port}/"
+    local = work / "lokalne dane aktualizacji"
+    (root / "VERSION").write_text("0.0.1", encoding="utf-8")
+    env = {k: v for k, v in os.environ.items() if k not in ("APP_VERSION", "DATA_DIR", "AUTO_LOGIN", "MELOMANCER_CONFIG")}
+    env.update(LOCALAPPDATA=str(local), ADMIN_PASSWORD=PASSWORD)
+    proc = subprocess.Popen([str(root / "runtime" / "pythonw.exe"), "-m", "app.winmain", "--no-browser", "--port", str(port)],
+                            cwd=root, env=env)
+    client = Client(url.rstrip("/"))
+    newest = None
+    try:
+        wait_for("the old version to answer", lambda: healthy(url), 90)
+        status, _ = client.json("POST", "/api/auth/login", {"username": "admin", "password": PASSWORD})
+        check(status == 200, "update test: signed in to the old version (0.0.1)")
+        status, info = client.json("POST", "/api/system/update/check")
+        if info.get("error") or not info.get("available"):
+            print(f"update test skipped: GitHub did not give a newer release ({info.get('error')})", flush=True)
+            return
+        newest = info["latest"]
+        check(info["installable"] is True and info["install"]["available"] is True, f"update test: {newest} is offered for installing from the panel")
+        status, _ = client.json("POST", "/api/system/update/install")
+        check(status == 200, "update test: the download was started")
+        last = None
+        deadline = time.monotonic() + 900
+        while time.monotonic() < deadline:
+            install = client.json("GET", "/api/system/update")[1]["install"]
+            if install["phase"] != last:
+                last = install["phase"]
+                print(f"update: {install['state']} {install['phase']} {install['done'] // 1048576}/{install['total'] // 1048576} MB", flush=True)
+            if install["state"] != "working":
+                break
+            time.sleep(2)
+        if install["state"] == "failed" and install["error"] in ("unreachable", "rate_limited", "package_not_ready"):
+            print(f"update test skipped: {install['error']}", flush=True)
+            return
+        check(install["state"] == "ready" and install["version"] == newest, f"update test: the new version is downloaded, checked and unpacked ({install})")
+        check((root.with_name("Melomancer.new") / "VERSION").read_text(encoding="utf-8").strip() == newest, "update test: it waits next to the program as Melomancer.new")
+        check((root / "VERSION").read_text(encoding="utf-8").strip() == "0.0.1", "update test: the running version is untouched so far")
+        status, answer = client.json("POST", "/api/system/update/apply")
+        if status != 200:
+            print(f"apply answered {status}: {answer}", flush=True)
+            dump_update_state(root, local)
+            runner = local / "Melomancer" / "updates" / "runner"
+            print("--- the helper by hand ---")
+            for args in (["-c", "import sys; print(sys.path); import ctypes, urllib.request, argparse, json, subprocess; print('imports ok')"],
+                         ["swap.py", "--help"]):
+                result = subprocess.run([str(runner / "python.exe"), *args], cwd=runner, capture_output=True, encoding="utf-8", errors="replace", timeout=60)
+                print(result.returncode, result.stdout[-800:], result.stderr[-1500:])
+            print(sorted(p.name for p in runner.iterdir()) if runner.is_dir() else "(no runner folder)")
+        check(status == 200, "update test: the swap was started")
+        try:
+            code = proc.wait(90)
+        except subprocess.TimeoutExpired:
+            raise SystemExit("FAIL update test: the old version did not close")
+        check(code == 0, f"update test: the old version closed by itself (exit code {code})")
+        try:
+            wait_for(f"version {newest} to answer on the same address", lambda: _version(url) == newest, 240)
+        except SystemExit:
+            dump_update_state(root, local)
+            raise
+        check(_version(url) == newest, f"update test: the new version {newest} answers on the same address")
+        check((root / "VERSION").read_text(encoding="utf-8").strip() == newest, "update test: the program folder holds the new version")
+        wait_for("the old folder to be deleted", lambda: not root.with_name("Melomancer.old").exists(), 60)
+        check(not root.with_name("Melomancer.old").exists() and not root.with_name("Melomancer.new").exists(), "update test: nothing is left next to the program folder")
+        backups = list((local / "Melomancer" / "data" / "backups").glob("melomancer-0.0.1-*.db"))
+        check(len(backups) == 1, "update test: the database was copied before the swap")
+        text = (local / "Melomancer" / "logs" / "update.log").read_text(encoding="utf-8", errors="replace")
+        check("answers" in text, "update test: update.log tells the story")
+        status, _ = Client(url.rstrip("/")).json("POST", "/api/auth/login", {"username": "admin", "password": PASSWORD})
+        check(status == 200, "update test: the settings and the database survived (the same administrator signs in)")
+    finally:
+        if proc.poll() is None:
+            proc.terminate()
+        if newest:   # the new version was started by the helper: stop whatever listens on the port
+            stop = ("import psutil; [psutil.Process(c.pid).terminate() for c in psutil.net_connections('tcp') "
+                    f"if c.status == 'LISTEN' and c.laddr.port == {port} and c.pid]")
+            subprocess.run([str(root / "runtime" / "python.exe"), "-c", stop], cwd=root, capture_output=True, timeout=60)
+
+
+def dump_update_state(root: Path, local: Path) -> None:
+    """Said before a failed update test ends: what the helper wrote and what is left on the disk."""
+    print("--- update.log ---")
+    log = local / "Melomancer" / "logs" / "update.log"
+    print(log.read_text(encoding="utf-8", errors="replace") if log.is_file() else "(no update.log)")
+    print("--- next to the program folder ---")
+    print(sorted(p.name for p in root.parent.iterdir()))
+    for name in ("VERSION",):
+        for folder in sorted(root.parent.glob("Melomancer*")):
+            marker = folder / name
+            print(f"{folder.name}/{name}: " + (marker.read_text(encoding="utf-8").strip() if marker.is_file() else "-"))
+    print("--- the updates folder ---")
+    updates = local / "Melomancer" / "updates"
+    print(sorted(str(p.relative_to(updates)) for p in updates.rglob("*") if p.is_file())[:20] if updates.is_dir() else "(none)")
+    print("--- melomancer.log (tail) ---")
+    main_log = local / "Melomancer" / "logs" / "melomancer.log"
+    if main_log.is_file():
+        print("\n".join(main_log.read_text(encoding="utf-8", errors="replace").splitlines()[-25:]))
+    print("--- pythonw processes ---")
+    print(subprocess.run(["tasklist", "/FI", "IMAGENAME eq pythonw.exe"], capture_output=True, encoding="utf-8", errors="replace").stdout)
+
+
+def _version(url: str) -> str | None:
+    try:
+        with urllib.request.urlopen(url + "api/health", timeout=3) as response:
+            return json.loads(response.read()).get("version")
+    except (OSError, ValueError):
+        return None
 
 
 def main(archive: Path, version: str) -> int:
@@ -259,6 +372,7 @@ def main(archive: Path, version: str) -> int:
         print("--- server log (tail) ---")
         print("\n".join((work / "server.log").read_text(encoding="utf-8", errors="replace").splitlines()[-40:]))
     background_mode(root, work)
+    self_update(root, work)
     print("smoke test passed")
     return 0
 

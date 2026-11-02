@@ -113,6 +113,13 @@ UI changes are checked: extend its mock data and assertions with every UI change
 - The ffmpeg analysis (`loudnorm` and `silencedetect` in one pass) is run under `nice`, so that it does not compete
   with the voice stream.
 
+- The update from the panel (Windows package, `app/selfupdate.py` and `app/swap.py`) swaps the program folder by
+  renaming it. The helper that does it is `swap.py` **of the version being replaced**, so it must stay standard-library
+  only and keep taking the same arguments: a fault in it can only be repaired by unpacking a package by hand once. The
+  new version must be started with the environment the old one had *before* the launcher changed it
+  (`lifecycle.original_env`); with the launcher's additions it takes the old version number and the old token. The
+  full path (download from GitHub, swap, new version answering) is tested on Windows in `scripts/windows/smoke_test.py`.
+
 ## Documentation
 
 The diagrams and the screenshots in `docs/img/` are generated, never edited by hand: `scripts/dev/diagrams.py` draws the

@@ -84,6 +84,13 @@ Panel zapisuje obie wartości w pliku ustawień na tym komputerze, więc przetrw
 
 W panelu, w **Ustawieniach** w grupie **Aktualizacje**, zobaczysz napis „Dostępna aktualizacja", gdy jest nowa wersja. Żeby ją zainstalować:
 
+1. Kliknij **Pobierz i zainstaluj**. Melomancer pobierze nową paczkę (kilkaset MB, widać pasek postępu), sprawdzi ją i rozpakuje obok. Nic jeszcze się nie zmienia, a muzyka gra dalej.
+2. Gdy pojawi się **Zainstaluj i uruchom ponownie**, kliknij ten przycisk i potwierdź. Melomancer na chwilę się wyłączy (muzyka się zatrzyma), podmieni swój folder na nowy i uruchomi się sam. Strona odświeży się sama, a w Ustawieniach zobaczysz nowy numer wersji.
+
+Ustawienia, biblioteka i token zostają. Jeśli nowa wersja nie wystartuje, poprzednia wraca sama i pokaże się okienko z informacją. Do instalacji potrzeba około 1 GB wolnego miejsca na dysku, na którym leży folder Melomancera, i prawa do zapisu w folderze, w którym on leży (zwykły folder użytkownika to spełnia).
+
+Gdy ten sposób nie zadziała (na przykład brak miejsca albo uprawnień), zaktualizujesz ręcznie:
+
 1. Zamknij Melomancera (ikona przy zegarze, **Zamknij Melomancera**).
 2. Pobierz nową paczkę (krok 1) i rozpakuj ją do **nowego** folderu, na przykład `C:\Melomancer-2` (krok 2).
 3. Uruchom **Melomancer.cmd** z nowego folderu (Windows znów zapyta o zgodę, bo to nowe miejsce, krok 3).

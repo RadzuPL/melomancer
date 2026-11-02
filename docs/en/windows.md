@@ -84,6 +84,13 @@ The panel stores both values in the settings file on this computer, so they surv
 
 In the panel, in **Settings** in the group **Updates**, you will see "Update available" when there is a new version. To install it:
 
+1. Click **Download and install**. Melomancer downloads the new package (a few hundred MB, a progress bar shows how far it is), checks it and unpacks it next to the program. Nothing changes yet, and the music goes on playing.
+2. When **Install and restart** appears, click it and confirm. Melomancer switches off for a moment (the music stops), swaps its folder for the new one and starts by itself. The page refreshes by itself and Settings shows the new version number.
+
+Your settings, library and token stay. If the new version does not start, the old one comes back by itself and a window tells you so. The installation needs about 1 GB of free space on the disk that holds the Melomancer folder, and permission to write in the folder that contains it (an ordinary user folder has both).
+
+When this does not work (for example for lack of space or permission), update by hand:
+
 1. Quit Melomancer (the icon next to the clock, **Quit Melomancer**).
 2. Download the new package (step 1) and unpack it into a **new** folder, for example `C:\Melomancer-2` (step 2).
 3. Start **Melomancer.cmd** from the new folder (Windows asks for permission again, because it is a new place, step 3).

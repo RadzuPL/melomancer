@@ -1544,6 +1544,58 @@ async function viewSettings(main) {
     try { await api("POST", "/api/system/update/check"); } catch (err) { fail(err); }
     refresh();
   };
+  // Windows package: the update is installed from here in two steps, download + unpack, then a restart.
+  const inst = upd.install || {};
+  const installBox = h("div", { class: "stack" });
+  const mb = (bytes) => String(Math.round((bytes || 0) / 1048576));
+  const startInstall = async (e) => {
+    e.target.disabled = true;
+    try { await api("POST", "/api/system/update/install"); } catch (err) { fail(err); }
+    refresh();
+  };
+  const waitForNewVersion = (version) => {   // the server is away for a moment; the page reloads when the new one answers
+    fill(installBox, h("b", {}, tr("upd_applying")));
+    const started = Date.now();
+    const timer = setInterval(async () => {
+      try {
+        const r = await fetch("/api/health", { cache: "no-store" });
+        if (r.ok && (await r.json()).version === version) { clearInterval(timer); location.reload(); return; }
+      } catch (_) { /* the server is down while it is being replaced */ }
+      if (Date.now() - started > 180000) { clearInterval(timer); fill(installBox, h("div", {}, tr("upd_applying_slow"))); }
+    }, 2000);
+  };
+  const applyNow = async () => {
+    if (!(await confirmDialog(tr("upd_apply_confirm"), false))) return;
+    try { await api("POST", "/api/system/update/apply"); } catch (err) { fail(err); refresh(); return; }
+    waitForNewVersion(upd.latest);
+  };
+  if (inst.state === "working") {
+    const bar = h("div", { class: "progress" }, h("div", {}));
+    const label = h("div", { class: "small" });
+    const paint = (i) => {
+      label.textContent = tr("upd_phase_" + i.phase, { done: mb(i.done), total: mb(i.total) });
+      bar.classList.toggle("indeterminate", !i.total);
+      if (i.total) bar.firstChild.style.setProperty("width", Math.min(100, (i.done / i.total) * 100) + "%");
+    };
+    paint(inst);
+    fill(installBox, label, bar);
+    const poll = setInterval(async () => {
+      if (!document.body.contains(bar)) { clearInterval(poll); return; }
+      try {
+        const now = (await api("GET", "/api/system/update")).install;
+        if (now.state !== "working") { clearInterval(poll); refresh(); } else paint(now);
+      } catch (_) { /* the next tick tries again */ }
+    }, 1000);
+  } else if (inst.state === "ready") {
+    fill(installBox, h("div", { class: "small" }, tr("upd_ready_hint")),
+      h("div", {}, h("button", { class: "btn primary", type: "button", onclick: applyNow }, tr("upd_apply"))));
+  } else if (inst.state === "applying") {
+    waitForNewVersion(inst.version);
+  } else {
+    fill(installBox,
+      inst.state === "failed" ? h("div", { class: "small" }, tr("upd_err_" + inst.error)) : null,
+      h("div", {}, h("button", { class: "btn primary", type: "button", onclick: startInstall }, tr(inst.state === "failed" ? "upd_retry" : "upd_install"))));
+  }
   // The address comes from the server, which builds it from a release tag; still, only a GitHub address is ever linked.
   const updUrl = upd.url && upd.url.startsWith("https://github.com/") ? upd.url : null;
   const updStatus = [];
@@ -1551,7 +1603,7 @@ async function viewSettings(main) {
     updStatus.push(h("div", { class: "notice" },
       h("b", {}, tr("update_available", { latest: upd.latest, current: upd.current })),
       updUrl ? [" · ", h("a", { href: updUrl, target: "_blank", rel: "noopener noreferrer" }, tr("update_whats_new"))] : null,
-      h("div", { class: "small" }, tr(upd.host === "desktop" ? "update_how_desktop" : "update_how"))));
+      upd.installable ? installBox : h("div", { class: "small" }, tr(upd.host === "desktop" ? "update_how_desktop" : "update_how"))));
   } else if (upd.latest && !upd.comparable) {
     updStatus.push(h("div", { class: "muted small" }, tr("update_nocompare", { current: upd.current, latest: upd.latest })));
   } else if (upd.latest) {

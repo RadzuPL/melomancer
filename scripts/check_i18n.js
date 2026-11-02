@@ -19,6 +19,9 @@ const dynamic = [
   "update_err_unreachable", "update_err_rate_limited", "update_err_bad_response",
   "bot.disabled", "bot.starting", "bot.ready", "bot.login_failed", "bot.error",
   "botd.disabled", "botd.login_failed", "botd.error",
+  "upd_phase_checking", "upd_phase_downloading", "upd_phase_verifying", "upd_phase_unpacking",
+  "upd_err_unreachable", "upd_err_rate_limited", "upd_err_bad_response", "upd_err_no_update", "upd_err_package_not_ready", "upd_err_no_space",
+  "upd_err_no_write_access", "upd_err_bad_package", "upd_err_checksum", "upd_err_failed",
 ];
 const used = new Set([...app.matchAll(/\btr\(\s*"([^"]+)"/g)].map((m) => m[1]).filter((k) => !k.endsWith(".") && !k.endsWith("_")));
 dynamic.forEach((k) => used.add(k));

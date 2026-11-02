@@ -73,8 +73,8 @@ W skrócie:
 5. Muzyka na Discordzie: w panelu wejdź w "Ustawienia", w karcie "Bot Discord" wklej token i Application ID swojego
    bota (instrukcja w pełnym opisie) i kliknij "Zapisz i połącz". Nic nie trzeba uruchamiać od nowa.
 
-Twoje ustawienia i muzyka leżą w %LOCALAPPDATA%\\Melomancer, poza tym folderem, więc aktualizacja polega na
-rozpakowaniu nowej wersji do nowego folderu. Żeby wyłączyć Melomancera, wybierz z menu ikony "Zamknij Melomancera".
+Twoje ustawienia i muzyka leżą w %LOCALAPPDATA%\\Melomancer, poza tym folderem. Aktualizacja: w panelu, w "Ustawienia",
+w grupie "Aktualizacje", kliknij "Pobierz i zainstaluj" (albo rozpakuj nową paczkę ręcznie). Żeby wyłączyć Melomancera, wybierz z menu ikony "Zamknij Melomancera".
 Gdy coś nie działa, uruchom "Diagnostyka - Diagnostics.cmd" (pokazuje komunikaty w oknie). Licencje dołączonych
 programów są w folderze "licenses" i w THIRD_PARTY.md.
 
@@ -99,8 +99,8 @@ In short:
 5. Music on Discord: in the panel open "Settings", paste the token and the Application ID of your bot into the
    "Discord bot" card (see the full guide) and click "Save and connect". There is nothing to restart.
 
-Your settings and music live in %LOCALAPPDATA%\\Melomancer, outside this folder, so updating means unpacking the new
-version into a new folder. To switch Melomancer off choose "Quit Melomancer" from the icon menu. If something does
+Your settings and music live in %LOCALAPPDATA%\\Melomancer, outside this folder. To update: in the panel, in "Settings",
+in the group "Updates", click "Download and install" (or unpack the new package by hand). To switch Melomancer off choose "Quit Melomancer" from the icon menu. If something does
 not work, start "Diagnostyka - Diagnostics.cmd" (it shows the messages in a window). Licences of the bundled programs are in
 the folder "licenses" and in THIRD_PARTY.md.
 """

@@ -114,6 +114,7 @@ with sync_playwright() as p:
     page.on("dialog", lambda d: (errors.append("DIALOG: " + d.message), d.dismiss()))
 
     botmock = {"gets": 0}   # the mocked bot logs in a few looks after its token was saved
+    instmock = {"gets": 0}  # the mocked download takes a few looks
 
     def handle(route):
         req = route.request
@@ -130,6 +131,22 @@ with sync_playwright() as p:
             if "client_id" in body:
                 info["bot_client_id"] = body["client_id"]
             return route.fulfill(status=200, content_type="application/json", body=json.dumps(info))
+        upd = ROUTES["/api/system/update"]
+        if req.method == "POST" and path == "/api/system/update/install":
+            instmock["gets"] = 0
+            upd["install"] = {"available": True, "state": "working", "phase": "downloading", "done": 0, "total": 157286400, "version": "1.3.0", "error": None}
+            return route.fulfill(status=200, content_type="application/json", body=json.dumps(upd))
+        if req.method == "POST" and path == "/api/system/update/apply":
+            # what the real server comes up as after the swap: the new version, nothing left to install
+            upd.update(current="1.3.0", available=False, installable=False, install={"available": True, "state": "idle", "phase": None, "done": 0, "total": 0, "version": None, "error": None})
+            ROUTES["/api/health"] = {"status": "ok", "version": "1.3.0"}
+            return route.fulfill(status=200, content_type="application/json", body=json.dumps(upd))
+        if req.method == "GET" and path == "/api/system/update" and upd.get("install", {}).get("state") == "working":
+            instmock["gets"] += 1
+            if instmock["gets"] >= 3:
+                upd["install"].update(state="ready", phase=None)
+            else:
+                upd["install"].update(done=instmock["gets"] * 50000000)
         if req.method == "GET" and path == "/api/system" and ROUTES[path].get("bot_status") == "starting":
             botmock["gets"] += 1
             if botmock["gets"] > 2:
@@ -752,6 +769,38 @@ with sync_playwright() as p:
     assert "zakładki Bot" in desk.inner_text(".notice") and "DISCORD_TOKEN" not in desk.inner_text(".notice")
     ROUTES["/api/system"].clear()
     ROUTES["/api/system"].update(saved_system)
+
+    # ---- a desktop run: the update is installed from the panel ----
+    saved_update = json.loads(json.dumps(ROUTES["/api/system/update"]))
+    ROUTES["/api/system/update"].update(host="desktop", installable=True, install={"available": True, "state": "idle", "phase": None, "done": 0, "total": 0, "version": None, "error": None})
+    desk.click("nav.tabs button:has-text('Odtwarzacz')")
+    desk.click("nav.tabs button:has-text('Ustawienia')")
+    desk.wait_for_selector("button:has-text('Pobierz i zainstaluj')")
+    assert "Pobierz nowszą paczkę" not in desk.inner_text("main"), "the manual wording gives way to the button"
+    desk.click("button:has-text('Pobierz i zainstaluj')")
+    desk.wait_for_selector(".progress", timeout=5000)
+    assert "Pobieram:" in desk.inner_text("main") and "z 150 MB" in desk.inner_text("main"), desk.inner_text("main")
+    desk.wait_for_selector("button:has-text('Zainstaluj i uruchom ponownie')", timeout=10000)
+    assert "muzyka na chwilę się zatrzyma" in desk.inner_text("main")
+    desk.screenshot(path=f"{shots}update-ready.png", full_page=True)
+    before = calls.count("POST /api/system/update/apply")
+    desk.click("button:has-text('Zainstaluj i uruchom ponownie')")
+    desk.click(".dialog button:has-text('OK')")
+    desk.wait_for_function("() => document.body.innerText.includes('Aktualizuję')", timeout=5000)
+    assert calls.count("POST /api/system/update/apply") == before + 1
+    desk.wait_for_function("() => performance.getEntriesByType('navigation').length > 0 && !document.body.innerText.includes('Aktualizuję')", timeout=15000)
+    assert "GET /api/health" in calls, "the page waited for the new version to answer"
+    # a failed download says why and offers another try
+    ROUTES["/api/system/update"].clear()
+    ROUTES["/api/system/update"].update(saved_update)
+    ROUTES["/api/system/update"].update(host="desktop", installable=True, install={"available": True, "state": "failed", "phase": None, "done": 0, "total": 0, "version": None, "error": "package_not_ready"})
+    desk.click("nav.tabs button:has-text('Odtwarzacz')")
+    desk.click("nav.tabs button:has-text('Ustawienia')")
+    desk.wait_for_selector("button:has-text('Spróbuj ponownie')")
+    assert "jeszcze się buduje" in desk.inner_text("main")
+    ROUTES["/api/system/update"].clear()
+    ROUTES["/api/system/update"].update(saved_update)
+    ROUTES.pop("/api/health", None)
 
     # in a container the card does not exist and the old wording stays
     ROUTES["/api/system"].update(bot_status="disabled", bot_token_set=False)
