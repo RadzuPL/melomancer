@@ -143,7 +143,7 @@ class Installer:
             if self.root is None:
                 raise InstallError("update_unavailable")
             if self._state in ("working", "applying"):
-                raise InstallError("busy")
+                raise InstallError("update_busy")
             self._state, self._phase, self._error, self._done, self._total = "working", "checking", None, 0, 0
         self._thread = threading.Thread(target=self._work, name="self-update", daemon=True)
         self._thread.start()

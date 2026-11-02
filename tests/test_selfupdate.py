@@ -134,6 +134,7 @@ def test_the_new_version_is_downloaded_checked_and_unpacked_next_to_the_program(
     (lambda: dict(data=package_zip(), current="0.8.0"), "no_update"),
     (lambda: dict(data=package_zip(), error="unreachable"), "unreachable"),
     (lambda: dict(data=package_zip(), error="rate_limited"), "rate_limited"),
+    (lambda: dict(data=package_zip(), error="bad_response"), "bad_response"),
 ])
 def test_a_package_that_cannot_be_trusted_is_dropped_and_nothing_is_left_behind(tmp_path, make, code):
     options = make()
@@ -168,7 +169,7 @@ def test_a_second_start_while_one_runs_is_refused_and_a_failed_one_may_be_repeat
     inst.start()
     with pytest.raises(InstallError) as caught:
         inst.start()
-    assert caught.value.code == "busy"
+    assert caught.value.code == "update_busy"
     gate.set()
     inst._thread.join(20)
     assert inst.status()["state"] == "ready"

@@ -109,7 +109,7 @@ def test_the_update_is_downloaded_from_the_panel_and_then_applied(env, tmp_path)
     assert env.client.post("/api/system/update/apply").status_code == 200
     assert ended.wait(5), "applying ends the program"
     assert env.client.get("/api/system/update").json()["install"]["state"] == "applying"
-    assert env.client.post("/api/system/update/install").json()["detail"] == "busy"
+    assert env.client.post("/api/system/update/install").json()["detail"] == "update_busy"
 
 
 def test_only_an_administrator_may_install_and_only_with_the_header(env, tmp_path):
