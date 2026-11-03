@@ -177,6 +177,24 @@ with sync_playwright() as p:
     page.goto("http://127.0.0.1:8099/")
     page.wait_for_selector("header.top")
     shots = SHOTS + "/"
+    # a newer version is announced in the top bar, quietly, for the administrator, without opening Settings
+    page.wait_for_selector(".upd-pill")
+    assert page.inner_text(".upd-pill") == "Nowa wersja 1.3.0", page.inner_text(".upd-pill")
+    assert "masz 1.2.3" in page.locator(".upd-pill").get_attribute("title")
+    assert page.locator(".upd-pill").bounding_box()["height"] <= 26, "a small pill, not a banner"
+    page.screenshot(path=f"{shots}update-badge.png", clip={"x": 0, "y": 0, "width": 1280, "height": 70})
+    page.click(".upd-pill")
+    page.wait_for_selector(".botcard, .tiles")
+    assert page.locator("nav.tabs button.active").inner_text() == "Ustawienia", "the pill leads to Settings"
+    ROUTES["/api/system/update"]["available"] = False     # up to date: the pill goes away when Settings looks again
+    page.click("nav.tabs button:has-text('Odtwarzacz')")
+    page.click("nav.tabs button:has-text('Ustawienia')")
+    page.wait_for_selector(".tiles")
+    assert page.locator(".upd-pill").count() == 0, "no newer version, no pill"
+    ROUTES["/api/system/update"]["available"] = True
+    page.click("nav.tabs button:has-text('Odtwarzacz')")
+    page.click("nav.tabs button:has-text('Ustawienia')")
+    page.wait_for_selector(".upd-pill")
     for tab, label in [("player", "Odtwarzacz"), ("library", "Biblioteka"), ("playlists", "Playlisty"),
                        ("downloads", "Pobieranie"), ("users", "Użytkownicy"), ("settings", "Ustawienia")]:
         page.click(f"nav.tabs button:has-text('{label}')")
@@ -792,6 +810,7 @@ with sync_playwright() as p:
     desk.wait_for_function("() => performance.getEntriesByType('navigation').length > 0 && !document.body.innerText.includes('Aktualizuję')", timeout=15000)
     assert "GET /api/health" in calls, "the page waited for the new version to answer"
     desk.wait_for_function("() => document.body.innerText.includes('Zaktualizowano do wersji 1.3.0')", timeout=5000)
+    assert desk.locator(".upd-pill").count() == 0, "after the update there is nothing to announce"
     ROUTES["/api/system"]["version"] = saved_system["version"]
     # a failed download says why and offers another try
     ROUTES["/api/system/update"].clear()

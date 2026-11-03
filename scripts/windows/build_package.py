@@ -206,9 +206,6 @@ def package(version: str, tools: Path, out: Path, build: str = "", commit: str =
     (root / "Melomancer.cmd").write_text(CMD_FILE.replace("\n", "\r\n"), encoding="utf-8")
     (root / "Ustawienia - Settings.cmd").write_text(SETTINGS_CMD.replace("\n", "\r\n"), encoding="utf-8")
     (root / "Diagnostyka - Diagnostics.cmd").write_text(DEBUG_CMD.replace("\n", "\r\n"), encoding="utf-8")
-    sys.path.insert(0, str(ROOT))
-    from app import winmain   # the template that the program itself writes on the first start
-    (root / "config.example.toml").write_text(winmain.TEMPLATE, encoding="utf-8")
     (root / "README-WINDOWS.txt").write_text(READ_ME.replace("\n", "\r\n"), encoding="utf-8")
 
     out.mkdir(parents=True, exist_ok=True)

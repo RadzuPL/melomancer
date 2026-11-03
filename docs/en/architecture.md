@@ -140,6 +140,8 @@ All paths are under `/api`; state-changing requests need the header `X-Melomance
 
 `UpdateChecker` (`app/updates.py`) asks `https://api.github.com/repos/RadzuPL/melomancer/releases/latest` with one anonymous GET: 8 s timeout, the answer limited to 256 KB, an `If-None-Match` header with the last ETag so that an unchanged release costs a 304. The server asks, not the browser, because the panel's content security policy allows no outside requests. A daemon thread (started in the lifespan like the other workers) looks 30 s after the start and then every 6 hours, but only while the `update_check` setting is on; a rate limit from GitHub (403 or 429) pauses it for an hour. `POST /system/update/check` asks at once, at most once in 10 seconds, whatever the switch says. Nothing is persisted: after a restart the first check refills the cache.
 
+The panel shows the result to administrators in the top bar: it reads `GET /system/update` at start (and again after 45 s, because the first look of the server comes 30 s after its start) and every ten minutes, and Settings refreshes it. It makes no request to GitHub itself.
+
 The tag (`vX.Y.Z`) is parsed into three numbers and compared as numbers, so 0.6.10 is above 0.6.9. Drafts, pre-releases and odd tags are ignored. The link to the release notes is built from the tag, never taken from the answer. A running version that is not three numbers (`dev`) is never compared and the thread does not start. Failures are short codes (`unreachable`, `rate_limited`, `bad_response`) that the panel translates under `update_err_*`, and the last good answer is kept. The Monday rebuild creates a release like any other, so it counts as an update.
 
 ## Bot setup from the panel
