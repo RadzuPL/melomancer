@@ -18,7 +18,7 @@ import time
 import webbrowser
 from pathlib import Path
 
-from . import hostenv
+from . import hostenv, lifecycle
 
 log = logging.getLogger("melomancer.tray")
 LAUNCHER_LOGGER = "melomancer.launcher"
@@ -32,6 +32,8 @@ TEXTS = {
     "pl": {
         "open": "Otwórz Melomancera", "settings": "Otwórz plik ustawień", "logs": "Pokaż pliki z logami",
         "autostart": "Uruchamiaj z Windows", "quit": "Zamknij Melomancera",
+        "update": "Dostępna aktualizacja: {version}",
+        "update_notice": "Jest nowa wersja Melomancera: {version}. Zainstalujesz ją w panelu, w Ustawieniach.",
         "running": "Melomancer działa. Kliknij ikonę przy zegarze, żeby otworzyć panel.",
         "stopped": "Melomancer się zatrzymał. Szczegóły są w plikach z logami (menu ikony nie jest już dostępne).",
         "no_start": ("Melomancer nie mógł wystartować.\n\nNajczęstsza przyczyna: inny program używa adresu {url}. "
@@ -43,6 +45,8 @@ TEXTS = {
     "en": {
         "open": "Open Melomancer", "settings": "Open the settings file", "logs": "Show the log files",
         "autostart": "Start with Windows", "quit": "Quit Melomancer",
+        "update": "Update available: {version}",
+        "update_notice": "A new version of Melomancer is available: {version}. Install it in the panel, in Settings.",
         "running": "Melomancer is running. Click the icon next to the clock to open the panel.",
         "stopped": "Melomancer has stopped. The log files say why (the icon menu is no longer available).",
         "no_start": ("Melomancer could not start.\n\nThe most likely reason: another program uses the address {url}. "
@@ -241,6 +245,8 @@ def run_tray(*, url: str, version: str, home: Path, config: Path, logs_dir: Path
         pystray.MenuItem(text["open"], lambda icon, item: webbrowser.open(url), default=True),
         pystray.MenuItem(text["settings"], lambda icon, item: open_path(config)),
         pystray.MenuItem(text["logs"], lambda icon, item: open_path(logs_dir)),
+        pystray.MenuItem(lambda item: text["update"].format(version=lifecycle.pending_update()),
+                         lambda icon, item: webbrowser.open(url), visible=lambda item: lifecycle.pending_update() is not None),
         pystray.Menu.SEPARATOR,
         pystray.MenuItem(text["autostart"], toggle_autostart, checked=lambda item: autostart_enabled()),
         pystray.Menu.SEPARATOR,
@@ -258,8 +264,17 @@ def run_tray(*, url: str, version: str, home: Path, config: Path, logs_dir: Path
             log.debug("The notification could not be shown", exc_info=True)
         if open_browser:
             webbrowser.open(url)
+        told, ticks = None, 0
         while server.is_alive() and not stopping.is_set():
             time.sleep(1)
+            ticks += 1
+            newer = lifecycle.pending_update() if ticks % 30 == 0 else None
+            if newer and newer != told:   # once per version and run: the menu item stays
+                told = newer
+                try:
+                    _icon.notify(text["update_notice"].format(version=newer), "Melomancer")
+                except Exception:   # noqa: BLE001
+                    log.debug("The update notification could not be shown", exc_info=True)
         if server.quitting and not stopping.is_set():
             log.info("Closing the icon: Melomancer was asked to end")
             _icon.stop()

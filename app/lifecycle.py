@@ -10,6 +10,7 @@ from typing import Callable
 _hook: Callable[[], None] | None = None
 _original_env: dict[str, str] | None = None
 _launch_args: list[str] = []
+_update_info: Callable[[], dict] | None = None
 
 
 def set_quit_hook(hook: Callable[[], None] | None) -> None:
@@ -38,6 +39,23 @@ def set_launch_args(args: list[str]) -> None:
 
 def launch_args() -> list[str]:
     return list(_launch_args)
+
+
+def set_update_info(provider: Callable[[], dict] | None) -> None:
+    """Where the tray icon can ask whether a newer version exists (the status of the update checker)."""
+    global _update_info
+    _update_info = provider
+
+
+def pending_update() -> str | None:
+    """The number of the newer version when one is known, else None. Never raises: the icon must not depend on it."""
+    if _update_info is None:
+        return None
+    try:
+        info = _update_info()
+        return str(info["latest"]) if info.get("available") and info.get("latest") else None
+    except Exception:  # noqa: BLE001
+        return None
 
 
 def request_quit() -> bool:

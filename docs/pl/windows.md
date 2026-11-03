@@ -76,7 +76,7 @@ Panel zapisuje obie wartości w pliku ustawień na tym komputerze, więc przetrw
 ## Na co dzień
 
 - **Start:** kliknij dwukrotnie **Melomancer.cmd** i poczekaj, aż otworzy się przeglądarka. Jeśli Melomancer już działa, drugi start tylko otworzy jego stronę.
-- **Ikona przy zegarze** ma menu (kliknij ją prawym przyciskiem): **Otwórz Melomancera**, **Otwórz plik ustawień**, **Pokaż pliki z logami**, **Uruchamiaj z Windows** (zaznacz, jeśli ma startować sam po włączeniu komputera) i **Zamknij Melomancera**.
+- **Ikona przy zegarze** ma menu (kliknij ją prawym przyciskiem): **Otwórz Melomancera**, **Otwórz plik ustawień**, **Pokaż pliki z logami**, **Uruchamiaj z Windows** (zaznacz, jeśli ma startować sam po włączeniu komputera) i **Zamknij Melomancera**. Gdy jest nowsza wersja, w menu pojawia się jeszcze pozycja **Dostępna aktualizacja: X** (raz pokaże się też dymek przy ikonie); jej kliknięcie otwiera panel, gdzie w Ustawieniach zainstalujesz aktualizację.
 - Zamknięcie karty przeglądarki **nie** wyłącza Melomancera. Ale muzyka puszczana przyciskiem **Odtwarzaj tutaj** gra tylko, dopóki ta karta jest otwarta; do bota na Discordzie karta nie jest potrzebna.
 - **Koniec:** prawy przycisk na ikonie, **Zamknij Melomancera**.
 

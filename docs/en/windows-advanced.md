@@ -47,6 +47,8 @@ It is refused, whatever the file says, unless all of this holds: the panel liste
 
 The menu item **Start with Windows** writes the value `Melomancer` into `HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Run` (the user's own key, no administrator rights). The command is `"<folder>\runtime\pythonw.exe" -m app.winmain --no-browser`, so the browser does not open at sign-in. If you move the folder, or unpack a newer package elsewhere, and the item is ticked, Melomancer corrects the entry at its next start so that it points to that folder.
 
+The menu item **Update available** asks the same release checker as the panel (`lifecycle.pending_update`), so it makes no requests to GitHub of its own; the balloon appears once per version and run.
+
 Command line options (`runtime\python.exe -m app.winmain ...`): `--console` stays in the console window instead of the icon (that is what `Diagnostyka - Diagnostics.cmd` does), `--tray` shows the icon even when started from a console, `--no-browser`, `--port`, `--host`, `--config <file>`, `--edit-config`.
 
 ## What is different from the container
