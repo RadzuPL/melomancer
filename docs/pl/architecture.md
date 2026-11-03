@@ -140,6 +140,8 @@ Wszystkie ścieżki są pod `/api`; żądania zmieniające stan wymagają nagł�
 
 `UpdateChecker` (`app/updates.py`) pyta `https://api.github.com/repos/RadzuPL/melomancer/releases/latest` jednym anonimowym GET: limit czasu 8 s, odpowiedź ograniczona do 256 KB, nagłówek `If-None-Match` z ostatnim ETagiem, żeby niezmienione wydanie kosztowało tylko odpowiedź 304. Pyta serwer, nie przeglądarka, bo polityka bezpieczeństwa treści panelu nie dopuszcza zapytań na zewnątrz. Wątek demona (uruchamiany w lifespan jak pozostałe) zagląda 30 s po starcie, a potem co 6 godzin, ale tylko gdy ustawienie `update_check` jest włączone; limit zapytań GitHuba (403 lub 429) wstrzymuje go na godzinę. `POST /system/update/check` pyta od razu, najwyżej raz na 10 sekund, niezależnie od przełącznika. Nic nie jest zapisywane: po restarcie pierwsze sprawdzenie uzupełnia pamięć podręczną.
 
+Panel pokazuje wynik administratorom w górnym pasku: czyta `GET /system/update` przy starcie (i jeszcze raz po 45 s, bo pierwsze zajrzenie serwera następuje 30 s po jego starcie) oraz co dziesięć minut, a Ustawienia go odświeżają. Samo nie wysyła żadnych zapytań do GitHuba.
+
 Tag (`vX.Y.Z`) jest rozbijany na trzy liczby i porównywany jako liczby, więc 0.6.10 jest wyżej niż 0.6.9. Szkice, wersje przedpremierowe i dziwne tagi są pomijane. Link do notatek wydania powstaje z tagu, nigdy z odpowiedzi. Działająca wersja, która nie jest trzema liczbami (`dev`), nigdy nie jest porównywana, a wątek się nie uruchamia. Błędy to krótkie kody (`unreachable`, `rate_limited`, `bad_response`), które panel tłumaczy pod `update_err_*`, a ostatnia dobra odpowiedź zostaje. Poniedziałkowa przebudowa tworzy wydanie jak każde inne, więc liczy się jako aktualizacja.
 
 ## Konfiguracja bota z panelu

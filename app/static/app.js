@@ -451,11 +451,30 @@ function render() {
         class: state.tab === id ? "active" : "", onclick: () => { state.tab = id; stopPolling(); render(); },
       }, tr(label)))),
       h("span", { class: "grow" }),
-      h("div", { class: "hdr-right" }, themeMenu(), langToggle(), userMenu())),
+      h("div", { class: "hdr-right" }, updateBadge(), themeMenu(), langToggle(), userMenu())),
     main,
     footer());
   const views = { player: viewPlayer, library: viewLibrary, playlists: viewPlaylists, downloads: viewDownloads, users: viewUsers, settings: viewSettings };
   views[state.tab](main).catch(fail);
+}
+
+/* A quiet note in the top bar, for administrators only: a newer version exists. It sits where it can be seen without opening
+   Settings, and it is a small pill, not a banner. In a container it tells the administrator to update the image, in the
+   Windows package it leads to the install button. */
+function updateBadge() {
+  const info = state.update;
+  if (!info || !info.available || !state.user || state.user.role !== "admin") return h("span", { class: "upd-slot" });
+  return h("span", { class: "upd-slot" }, h("button", {
+    class: "upd-pill", type: "button", title: tr("upd_badge_title", { latest: info.latest, current: info.current }),
+    onclick: () => { state.tab = "settings"; stopPolling(); render(); },
+  }, tr("upd_badge", { version: info.latest })));
+}
+
+async function pollUpdate() {   // what the checker on the server knows; it looks at GitHub by itself every few hours
+  if (!state.user || state.user.role !== "admin") return;
+  try { state.update = await api("GET", "/api/system/update"); } catch (_) { return; }
+  const slot = $(".upd-slot");
+  if (slot) slot.replaceWith(updateBadge());
 }
 
 const REPO_URL = "https://github.com/RadzuPL/melomancer";
@@ -1524,6 +1543,9 @@ function sparkline(floor) {
 async function viewSettings(main) {
   const [system, upd] = await Promise.all([api("GET", "/api/system"), api("GET", "/api/system/update")]);
   state.system = system;
+  state.update = upd;
+  const slot = $(".upd-slot");
+  if (slot) slot.replaceWith(updateBadge());
   const refresh = () => { render(); };
 
   const saveNormalize = async (body) => {
@@ -1793,6 +1815,11 @@ async function boot() {
     state.system = await api("GET", "/api/system");
   } catch (_) { state.user = null; }
   render();
+  if (state.user && state.user.role === "admin") {
+    pollUpdate();
+    setTimeout(pollUpdate, 45000);                 // the server's first look at GitHub comes half a minute after its start
+    setInterval(pollUpdate, 10 * 60 * 1000);
+  }
   try {   // the page was reloaded by an update: say that it worked
     const updated = sessionStorage.getItem("melomancer-updated");
     if (updated) {
