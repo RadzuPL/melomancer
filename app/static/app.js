@@ -1559,7 +1559,12 @@ async function viewSettings(main) {
     const timer = setInterval(async () => {
       try {
         const r = await fetch("/api/health", { cache: "no-store" });
-        if (r.ok && (await r.json()).version === version) { clearInterval(timer); location.reload(); return; }
+        if (r.ok && (await r.json()).version === version) {
+          clearInterval(timer);
+          try { sessionStorage.setItem("melomancer-updated", version); } catch (_) { /* only the confirmation is lost */ }
+          location.reload();
+          return;
+        }
       } catch (_) { /* the server is down while it is being replaced */ }
       if (Date.now() - started > 180000) { clearInterval(timer); fill(installBox, h("div", {}, tr("upd_applying_slow"))); }
     }, 2000);
@@ -1788,6 +1793,13 @@ async function boot() {
     state.system = await api("GET", "/api/system");
   } catch (_) { state.user = null; }
   render();
+  try {   // the page was reloaded by an update: say that it worked
+    const updated = sessionStorage.getItem("melomancer-updated");
+    if (updated) {
+      sessionStorage.removeItem("melomancer-updated");
+      if (state.system && state.system.version === updated) toast(tr("upd_done", { version: updated }), "ok");
+    }
+  } catch (_) { /* no storage, no message */ }
 }
 LocalPlayer.onerror = () => toast(tr("local_load_failed"), "err");
 document.addEventListener("visibilitychange", () => { /* polling resumes on the next tick */ });

@@ -76,7 +76,7 @@ The panel stores both values in the settings file on this computer, so they surv
 ## Every day
 
 - **Start:** double-click **Melomancer.cmd** and wait for the browser to open. If Melomancer is already running, a second start only opens its page.
-- **The icon next to the clock** has a menu (right-click it): **Open Melomancer**, **Open the settings file**, **Show the log files**, **Start with Windows** (tick it if Melomancer should start by itself when you switch the computer on) and **Quit Melomancer**.
+- **The icon next to the clock** has a menu (right-click it): **Open Melomancer**, **Open the settings file**, **Show the log files**, **Start with Windows** (tick it if Melomancer should start by itself when you switch the computer on) and **Quit Melomancer**. When a newer version exists the menu also has **Update available: X** (a balloon appears once, too); clicking it opens the panel, where you install the update in Settings.
 - Closing the browser tab does **not** switch Melomancer off. But music started with **Play here** plays only while that tab is open; the Discord bot does not need the tab.
 - **To finish:** right-click the icon, **Quit Melomancer**.
 

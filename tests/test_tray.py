@@ -15,6 +15,26 @@ def test_polish_windows_gets_polish_texts_and_every_other_language_english():
     assert set(tray.TEXTS["pl"]) == set(tray.TEXTS["en"]), "every text exists in both languages"
 
 
+def test_the_icon_knows_about_a_newer_version_only_when_the_checker_says_so():
+    from app import lifecycle
+    try:
+        lifecycle.set_update_info(None)
+        assert lifecycle.pending_update() is None, "nobody registered"
+        lifecycle.set_update_info(lambda: {"available": True, "latest": "0.9.1"})
+        assert lifecycle.pending_update() == "0.9.1"
+        lifecycle.set_update_info(lambda: {"available": False, "latest": "0.9.1"})
+        assert lifecycle.pending_update() is None, "the newest release is not above the running version"
+        lifecycle.set_update_info(lambda: {"available": True, "latest": None})
+        assert lifecycle.pending_update() is None
+
+        def broken():
+            raise RuntimeError("the checker failed")
+        lifecycle.set_update_info(broken)
+        assert lifecycle.pending_update() is None, "a failing checker never takes the icon down"
+    finally:
+        lifecycle.set_update_info(None)
+
+
 def test_the_autostart_command_uses_the_bundled_pythonw_and_does_not_open_the_browser():
     command = tray.autostart_command(Path("C:/Programy/Melomancer"))
     assert command.startswith('"') and command.endswith("-m app.winmain --no-browser")

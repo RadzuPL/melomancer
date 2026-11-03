@@ -11,7 +11,7 @@ from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from starlette.requests import Request
 
-from . import routes_auth, routes_library, routes_local, routes_player, routes_playlists
+from . import lifecycle, routes_auth, routes_library, routes_local, routes_player, routes_playlists
 from .config import Settings
 from .db import init_db, tx
 from .deps import csrf_guard
@@ -96,6 +96,7 @@ def create_app(settings: Settings | None = None, bot=None, downloader: Downloade
     app.state.loudness = loudness or LoudnessWorker(settings, app.state.runtime)
     app.state.load = LoadMonitor()
     app.state.updates = updates or UpdateChecker(settings, app.state.runtime)
+    lifecycle.set_update_info(app.state.updates.status)   # the tray icon of the Windows package says "update available"
     app.state.installer = installer or create_installer(settings)
     app.state.downloader = downloader or Downloader(settings)
     app.state.throttle = LoginThrottle(settings.login_max_failures, settings.login_window_seconds)

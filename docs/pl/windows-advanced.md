@@ -47,6 +47,8 @@ Odmowa następuje niezależnie od pliku, chyba że spełnione jest wszystko nara
 
 Pozycja **Uruchamiaj z Windows** w menu ikony zapisuje wartość `Melomancer` w kluczu `HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Run` (własny klucz użytkownika, bez uprawnień administratora). Polecenie to `"<folder>\runtime\pythonw.exe" -m app.winmain --no-browser`, więc przy logowaniu nie otwiera się przeglądarka. Jeśli folder przeniesiesz albo rozpakujesz nowszą paczkę gdzie indziej, a pozycja jest zaznaczona, Melomancer przy następnym starcie poprawia wpis tak, żeby wskazywał na ten folder.
 
+Pozycja **Dostępna aktualizacja** w menu ikony pyta ten sam sprawdzacz wydań co panel (`lifecycle.pending_update`), więc nie robi własnych zapytań do GitHuba; dymek pokazuje się raz na wersję i uruchomienie.
+
 Opcje linii poleceń (`runtime\python.exe -m app.winmain ...`): `--console` zostaje w oknie konsoli zamiast w ikonie (to robi `Diagnostyka - Diagnostics.cmd`), `--tray` pokazuje ikonę także przy starcie z konsoli, `--no-browser`, `--port`, `--host`, `--config <plik>`, `--edit-config`.
 
 ## Czym różni się od kontenera

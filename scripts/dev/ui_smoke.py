@@ -138,6 +138,7 @@ with sync_playwright() as p:
             return route.fulfill(status=200, content_type="application/json", body=json.dumps(upd))
         if req.method == "POST" and path == "/api/system/update/apply":
             # what the real server comes up as after the swap: the new version, nothing left to install
+            ROUTES["/api/system"]["version"] = "1.3.0"
             upd.update(current="1.3.0", available=False, installable=False, install={"available": True, "state": "idle", "phase": None, "done": 0, "total": 0, "version": None, "error": None})
             ROUTES["/api/health"] = {"status": "ok", "version": "1.3.0"}
             return route.fulfill(status=200, content_type="application/json", body=json.dumps(upd))
@@ -790,6 +791,8 @@ with sync_playwright() as p:
     assert calls.count("POST /api/system/update/apply") == before + 1
     desk.wait_for_function("() => performance.getEntriesByType('navigation').length > 0 && !document.body.innerText.includes('Aktualizuję')", timeout=15000)
     assert "GET /api/health" in calls, "the page waited for the new version to answer"
+    desk.wait_for_function("() => document.body.innerText.includes('Zaktualizowano do wersji 1.3.0')", timeout=5000)
+    ROUTES["/api/system"]["version"] = saved_system["version"]
     # a failed download says why and offers another try
     ROUTES["/api/system/update"].clear()
     ROUTES["/api/system/update"].update(saved_update)
