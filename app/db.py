@@ -169,6 +169,21 @@ MIGRATIONS: list[str] = [
         PRIMARY KEY (user_id, key)
     );
     """,
+    # 9: the sampler's pads: big buttons that play a track as a sound effect. Private to the person who made them.
+    # `mode` is 'once' (plays to its end) or 'loop'; `volume` is the pad's own level; `color` picks one of a few tints.
+    """
+    CREATE TABLE sampler_pads (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        position INTEGER NOT NULL DEFAULT 0,
+        name TEXT NOT NULL DEFAULT '',
+        track_id TEXT REFERENCES tracks(id),
+        mode TEXT NOT NULL DEFAULT 'once',
+        volume REAL NOT NULL DEFAULT 1.0,
+        color INTEGER NOT NULL DEFAULT 0
+    );
+    CREATE INDEX idx_pads_user ON sampler_pads(user_id, position);
+    """,
 ]
 
 

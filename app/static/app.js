@@ -441,7 +441,7 @@ function render() {
   root.replaceChildren();
   document.documentElement.lang = state.lang;
   if (!state.user) { root.append(viewLogin()); return; }
-  const tabs = [["player", "tab.player"], ["library", "tab.library"], ["playlists", "tab.playlists"], ["downloads", "tab.downloads"]];
+  const tabs = [["player", "tab.player"], ["library", "tab.library"], ["playlists", "tab.playlists"], ["sampler", "tab.sampler"], ["downloads", "tab.downloads"]];
   if (state.user.role === "admin") tabs.push(["users", "tab.users"], ["settings", "tab.settings"]);
   const main = h("main", {});
   root.append(
@@ -454,7 +454,7 @@ function render() {
       h("div", { class: "hdr-right" }, updateBadge(), themeMenu(), langToggle(), userMenu())),
     main,
     footer());
-  const views = { player: viewPlayer, library: viewLibrary, playlists: viewPlaylists, downloads: viewDownloads, users: viewUsers, settings: viewSettings };
+  const views = { player: viewPlayer, library: viewLibrary, playlists: viewPlaylists, sampler: viewSampler, downloads: viewDownloads, users: viewUsers, settings: viewSettings };
   views[state.tab](main).catch(fail);
 }
 
@@ -1756,6 +1756,216 @@ async function viewSettings(main) {
         h("button", { class: "btn small", type: "button", onclick: checkUpdateNow }, tr("update_check_now"))),
       updStatus,
       h("div", { class: "muted small" }, tr("update_hint"))));
+}
+
+/* ---------- sampler ---------- */
+
+/* Big pads that play a track as a sound effect. A press starts the effect and the next one stops it (a pad set to "loop"
+   repeats until then; one set to "once" plays to its end and lights up for as long as it sounds). The right mouse button
+   plays it only while it is held. Where it sounds follows the player: in this browser when "Play here" is on, otherwise
+   in the voice channel the bot is in. The pads themselves are edited with the small button in the corner. */
+
+async function viewSampler(main) {
+  const sp = state.sampler || (state.sampler = { editing: false, target: { kind: "none" }, on: new Set(), volume: 0.6 });
+  const [data] = await Promise.all([api("GET", "/api/sampler"), state.tracks.length ? null : loadTracks(),
+    state.player.choice ? null : api("GET", "/api/player/choice").then((c) => { state.player.choice = c; }).catch(() => { /* none chosen */ })]);
+  let pads = data.pads;
+  const queue = {};            // per pad: what was asked is done in that order (a hold and its release must not swap)
+  let volumeTouched = false;
+
+  const grid = h("div", { class: "fxpads" });
+  const status = h("span", { class: "muted" });
+  const volume = h("input", { type: "range", min: 0, max: 1.5, step: 0.05, value: sp.volume, class: "fxvolume", "aria-label": tr("sampler_volume") });
+  const editBtn = h("button", { class: "btn small", type: "button", onclick: () => { sp.editing = !sp.editing; paintAll(); } });
+
+  const paintStatus = () => {
+    const t = sp.target;
+    status.textContent = t.kind === "local" ? tr("sampler_target_local")
+      : t.kind === "bot" ? tr("sampler_target_bot", { server: t.name, channel: t.channel || "" }) : tr("sampler_target_none");
+    status.classList.toggle("bad-text", t.kind === "none");
+  };
+  const paintOn = () => {
+    for (const el of grid.querySelectorAll(".fxpad[data-pad]")) el.classList.toggle("on", sp.on.has(Number(el.dataset.pad)));
+  };
+  const paintAll = () => {
+    editBtn.textContent = sp.editing ? "✓ " + tr("sampler_done") : "✎ " + tr("sampler_edit");
+    editBtn.classList.toggle("primary", sp.editing);
+    fill(grid, pads.map(padEl), sp.editing && pads.length < 48 ? h("button", { class: "fxpad add", type: "button", onclick: addPad }, "＋ " + tr("sampler_add")) : null);
+    paintOn();
+  };
+
+  /* ----- where it sounds, and what sounds ----- */
+
+  const refresh = async () => {
+    if (LocalPlayer.on) {
+      sp.target = { kind: "local" };
+      sp.on = new Set(LocalFx.ids());
+    } else {
+      let guilds = null;
+      try { guilds = await api("GET", "/api/player/guilds"); } catch (_) { /* keep what was known */ }
+      if (guilds) {
+        const live = guilds.filter((g) => g.state && g.state.connected);
+        const chosen = live.find((g) => g.id === (state.player.choice || {}).guild) || live[0];
+        if (chosen) {
+          sp.target = { kind: "bot", guild: chosen.id, name: chosen.name, channel: chosen.state.channel_name };
+          sp.on = new Set((chosen.state.fx || []).map((e) => e.pad_id));
+          if (!volumeTouched && typeof chosen.state.fx_volume === "number") { sp.volume = chosen.state.fx_volume; volume.value = sp.volume; }
+        } else { sp.target = { kind: "none" }; sp.on = new Set(); }
+      }
+    }
+    paintStatus();
+    paintOn();
+  };
+
+  const act = async (kind, pad) => {    // toggle | hold | release
+    const t = sp.target;
+    if (kind !== "release" && !pad.item) { toast(tr("err.pad_empty"), "err"); return; }
+    if (t.kind === "none") { if (kind !== "release") toast(tr("sampler_target_none"), "err"); return; }
+    try {
+      if (t.kind === "local") {
+        if (kind === "toggle") await LocalFx.toggle(pad);
+        else if (kind === "hold") await LocalFx.hold(pad);
+        else LocalFx.release(pad.id);
+        sp.on = new Set(LocalFx.ids());
+      } else {
+        const res = await api("POST", `/api/player/${t.guild}/fx/${pad.id}/${kind}`);
+        sp.on = new Set((res.fx || []).map((e) => e.pad_id));
+      }
+    } catch (err) { fail(err); }
+    paintOn();
+  };
+  const ask = (kind, pad) => { queue[pad.id] = (queue[pad.id] || Promise.resolve()).then(() => act(kind, pad)); };
+
+  /* ----- one pad ----- */
+
+  const padEl = (pad) => {
+    const name = pad.name || (pad.track ? pad.track.title : "");
+    const state_ = (pad.track_id ? "" : " empty") + (pad.track && pad.track.deleted ? " gone" : "");
+    const cls = "fxpad fxpad-c" + pad.color + state_;
+    if (sp.editing) return editPad(pad, cls, name);
+    const meta = [pad.mode === "loop" ? "🔁 " + tr("sampler_mode_loop") : "▶ " + tr("sampler_mode_once"),
+      pad.track && pad.track.duration ? fmtTime(pad.track.duration) : null].filter(Boolean).join(" · ");
+    const btn = h("button", { class: cls, type: "button", "data-pad": pad.id },
+      h("span", { class: "fxpad-name" }, name || tr("sampler_empty_pad")),
+      h("span", { class: "fxpad-meta" }, pad.track_id ? meta : ""));
+    let held = null;
+    btn.addEventListener("pointerdown", (e) => {
+      if (e.button === 2) {            // the right button: sounds only while it is down
+        e.preventDefault();
+        held = e.pointerId;
+        try { btn.setPointerCapture(e.pointerId); } catch (_) { /* a mouse that is gone */ }
+        ask("hold", pad);
+      } else if (e.button === 0) { ask("toggle", pad); }
+    });
+    const letGo = (e) => { if (held !== null && held === e.pointerId) { held = null; ask("release", pad); } };
+    for (const type of ["pointerup", "pointercancel", "lostpointercapture"]) btn.addEventListener(type, letGo);
+    btn.addEventListener("contextmenu", (e) => e.preventDefault());
+    btn.addEventListener("click", (e) => { if (e.detail === 0) ask("toggle", pad); });     // the keyboard (a pointer click has detail >= 1)
+    return btn;
+  };
+
+  /* ----- editing ----- */
+
+  const save = async (pad, body) => {
+    try { pads = (await api("PATCH", `/api/sampler/pads/${pad.id}`, body)).pads; } catch (err) { fail(err); return; }
+    paintAll();
+  };
+  const addPad = async () => {
+    try { pads = (await api("POST", "/api/sampler/pads")).pads; } catch (err) { fail(err); return; }
+    paintAll();
+  };
+  const move = async (pad, step) => {
+    const ids = pads.map((p) => p.id);
+    const at = ids.indexOf(pad.id);
+    const to = at + step;
+    if (to < 0 || to >= ids.length) return;
+    [ids[at], ids[to]] = [ids[to], ids[at]];
+    try { pads = (await api("PUT", "/api/sampler/order", { ids })).pads; } catch (err) { fail(err); return; }
+    paintAll();
+  };
+  const remove = async (pad) => {
+    if (!(await confirmDialog(tr("sampler_delete_confirm"), true))) return;
+    try { pads = (await api("DELETE", `/api/sampler/pads/${pad.id}`)).pads; } catch (err) { fail(err); return; }
+    paintAll();
+  };
+  const rename = async (pad) => {
+    const value = await promptDialog(tr("sampler_rename"), tr("sampler_name_label"), pad.name);
+    if (value === null || value === undefined) return;
+    await save(pad, { name: value === false ? "" : value });
+  };
+  const chooseTrack = async (pad) => {
+    const filter = h("input", { placeholder: tr("search"), "aria-label": tr("search") });
+    const list = h("select", { size: 12, class: "trackpick", "aria-label": tr("sampler_pick_track") });
+    const fillList = () => {
+      const q = filter.value.trim().toLowerCase();
+      const found = state.tracks.filter((t) => !q || t.title.toLowerCase().includes(q) || t.tags.some((x) => x.includes(q))).slice(0, 300);
+      fill(list, found.map((t) => h("option", { value: t.id, selected: t.id === pad.track_id }, t.title + (t.duration ? "  (" + fmtTime(t.duration) + ")" : ""))));
+    };
+    filter.addEventListener("input", fillList);
+    fillList();
+    const picked = await modal(tr("sampler_pick_track"), h("div", { class: "stack" }, filter, list), [
+      { label: tr("cancel"), value: null },
+      pad.track_id ? { label: tr("sampler_no_track"), value: "" } : null,
+      { label: tr("ok"), class: "primary", run: () => list.value || false },
+    ].filter(Boolean));
+    if (picked === null || picked === undefined) return;
+    await save(pad, { track_id: picked === "" ? null : picked });
+  };
+
+  const editPad = (pad, cls, name) => h("div", { class: cls + " editing" },
+    h("button", { class: "fxpad-name linklike", type: "button", title: tr("sampler_rename"), onclick: () => rename(pad) }, name || tr("sampler_empty_pad")),
+    h("div", { class: "fxpad-row" },
+      h("button", { class: "btn small", type: "button", onclick: () => chooseTrack(pad) }, "♪ " + tr(pad.track_id ? "sampler_change_track" : "sampler_pick_track")),
+      h("button", { class: "btn small" + (pad.mode === "loop" ? " primary" : ""), type: "button", "aria-pressed": pad.mode === "loop",
+        title: tr("sampler_loop_hint"), onclick: () => save(pad, { mode: pad.mode === "loop" ? "once" : "loop" }) }, "🔁 " + tr("sampler_loop"))),
+    h("label", { class: "fxpad-row small" }, tr("sampler_pad_volume"),
+      h("input", { type: "range", min: 0, max: 1.5, step: 0.05, value: pad.volume, "aria-label": tr("sampler_pad_volume"),
+        onchange: (e) => save(pad, { volume: Number(e.target.value) }) })),
+    h("div", { class: "fxpad-row" },
+      Array.from({ length: 6 }, (_, c) => h("button", { class: "swatch fxpad-c" + c + (pad.color === c ? " sel" : ""), type: "button",
+        "aria-label": tr("sampler_color", { n: c + 1 }), "aria-pressed": pad.color === c, onclick: () => save(pad, { color: c }) })),
+      h("span", { class: "grow" }),
+      h("button", { class: "btn small icon", type: "button", "aria-label": tr("sampler_move_left"), title: tr("sampler_move_left"), onclick: () => move(pad, -1) }, "◀"),
+      h("button", { class: "btn small icon", type: "button", "aria-label": tr("sampler_move_right"), title: tr("sampler_move_right"), onclick: () => move(pad, 1) }, "▶"),
+      h("button", { class: "btn small icon danger", type: "button", "aria-label": tr("delete"), title: tr("delete"), onclick: () => remove(pad) }, "✕")));
+
+  /* ----- the page ----- */
+
+  let sending = null;
+  volume.addEventListener("input", () => {
+    volumeTouched = true;
+    sp.volume = Number(volume.value);
+    if (sp.target.kind === "local") { LocalFx.setVolume(sp.volume); return; }
+    if (sp.target.kind !== "bot" || sending) return;
+    sending = setTimeout(async () => {      // the bot follows the slider while it is dragged, a few times a second
+      sending = null;
+      try { await api("POST", `/api/player/${sp.target.guild}/fx/volume`, { volume: sp.volume }); } catch (err) { fail(err); }
+    }, 120);
+  });
+  const stopAll = async () => {
+    const t = sp.target;
+    try {
+      if (t.kind === "local") LocalFx.stopAll();
+      else if (t.kind === "bot") await api("POST", `/api/player/${t.guild}/fx/stop`);
+    } catch (err) { fail(err); }
+    await refresh();
+  };
+
+  LocalFx.setVolume(sp.volume);
+  LocalFx.onchange = () => {
+    if (!document.body.contains(grid)) { LocalFx.onchange = null; return; }
+    if (sp.target.kind === "local") { sp.on = new Set(LocalFx.ids()); paintOn(); }
+  };
+  await refresh();
+  paintAll();
+  put(main, h("div", { class: "card" },
+    h("div", { class: "sampler-head" }, status, h("span", { class: "grow" }),
+      h("label", { class: "row small" }, tr("sampler_volume"), volume),
+      h("button", { class: "btn small", type: "button", onclick: stopAll }, "■ " + tr("sampler_stop_all")), editBtn),
+    grid,
+    h("div", { class: "muted small sampler-hint" }, tr("sampler_hint"))));
+  stopPolling();
+  state.player.timer = setInterval(() => { if (!document.body.contains(grid)) stopPolling(); else refresh(); }, 1500);
 }
 
 async function viewUsers(main) {

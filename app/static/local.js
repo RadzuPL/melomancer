@@ -45,6 +45,7 @@ const LocalPlayer = {
 
   disable() {
     this.stop();
+    LocalFx.stopAll();
     this.on = false;
     this.emit();
   },
@@ -494,3 +495,132 @@ if (LocalPlayer.channel) {
     if (e.data && e.data.type === "start" && e.data.id !== LocalPlayer.id && LocalPlayer.state !== "idle") LocalPlayer.stop();
   };
 }
+
+
+/* ---------- sound effects in this browser (the sampler) ----------
+ *
+ * The same as the effect bus of the bot's mixer (app/mixer.py): any number of short sounds over the music, each started
+ * and stopped by hand, with a volume of its own and a very short fade at the start and the stop (a cut is a click).
+ * A pad's track is played from `pad.item` (where it starts and ends, the loudness gain), exactly as the music is. They
+ * do not go through the music's master volume, and they sound while the music is paused. When you change what an
+ * effect does here, change it in app/mixer.py and app/player.py too.
+ */
+
+const LocalFx = {
+  volume: 0.6,
+  master: null,
+  active: new Map(),        // pad id -> effect
+  onchange: null,
+
+  ensure() {
+    LocalPlayer.ensureContext();
+    if (!this.master) {
+      this.master = LocalPlayer.ctx.createGain();
+      this.master.gain.value = this.volume;
+      this.master.connect(LocalPlayer.ctx.destination);
+    }
+  },
+
+  ids() { return [...this.active.keys()]; },
+
+  setVolume(v) {
+    this.volume = Math.max(0, Math.min(v, 1.5));
+    if (this.master) this.master.gain.setTargetAtTime(this.volume, LocalPlayer.ctx.currentTime, 0.08);
+  },
+
+  changed() { if (this.onchange) { try { this.onchange(); } catch (_) { /* the view is gone */ } } },
+
+  /* A press: stops the effect when it sounds, starts it otherwise. Returns true when it was started. */
+  async toggle(pad) {
+    if (this.active.has(pad.id)) { this.stop(pad.id); return false; }
+    await this.start(pad, false);
+    return true;
+  },
+
+  async start(pad, momentary) {
+    if (!pad.item) throw new Error("empty");
+    this.ensure();
+    this.stop(pad.id, true);                       // the same pad again starts it over
+    const ctx = LocalPlayer.ctx;
+    const item = pad.item;
+    const a = new Audio();
+    a.preload = "auto";
+    a.src = `/api/tracks/${item.track_id}/stream`;
+    const source = ctx.createMediaElementSource(a);
+    const gain = ctx.createGain();
+    gain.gain.value = item.gain * pad.volume;
+    const env = ctx.createGain();
+    env.gain.value = 0;
+    source.connect(gain);
+    gain.connect(env);
+    env.connect(this.master);
+    const end = item.end === null || item.end === undefined ? item.duration : item.end;
+    const loop = pad.mode === "loop";
+    const fx = { id: pad.id, a, source, gain, env, loop, momentary, start: item.start || 0, end: end || null, dead: false, timer: null,
+      native: loop && (item.start || 0) <= 0.01 && (!end || (item.duration && end >= item.duration - 0.05)) };
+    this.active.set(pad.id, fx);
+    this.changed();
+    try {
+      await new Promise((resolve, reject) => {
+        const placed = () => { try { if (fx.start > 0) a.currentTime = fx.start; } catch (_) { /* set once it is known */ } resolve(); };
+        if (a.readyState >= 1) placed(); else a.addEventListener("loadedmetadata", placed, { once: true });
+        a.addEventListener("error", () => reject(new Error("media")), { once: true });
+      });
+      if (fx.dead) return this.drop(fx);               // let go before it had loaded
+      if (fx.native) a.loop = true;
+      await a.play();
+    } catch (err) {
+      this.drop(fx);
+      throw err;
+    }
+    if (fx.dead) return this.drop(fx);
+    const now = ctx.currentTime;
+    env.gain.cancelScheduledValues(now);
+    env.gain.setValueAtTime(0, now);
+    env.gain.linearRampToValueAtTime(1, now + 0.01);
+    a.addEventListener("ended", () => this.ended(fx));
+    fx.timer = setInterval(() => { if (fx.end !== null && a.currentTime >= fx.end - 0.02) this.ended(fx); }, 40);
+  },
+
+  ended(fx) {
+    if (fx.dead || this.active.get(fx.id) !== fx) return;
+    if (fx.loop && !fx.native) {
+      try { fx.a.currentTime = fx.start; fx.a.play().catch(() => { /* the next tick tries again */ }); } catch (_) { /* idem */ }
+    } else if (!fx.loop) this.drop(fx);
+  },
+
+  /* Fade out and free. `quick`: the same pad is about to start again, no need to be gentle. */
+  stop(id, quick) {
+    const fx = this.active.get(id);
+    if (!fx) return false;
+    fx.dead = true;
+    this.active.delete(id);
+    const ctx = LocalPlayer.ctx;
+    if (!quick && ctx) {
+      const now = ctx.currentTime;
+      fx.env.gain.cancelScheduledValues(now);
+      fx.env.gain.setValueAtTime(fx.env.gain.value, now);
+      fx.env.gain.linearRampToValueAtTime(0, now + 0.06);
+      setTimeout(() => this.drop(fx), 90);
+    } else this.drop(fx);
+    this.changed();
+    return true;
+  },
+
+  hold(pad) { return this.start(pad, true); },
+
+  release(id) {
+    const fx = this.active.get(id);
+    if (fx && fx.momentary) this.stop(id);
+  },
+
+  stopAll() { for (const id of [...this.active.keys()]) this.stop(id); },
+
+  drop(fx) {
+    clearInterval(fx.timer);
+    fx.dead = true;
+    try { fx.a.pause(); fx.a.removeAttribute("src"); fx.a.load(); } catch (_) { /* gone anyway */ }
+    for (const node of [fx.source, fx.gain, fx.env]) { try { node.disconnect(); } catch (_) { /* idem */ } }
+    if (this.active.get(fx.id) === fx) { this.active.delete(fx.id); this.changed(); }
+  },
+};

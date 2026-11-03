@@ -303,3 +303,163 @@ def test_the_default_glide_is_gentle_and_a_longer_one_is_gentler_still():
     assert slower[25] > default[25] and slower[0] > default[0]
     instant = descent(0.0)
     assert instant[0] < default[0] and instant[1] == 1000  # 0 means one 20 ms frame, for anyone who wants it quick
+
+
+# ---- sound effects (the sampler's bus) -----------------------------------------------------------------------------
+
+def fx(m: Mixer, tone, key="k", **kw) -> Layer:
+    layer = Layer(tone, **{k: v for k, v in kw.items() if k in ("gain", "stop_at")})
+    assert m.add_fx(layer, key, loop=kw.get("loop", False), momentary=kw.get("momentary", False))
+    return ready(layer)
+
+
+def test_an_effect_is_mixed_on_top_of_the_music_at_a_volume_of_its_own():
+    m = Mixer(volume=0.5, glide=0, fx_volume=0.25)
+    start(m, Tone(1000, 500))
+    fx(m, Tone(2000, 500))
+    frame = read_audio(m)
+    assert level(frame) == 500 + 500, "music at 0.5 plus the effect at 0.25, each with its own volume"
+    m.fx_volume = 1.0
+    for _ in range(40):                       # the effect volume glides, it does not jump
+        frame = m.read()
+    assert level(frame) == 500 + 2000
+
+
+def test_effects_play_without_music_and_the_mixer_ends_with_the_last_one():
+    m = Mixer(glide=0)
+    assert m.read() == b"", "nothing to play: a mixer without music or effects is finished"
+    m = Mixer(glide=0)
+    fx(m, Tone(1000, 5))
+    frames = drain(m)
+    assert len(frames) == 5 and all(level(f) == 1000 for f in frames)
+    assert m.ended and not m.add_fx(Layer(Tone(1, 1)), "x", loop=False, momentary=False)
+
+
+def test_pausing_freezes_the_music_but_not_the_effects():
+    m = Mixer(glide=0)
+    music = start(m, Tone(1000, 500))
+    assert level(read_audio(m)) == 1000
+    m.paused = True
+    played = music.frames
+    assert m.read() == mixer_mod.SILENCE and music.frames == played, "paused: silence, and the music does not move"
+    fx(m, Tone(300, 500))
+    assert level(m.read()) == 300 and music.frames == played, "an effect sounds over a paused mix"
+    m.paused = False
+    assert level(read_audio(m)) == 1300 and music.frames == played + 1
+
+
+def test_a_paused_mixer_with_nothing_else_is_silent_but_not_finished():
+    m = Mixer(glide=0)
+    start(m, Tone(1000, 50))
+    m.paused = True
+    for _ in range(20):
+        assert m.read() == mixer_mod.SILENCE
+    assert not m.ended
+
+
+def test_stopping_an_effect_fades_it_out_and_frees_its_stream():
+    m = Mixer(glide=0)
+    tone = Tone(1000, 10000)
+    fx(m, tone)
+    assert level(read_audio(m)) == 1000
+    assert m.stop_fx("k") and m.fx_info() == [], "a stopped effect no longer counts as playing"
+    frames = []
+    for _ in range(10):
+        frame = m.read()
+        if frame == b"":
+            break
+        frames.append(level(frame))
+    assert len(frames) >= 2 and frames[0] < 1000 and frames == sorted(frames, reverse=True), "fading out, not a cut"
+    wait_for(lambda: tone.cleaned)
+    assert m.read() == b"" and m.ended
+    assert not m.stop_fx("k"), "nothing left to stop"
+
+
+def test_the_same_key_again_replaces_the_running_effect_and_other_keys_are_independent():
+    m = Mixer(glide=0)
+    first = Tone(100, 10000)
+    fx(m, first, key="a")
+    fx(m, Tone(200, 10000), key="b")
+    assert [e["key"] for e in m.fx_info()] == ["a", "b"]
+    fx(m, Tone(300, 10000), key="a")
+    wait_for(lambda: first.cleaned)
+    assert sorted(e["key"] for e in m.fx_info()) == ["a", "b"] and level(read_audio(m)) == 200 + 300
+
+
+def test_only_so_many_effects_at_once():
+    m = Mixer(glide=0)
+    for n in range(mixer_mod.MAX_FX):
+        fx(m, Tone(10, 10000), key=n)
+    assert not m.add_fx(Layer(Tone(10, 10000)), "extra", loop=False, momentary=False)
+    assert len(m.fx_info()) == mixer_mod.MAX_FX
+
+
+def test_a_momentary_effect_can_be_stopped_on_its_own():
+    m = Mixer(glide=0)
+    fx(m, Tone(100, 10000), key="held", momentary=True)
+    fx(m, Tone(200, 10000), key="latched")
+    assert m.stop_fx(momentary_only=True)
+    assert [e["key"] for e in m.fx_info()] == ["latched"]
+
+
+def test_the_owner_hears_when_the_music_ends_under_a_running_effect_but_not_otherwise():
+    ended = []
+    m = Mixer(glide=0, on_music_end=lambda _: ended.append(1))
+    start(m, Tone(1000, 3))
+    fx(m, Tone(50, 10000))
+    for _ in range(10):
+        m.read()
+    assert ended == [1], "the mixer goes on for the effect: the player has to be told that the music is over"
+    for _ in range(10):
+        m.read()
+    assert ended == [1], "once"
+    quiet = []
+    m = Mixer(glide=0, on_music_end=lambda _: quiet.append(1))
+    start(m, Tone(1000, 3))
+    assert len(drain(m)) == 3 and quiet == [], "without an effect the mixer simply ends"
+
+
+def test_clearing_the_music_leaves_the_effects_playing():
+    m = Mixer(glide=0)
+    music = Tone(1000, 10000)
+    start(m, music)
+    fx(m, Tone(50, 10000))
+    m.clear_music()
+    wait_for(lambda: music.cleaned)
+    assert level(m.read()) == 50 and not m.ended
+
+
+def test_a_looping_source_starts_over_and_never_runs_dry():
+    made = []
+
+    def factory():
+        made.append(Tone(700, 3))
+        return made[-1]
+
+    m = Mixer(glide=0)
+    layer = Layer(mixer_mod.LoopingSource(factory))
+    assert m.add_fx(layer, "loop", loop=True, momentary=False)
+    ready(layer)
+    frames = [level(read_audio(m)) for _ in range(12)]
+    assert frames == [700] * 12 and len(made) >= 4
+    assert m.stop_fx("loop")
+    for _ in range(6):
+        m.read()
+    assert m.read() == b""
+
+
+def test_a_loop_of_a_trimmed_track_restarts_where_the_wanted_part_ends():
+    made = []
+
+    def factory():
+        made.append(Tone(900, 100))     # the file goes on for much longer than the part that is wanted
+        return made[-1]
+
+    source = mixer_mod.LoopingSource(factory, frames=4)
+    assert [len(source.read()) for _ in range(10)] == [FRAME_BYTES] * 10
+    assert len(made) == 3 and made[0].cleaned and made[1].cleaned, "each pass starts a new stream and frees the last"
+
+
+def test_a_source_that_cannot_be_read_ends_the_loop_instead_of_restarting_for_ever():
+    source = mixer_mod.LoopingSource(lambda: Tone(1, 0))
+    assert source.read() == b""

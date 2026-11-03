@@ -2,7 +2,7 @@
 
 Languages: **English** · [Polski](../pl/usage.md)
 
-The panel has four tabs for everyone, **Player**, **Library**, **Playlists** and **Downloads**, and two more for administrators: **Users** and **Settings**. At the right of the top bar there are three small controls: the **theme** icon (each click switches to the next one: automatic, light, dark; automatic follows your system, and the choice is remembered in the browser), the **PL / EN** marker (click to switch the language; it is remembered per user) and your **user name**, which opens a menu with **Change password** and **Log out**.
+The panel has five tabs for everyone, **Player**, **Library**, **Playlists**, **Sampler** and **Downloads**, and two more for administrators: **Users** and **Settings**. At the right of the top bar there are three small controls: the **theme** icon (each click switches to the next one: automatic, light, dark; automatic follows your system, and the choice is remembered in the browser), the **PL / EN** marker (click to switch the language; it is remembered per user) and your **user name**, which opens a menu with **Change password** and **Log out**.
 
 ## The idea in one minute
 
@@ -101,6 +101,24 @@ Controls: previous, pause/resume, next, stop, loop, shuffle and the **volume** s
 If the connection drops on its own, the bot waits about 35 seconds before it can join again. This is deliberate, a quicker rejoin tends to make Discord kill the new session as well. You will see the remaining seconds in the message.
 
 The bot leaves a channel after 30 minutes without any human in it (`IDLE_LEAVE_MINUTES`).
+
+## Sampler
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="../img/sampler-en-dark.png">
+  <img alt="The Sampler tab" src="../img/sampler-en.png">
+</picture>
+
+The **Sampler** tab is a board of big pads, and each pad plays one track as a **sound effect** over the music: a thunderclap, a slammed door, wolves, a bell. Everybody has a board of their own (private, it starts with eight empty pads). The tracks come from the shared library, so an effect is uploaded like any other track and can be tagged, say `fx`, to find it again.
+
+- **Press** a pad and the effect starts; press it again and it stops (with a very short fade, so that there is no click).
+- A pad set to **once** plays its track to the end and stays lit for as long as it sounds. A pad set to **loop** repeats until you press it again.
+- **Right mouse button**: the effect sounds only while you hold the button and stops the moment you let go (a loop pad repeats while it is held). A touchscreen has no right button, so there a tap is all there is.
+- **Stop all** silences every effect. **Effects volume** is separate from the music volume, and each pad has a volume of its own in edit mode.
+- The small **Edit** button in the corner turns the pads into settings, and then they do not play: **Choose a track** (with a search), **Loop**, the volume of the pad, one of six colours, **◀ ▶** to move it, **✕** to delete it, a click on the name to rename it (empty means the track's title) and **Add a pad** (up to 48).
+- Where the effects sound follows the player: in this browser when **Play here** is on, otherwise in the voice channel where the bot is (the server chosen in the Player tab). They sound over the music, while the music is paused and when there is no music at all. When there is nowhere to play, the line above the pads says so.
+- One person controls a server at a time: while somebody else's playlist plays there, your pads answer "someone else is controlling this server", like the buttons of the player.
+- A pad whose track was deleted is greyed out until you choose another. A start and end set for a track in the Library, and the loudness evening-out, apply to effects too. Up to eight effects can sound at once on Discord.
 
 ## Downloads
 

@@ -43,6 +43,7 @@ Strona przeglądarkowa to statyczna strona (`app/static`): zwykły JavaScript, b
 | `app/player.py` | `GuildPlayer` (kolejka, głośność, odstęp po zerwaniu) i `BotManager` |
 | `app/loudness.py` | Analiza w tle (głośność i cisza jednym przebiegiem ffmpeg), wzmocnienie przy odtwarzaniu, `RuntimeSettings` (wszystko, co administrator zmienia w panelu) |
 | `app/selfupdate.py`, `app/swap.py`, `app/lifecycle.py` | Instalowanie aktualizacji z panelu w paczce dla Windows: pobranie, sprawdzenie i rozpakowanie (wątek), potem pomocnik w osobnym procesie podmienia foldery (zob. Aktualizacja paczki dla Windows) |
+| `app/routes_sampler.py`, `app/sampler.py` | Pady samplera: CRUD padów osoby i zamiana pada na utwór, który odtwarzacz umie zagrać (zob. Efekty dźwiękowe) |
 | `app/botsetup.py` | Konfiguracja bota z panelu na komputerze (Windows): sprawdzenie wklejonego tokena i Application ID oraz podmiana tych dwóch linii w `config.toml` (zob. Konfiguracja bota z panelu) |
 | `app/updates.py` | Sprawdzanie najnowszego wydania na GitHubie dla zakładki Ustawienia: odczyt i porównanie numerów wersji, pamięć podręczna z ETagiem, wątek w tle (zob. Powiadomienie o aktualizacji) |
 | `app/sysload.py` | CPU i pamięć kontenera z cgroup (v2 lub v1), próbkowane co 2 s, ostatnie dziesięć minut zostaje w pamięci (trzy z nich idą na wykresy), dla zakładki Ustawienia |
@@ -66,6 +67,7 @@ users ──< sessions
          └──< set_groups (folder, optional) ──< playlists
 downloads (użytkownik, url, stan, utwór)
 user_prefs (użytkownik, klucz, wartość: ostatnio wybrany w odtwarzaczu serwer i kanał)
+sampler_pads (użytkownik, pozycja, nazwa, utwór, tryb once|loop, głośność, kolor)
 ```
 
 - **tracks** nigdy nie są fizycznie usuwane. Usunięcie ustawia `deleted_at` i kasuje plik, więc `playlist_items` nadal wskazują wiersz ze starym tytułem (wyszarzony wpis). Częściowy indeks unikalny pilnuje unikalności `sha256` tylko wśród żywych utworów, więc ponowne wgranie identycznej zawartości przywraca stary wiersz (to samo id).
@@ -87,6 +89,7 @@ user_prefs (użytkownik, klucz, wartość: ostatnio wybrany w odtwarzaczu serwer
 | Zlecenia pobrań | właściciel, administrator | właściciel, administrator |
 | Użytkownicy, dostęp do serwerów | administrator | administrator |
 | Odtwarzacz serwera Discord | użytkownicy z nadanym serwerem, administratorzy | tak samo, jeden sterujący naraz |
+| Pady samplera | tylko właściciel (administratorzy też: sampler to osobista tablica) | właściciel |
 
 ## Odtwarzanie
 
@@ -103,6 +106,14 @@ user_prefs (użytkownik, klucz, wartość: ostatnio wybrany w odtwarzaczu serwer
 - **Ponowne łączenie.** Jeśli sesja głosowa zakończy się niespodziewanie, odtwarzacz się resetuje i przez 35 sekund odrzuca nowe połączenia. `discord.py` trzyma timer starej sesji przez około 30 sekund, a ponowne wejście w tym oknie potrafi zabić każdą nową sesję. Tę samą lekcję zawiera projekt `discord-stream-bot`.
 - **Wychodzenie przy bezczynności.** Zadanie w tle sprawdza co 30 sekund; kanał bez człowieka przez `IDLE_LEAVE_MINUTES` jest opuszczany.
 - Identyfikatory Discorda w API są zawsze tekstami (JavaScript nie utrzyma 64-bitowych liczb całkowitych).
+
+### Efekty dźwiękowe (sampler)
+
+- **Druga szyna w mikserze.** Obok warstw muzyki `Mixer` trzyma do ośmiu *slotów efektów* (`add_fx`, `stop_fx`, `fx_info`), każdy to `Layer` z kluczem (id pada), wejściem 10 ms i wyjściem 60 ms oraz głośnością szyny efektów, która płynie tak jak głośność muzyki, ale jest osobna (`GuildPlayer.fx_volume`). Efekty są sumowane z muzyką tym samym dodawaniem z nasycaniem. Efekt w pętli to `LoopingSource`: gdy strumień się kończy, wątek czytający z wyprzedzeniem dla warstwy uruchamia plik od nowa (dla przyciętego utworu po żądanym fragmencie), więc wątek audio nigdy nie startuje procesu.
+- **Pauza należy do miksera.** Klient głosowy nigdy już nie jest pauzowany: `Mixer.paused` zamraża muzykę (jej strumienie nie są czytane) i wydaje ciszę, a efekty grają nad nią dalej. Dzięki temu pad zagra także przy zapauzowanej muzyce.
+- **Miks żyje dłużej niż muzyka.** `Mixer.read` kończy się (EOF) tylko wtedy, gdy nie ma ani muzyki, ani efektu. Gdy muzyka się skończy, a efekty grają, mikser mówi o tym odtwarzaczowi przez `on_music_end` (bez efektów działa stary sposób: sygnałem jest koniec strumienia głosowego), a odtwarzacz przechodzi do następnego utworu albo staje w bezruchu bez zatrzymywania strumienia. `GuildPlayer._stop_audio` kasuje więc tylko muzykę, dopóki grają efekty (`Mixer.clear_music`); utrata połączenia (`everything=True`) kończy wszystko. Efekt bez muzyki sam tworzy miks na kliencie głosowym, a muzyka włączona później do niego dołącza.
+- **Żądania.** `POST /player/{guild}/fx/{pad}/toggle` (kliknięcie), `.../hold` i `.../release` (prawy przycisk myszy; efekt chwilowy milknie przy puszczeniu, zatrzaśnięty go ignoruje), `POST /player/{guild}/fx/stop` i `.../fx/volume`. Podlegają regułom pozostałych żądań odtwarzacza (serwer musi być osoby, jeden sterujący naraz), a pad musi być jej własny; stan niesie `fx` (pady, które grają) i `fx_volume`. `sampler.queue_item` zamienia utwór pada w ten sam `QueueItem`, którego używają playlisty, więc działają wzmocnienie głośności i przycięcia.
+- **W przeglądarce** `LocalFx` (`app/static/local.js`) to ta sama szyna w Web Audio: każdy efekt to element `<audio>` z własnym wzmocnieniem i krótką obwiednią, grany z `item` pada (to samo `playback.entry` co w lokalnym odtwarzaczu), przez własny master, a nie master muzyki, żeby grał przy zapauzowanej muzyce. Pętla nieprzyciętego utworu używa pętli elementu, przyciętego cofa się na jego końcu. Zmieniając działanie efektu, zmień je w obu miejscach.
 
 ## Odtwarzanie w przeglądarce
 
@@ -131,6 +142,7 @@ Wszystkie ścieżki są pod `/api`; żądania zmieniające stan wymagają nagł�
 | Biblioteka | `GET /tracks`, `POST /tracks/upload`, `PATCH/DELETE /tracks/{id}`, `GET /tracks/{id}/usage`, `GET /tracks/{id}/stream`, `PUT /tracks/{id}/my-tags`, `GET /tags` |
 | Pobrania | `GET/POST /downloads` (lista niesie też postęp na żywo, upłynięte sekundy i pozostałą przerwę; `POST` przyjmuje `tags` i `my_tags`), `DELETE /downloads/{id}` |
 | Playlisty | `GET/POST /sets`, `PATCH/DELETE /sets/{id}`, `POST /sets/{id}/playlists`, `PUT /sets/{id}/playlists/order`, `POST /sets/{id}/groups`, `PUT /sets/{id}/groups/order`, `PATCH/DELETE /groups/{id}`, `POST /groups/{id}/playlists`, `PUT /groups/{id}/playlists/order`, `GET/PATCH/DELETE /playlists/{id}`, `POST /playlists/{id}/copy` (jeden cel: `user_id`, `set_id` albo `group_id`), `POST /playlists/{id}/items`, `PUT /playlists/{id}/order`, `PUT/DELETE /playlists/{id}/items/{item}` |
+| Sampler | `GET /sampler` (pierwsza wizyta tworzy osiem pustych padów), `POST /sampler/pads`, `PATCH/DELETE /sampler/pads/{id}` (nazwa, utwór albo jawny null, tryb, głośność, kolor), `PUT /sampler/order`; każdy pad niesie `item` dla przeglądarki |
 | Odtwarzacz | `GET/PUT /player/choice` (ostatnio wybrany serwer i kanał, osobno dla każdego), `GET /player/guilds`, `GET /player/{guild}/state`, `POST /player/{guild}/connect`, `disconnect`, `play`, `pause`, `resume`, `next`, `prev`, `jump`, `seek`, `stop`, `volume`, `PATCH /player/{guild}/options` |
 | Osoby | `GET /people` (aktywne konta poza twoim, tylko nazwy, do wyboru odbiorcy kopii) |
 | Odtwarzanie lokalne | `POST /local/queue` (to samo ciało co `play`: `playlist_id`, `track_id` albo `tags` + `mode`), `POST /local/resolve` (`track_ids`) |
@@ -160,4 +172,4 @@ W paczce dla Windows zakładka Ustawienia potrafi sama zainstalować aktualizacj
 
 ## Jeszcze nie zrobione
 
-Warstwy ambientu pod muzyką i tablica efektów dźwiękowych (mikser jest miejscem dla obu). Model danych nie stoi na drodze żadnemu z tych pomysłów.
+Warstwy ambientu pod muzyką (mikser jest dla nich miejscem; szyna efektów to pierwszy krok). Model danych nie stoi na drodze.

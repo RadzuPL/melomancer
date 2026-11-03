@@ -94,6 +94,31 @@ def test_migration_6_adds_silence_columns_and_leaves_tracks_unmeasured(tmp_path)
     conn.close()
 
 
+def test_migration_9_adds_the_sampler_pads(tmp_path):
+    path = tmp_path / "v8.db"
+    conn = sqlite3.connect(path)
+    for script in MIGRATIONS[:8]:
+        conn.executescript(script)
+    conn.execute("PRAGMA user_version=8")
+    conn.execute("INSERT INTO users(id, username, pw_hash) VALUES (1, 'u', 'x')")
+    conn.execute("INSERT INTO users(id, username, pw_hash) VALUES (2, 'owner', 'x')")
+    conn.execute("INSERT INTO tracks(id, owner_id, title, original_title, ext, sha256) VALUES ('t', 2, 'T', 'T', '.wav', 'h')")
+    conn.commit()
+    conn.close()
+
+    init_db(path)
+
+    conn = sqlite3.connect(path)
+    conn.execute("PRAGMA foreign_keys=ON")
+    conn.execute("INSERT INTO sampler_pads(user_id, position, track_id, mode) VALUES (1, 0, 't', 'loop')")
+    conn.execute("INSERT INTO sampler_pads(user_id) VALUES (1)")
+    assert conn.execute("SELECT mode, volume, color, name FROM sampler_pads WHERE position=0").fetchone() == ("loop", 1.0, 0, "")
+    assert conn.execute("SELECT mode FROM sampler_pads WHERE track_id IS NULL").fetchone() == ("once",), "the defaults"
+    conn.execute("DELETE FROM users WHERE id=1")
+    assert conn.execute("SELECT COUNT(*) FROM sampler_pads").fetchone() == (0,), "pads go with their owner"
+    conn.close()
+
+
 def test_migration_8_adds_user_prefs(tmp_path):
     path = tmp_path / "v7.db"
     conn = sqlite3.connect(path)

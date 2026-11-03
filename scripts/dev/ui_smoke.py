@@ -46,10 +46,18 @@ STATE = {"guild_id": "111", "connected": True, "channel_id": "1001", "channel_na
          "now": {"track_id": "t1", "title": "Storm over the harbour", "duration": 184.2, "elapsed": 30.0, "index": 0}, "position": 1,
          "queue": [{"track_id": "t1", "title": "Storm over the harbour", "duration": 184.2},
                    {"track_id": "t3", "title": "Second song", "duration": 120}, {"track_id": "t4", "title": "Third song", "duration": 99}],
-         "queue_length": 2, "controller_id": 1, "controller": "admin"}
+         "queue_length": 2, "controller_id": 1, "controller": "admin", "fx": [], "fx_volume": 0.6}
 GUILDS = [{"id": "111", "name": "Guild A", "channels": [{"id": "1001", "name": "Voice A"}, {"id": "1002", "name": "Voice B"}], "state": STATE}]
 
+ITEM_A = {"track_id": "t1", "title": "Storm over the harbour", "duration": 30.0, "start": 0.0, "end": None, "cut": False, "gain": 0.5}
+PADS = [{"id": 1, "position": 0, "name": "Burza", "track_id": "t1", "track": {"title": "Storm over the harbour", "duration": 184.2, "deleted": False},
+         "mode": "loop", "volume": 1.0, "color": 4, "item": ITEM_A},
+        {"id": 2, "position": 1, "name": "", "track_id": "t2", "track": {"title": "Tavern", "duration": 95, "deleted": False},
+         "mode": "once", "volume": 0.8, "color": 0, "item": {**ITEM_A, "track_id": "t2", "title": "Tavern"}},
+        {"id": 3, "position": 2, "name": "", "track_id": None, "track": None, "mode": "once", "volume": 1.0, "color": 0, "item": None}]
+
 ROUTES = {
+    "/api/sampler": {"pads": PADS},
     "/api/auth/me": {"id": 1, "username": "admin", "role": "admin", "lang": "pl"},
     "/api/system": {"version": "1.2.3", "bot_status": "ready", "downloads_enabled": True,
                     "download_hosts": ["youtube.com", "youtu.be"], "max_upload_mb": 300, "normalize": True, "normalize_target": -16.0, "normalize_max_boost": 6.0, "trim_silence": True, "silence_threshold": -50.0, "crossfade_seconds": 3.0, "scrub_seconds": 0.3, "volume_glide_seconds": 0.25, "update_check": True, "auto_login": False, "settings_rev": 1, "invite_url": "https://discord.com/oauth2/authorize?client_id=123456789012345678&scope=bot&permissions=3146752", "loudness": {"total": 12, "measured": 9, "waiting": 3}},
@@ -164,6 +172,41 @@ with sync_playwright() as p:
         if req.method == "POST" and path == "/api/local/resolve":
             return route.fulfill(status=200, content_type="application/json", body=json.dumps(
                 {"settings_rev": ROUTES["/api/system"]["settings_rev"], "items": [{**i, "gain": 0.25} for i in LOCAL_ITEMS]}))
+        if path.startswith("/api/sampler") and req.method != "GET":
+            body = json.loads(req.post_data) if req.post_data else {}
+            if req.method == "PATCH":
+                pad = next(p for p in PADS if p["id"] == int(path.rsplit("/", 1)[1]))
+                for key in ("name", "mode", "volume", "color"):
+                    if key in body:
+                        pad[key] = body[key]
+                if "track_id" in body:
+                    track = next((t for t in TRACKS if t["id"] == body["track_id"]), None)
+                    pad.update(track_id=body["track_id"], track=track and {"title": track["title"], "duration": track["duration"], "deleted": False},
+                               item=track and {**ITEM_A, "track_id": track["id"], "title": track["title"]})
+            elif req.method == "POST":
+                PADS.append({"id": max(p["id"] for p in PADS) + 1, "position": len(PADS), "name": "", "track_id": None, "track": None,
+                             "mode": "once", "volume": 1.0, "color": 0, "item": None})
+            elif req.method == "DELETE":
+                PADS[:] = [p for p in PADS if p["id"] != int(path.rsplit("/", 1)[1])]
+            elif req.method == "PUT":
+                PADS.sort(key=lambda p: body["ids"].index(p["id"]))
+            return route.fulfill(status=201 if req.method == "POST" else 200, content_type="application/json", body=json.dumps({"pads": PADS}))
+        if req.method == "POST" and "/fx/" in path:
+            parts = path.split("/fx/")[1].split("/")
+            if parts[0] == "stop":
+                STATE["fx"] = []
+            elif parts[0] == "volume":
+                STATE["fx_volume"] = json.loads(req.post_data)["volume"]
+            else:
+                pad_id, kind = int(parts[0]), parts[1]
+                on = [e for e in STATE["fx"] if e["pad_id"] == pad_id]
+                if kind == "toggle":
+                    STATE["fx"] = [e for e in STATE["fx"] if e["pad_id"] != pad_id] if on else STATE["fx"] + [{"pad_id": pad_id, "loop": False, "momentary": False}]
+                elif kind == "hold":
+                    STATE["fx"] = STATE["fx"] + [{"pad_id": pad_id, "loop": False, "momentary": True}]
+                else:
+                    STATE["fx"] = [e for e in STATE["fx"] if not (e["pad_id"] == pad_id and e["momentary"])]
+            return route.fulfill(status=200, content_type="application/json", body=json.dumps(STATE))
         if req.method != "GET" and path.endswith("/copy"):
             return route.fulfill(status=201, content_type="application/json", body=json.dumps(
                 {"id": 99, "set_id": 7, "set_name": "Od admin", "user": "bravo", "copied": 1, "skipped": 2, "tags_copied": 1}))
@@ -689,6 +732,116 @@ with sync_playwright() as p:
     assert page.get_by_role("button", name="Odtwarzaj tutaj").is_disabled(), "connected to Discord blocks playing here"
     STATE.update(connected=False, channel_id=None, channel_name=None)
     ROUTES["/api/system"]["settings_rev"] = 1
+
+    # ---- the sampler: big pads that play a track as a sound effect ----
+    STATE.update(connected=True, channel_id="1001", channel_name="Voice A", fx=[], fx_volume=0.6)
+    page.click("nav.tabs button:has-text('Sampler')")
+    page.wait_for_selector(".fxpad")
+    assert page.locator(".fxpad").count() == 3
+    assert "Efekty grają na Discordzie: Guild A, Voice A." in page.inner_text(".sampler-head"), page.inner_text(".sampler-head")
+    page.screenshot(path=shots + "sampler.png", full_page=True)
+    pad1 = page.locator(".fxpad[data-pad='1']")
+    assert "Burza" in pad1.inner_text() and "pętla" in pad1.inner_text() and "3:04" in pad1.inner_text()
+    assert "Tavern" in page.locator(".fxpad[data-pad='2']").inner_text(), "a pad without a name shows the track"
+    pad1.click()                                    # a press starts it ...
+    page.wait_for_selector(".fxpad[data-pad='1'].on")
+    assert "POST /api/player/111/fx/1/toggle" in calls
+    pad1.click()                                    # ... and the next one stops it
+    page.wait_for_function("() => !document.querySelector(\".fxpad[data-pad='1']\").classList.contains('on')")
+    box = pad1.bounding_box()
+    page.mouse.move(box["x"] + 20, box["y"] + 20)
+    page.mouse.down(button="right")                 # the right button: only while it is held
+    page.wait_for_selector(".fxpad[data-pad='1'].on")
+    assert "POST /api/player/111/fx/1/hold" in calls and "POST /api/player/111/fx/1/release" not in calls
+    page.mouse.up(button="right")
+    page.wait_for_function("() => !document.querySelector(\".fxpad[data-pad='1']\").classList.contains('on')")
+    assert "POST /api/player/111/fx/1/release" in calls
+    mark = len(calls)
+    page.locator(".fxpad[data-pad='3']").click()    # an empty pad says so and asks nothing of the server
+    page.wait_for_selector(".toast:has-text('nie ma utworu')")
+    assert not [c for c in calls[mark:] if "/fx/" in c]
+    page.locator(".fxpad[data-pad='2']").focus()    # the keyboard works too
+    page.keyboard.press("Enter")
+    page.wait_for_selector(".fxpad[data-pad='2'].on")
+    page.get_by_role("button", name="Zatrzymaj wszystkie").click()
+    page.wait_for_function("() => !document.querySelector('.fxpad.on')")
+    assert "POST /api/player/111/fx/stop" in calls
+    page.evaluate("""() => { const v = document.querySelector('.fxvolume'); v.value = 0.9; v.dispatchEvent(new Event('input')); }""")
+    page.wait_for_timeout(400)
+    assert _k.loads(bodies["/api/player/111/fx/volume"]) == {"volume": 0.9}, bodies["/api/player/111/fx/volume"]
+
+    # editing: the small button turns the pads into settings, the pads no longer play
+    page.get_by_role("button", name="Edycja").click()
+    page.wait_for_selector(".fxpad.editing")
+    page.screenshot(path=shots + "sampler_edit.png", full_page=True)
+    mark = len(calls)
+    page.locator(".fxpad.editing").nth(2).get_by_role("button", name="Wybierz utwór").click()
+    page.wait_for_selector(".trackpick")
+    page.fill(".dialog input", "tavern")
+    page.wait_for_timeout(100)
+    assert page.locator(".trackpick option").count() == 1, "the list follows the search"
+    page.select_option(".trackpick", "t2")
+    page.click(".dialog button:has-text('OK')")
+    page.wait_for_function("() => !document.querySelector('.fxpad.editing.empty')")
+    assert _k.loads(bodies["/api/sampler/pads/3"]) == {"track_id": "t2"}, bodies["/api/sampler/pads/3"]
+    page.locator(".fxpad.editing").nth(1).get_by_role("button", name="Pętla").click()
+    page.wait_for_timeout(200)
+    assert _k.loads(bodies["/api/sampler/pads/2"]) == {"mode": "loop"} and PADS[1]["mode"] == "loop"
+    page.locator(".fxpad.editing").nth(0).get_by_role("button", name="Kolor 3").click()
+    page.wait_for_timeout(200)
+    assert _k.loads(bodies["/api/sampler/pads/1"]) == {"color": 2}
+    page.evaluate("""() => { const r = document.querySelector('.fxpad.editing input[type=range]'); r.value = 0.5; r.dispatchEvent(new Event('change')); }""")
+    page.wait_for_timeout(200)
+    assert _k.loads(bodies["/api/sampler/pads/1"]) == {"volume": 0.5}
+    page.locator(".fxpad.editing").nth(0).get_by_role("button", name="Przesuń w prawo").click()
+    page.wait_for_timeout(200)
+    assert _k.loads(bodies["/api/sampler/order"]) == {"ids": [2, 1, 3]}
+    page.get_by_role("button", name="Dodaj przycisk").click()
+    page.wait_for_function("() => document.querySelectorAll('.fxpad.editing').length === 4")
+    page.locator(".fxpad.editing").nth(3).get_by_role("button", name="Usuń").click()
+    page.click(".dialog button:has-text('OK')")
+    page.wait_for_function("() => document.querySelectorAll('.fxpad.editing').length === 3")
+    page.get_by_role("button", name="Gotowe").click()
+    page.wait_for_function("() => !document.querySelector('.fxpad.editing')")
+    assert not [c for c in calls[mark:] if "/fx/" in c], "editing played nothing"
+
+    # nothing to play on: no connected bot and not playing here
+    STATE.update(connected=False, channel_id=None, channel_name=None)
+    page.click("nav.tabs button:has-text('Playlisty')")
+    page.click("nav.tabs button:has-text('Sampler')")
+    page.wait_for_selector(".fxpad")
+    assert "Efekty nie mają gdzie zagrać" in page.inner_text(".sampler-head")
+    page.locator(".fxpad[data-pad='2']").click()
+    page.wait_for_selector(".toast:has-text('nie mają gdzie zagrać')")
+
+    # playing here: the page makes the sound itself, with the same pads
+    page.click("nav.tabs button:has-text('Odtwarzacz')")
+    page.wait_for_selector(".pad")
+    page.get_by_role("button", name="Odtwarzaj tutaj").click()
+    page.wait_for_timeout(300)
+    page.click("nav.tabs button:has-text('Sampler')")
+    page.wait_for_selector(".fxpad")
+    assert "Efekty grają w tej przeglądarce." in page.inner_text(".sampler-head")
+    mark = len(calls)
+    page.locator(".fxpad[data-pad='1']").click()
+    page.wait_for_selector(".fxpad[data-pad='1'].on", timeout=8000)
+    assert page.evaluate("LocalFx.ids()") == [1] and not [c for c in calls[mark:] if "/fx/" in c], "no request to the bot"
+    page.locator(".fxpad[data-pad='1']").click()
+    page.wait_for_function("() => LocalFx.ids().length === 0")
+    box = page.locator(".fxpad[data-pad='1']").bounding_box()
+    page.mouse.move(box["x"] + 20, box["y"] + 20)
+    page.mouse.down(button="right")
+    page.wait_for_function("() => LocalFx.ids().length === 1", timeout=8000)
+    page.mouse.up(button="right")
+    page.wait_for_function("() => LocalFx.ids().length === 0")
+    page.get_by_role("button", name="Zatrzymaj wszystkie").click()
+    page.click("nav.tabs button:has-text('Odtwarzacz')")
+    page.wait_for_selector(".pad")
+    assert page.evaluate("LocalPlayer.on") is True
+    page.evaluate("LocalPlayer.disable()")
+    STATE.update(connected=False, channel_id=None, channel_name=None, fx=[])
+    page.click("nav.tabs button:has-text('Odtwarzacz')")
+
     assert page.locator("header.top select").count() == 0, "no language drop-down any more"
     page.click("header.top button.ghost:has-text('PL')")
     page.wait_for_timeout(300)
