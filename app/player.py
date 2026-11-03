@@ -13,7 +13,7 @@ import discord
 
 from .config import Settings
 from .loudness import RuntimeSettings, linear_gain
-from .mixer import Layer, Mixer
+from .mixer import FRAME_SECONDS, Layer, LoopingSource, Mixer
 from .playback import span
 
 log = logging.getLogger("melomancer.player")
@@ -82,6 +82,7 @@ class GuildPlayer:
         self._fail_streak = 0
         self._t_start = 0.0
         self._elapsed_base = 0.0
+        self.fx_volume = 0.6               # the sound effects have a volume of their own (the sampler)
         self._mixer: Mixer | None = None   # what the voice client is playing; lives across tracks
         self._layer: Layer | None = None   # the track that is "now playing" (the newest one in the mix)
 
@@ -201,16 +202,24 @@ class GuildPlayer:
 
     def _reset_playback(self) -> None:
         self._gen += 1
-        self._stop_audio()
+        self._stop_audio(everything=True)
         self.state = "idle"
         self.items, self.order, self.pos = [], [], -1
         self.playlist = None
         self.controller = None
         self._elapsed_base = 0.0
 
-    def _stop_audio(self) -> None:
-        """Silence now: stop the voice client and free every stream of the mix."""
-        mixer, self._mixer, self._layer = self._mixer, None, None
+    def _stop_audio(self, *, everything: bool = False) -> None:
+        """Silence now: stop the voice client and free every stream of the mix.
+
+        Sound effects that are playing are left alone (stopping the music must not cut a thunder short): then only the
+        music goes and the mix stays. `everything` is for a lost or closed voice connection."""
+        mixer, self._layer = self._mixer, None
+        if mixer is not None and not everything and not mixer.ended and not mixer.closed and mixer.has_fx():
+            mixer.clear_music()
+            mixer.paused = False
+            return
+        self._mixer = None
         vc = self.vc
         if vc and (vc.is_playing() or vc.is_paused()):
             vc.stop()
@@ -243,22 +252,29 @@ class GuildPlayer:
         vc = self.vc
         assert vc is not None
         mixer = self._mixer
-        if mixer is not None and (vc.is_playing() or vc.is_paused()) and mixer.switch_to(layer, fade, fade):
-            if vc.is_paused() and not keep_paused:
-                vc.resume()
+        if mixer is not None and vc.is_playing() and mixer.switch_to(layer, fade, fade):
+            if mixer.paused and not keep_paused:
+                mixer.paused = False
                 return False
-            return vc.is_paused()
+            return mixer.paused
         if vc.is_playing() or vc.is_paused():
             vc.stop()
+        mixer = self._new_mixer(vc)
+        mixer.switch_to(layer, fade, 0.0)
+        return False
+
+    def _new_mixer(self, vc) -> Mixer:
+        """A new mix on the voice client (the music and the effects are mixed in it; it lives until both are done)."""
         loop = self.manager.loop
         mixer = Mixer(
             volume=self.volume, crossfade=self.manager.crossfade_seconds(), glide=self.manager.glide_seconds(),
             on_preroll=lambda lay: loop.call_soon_threadsafe(self._on_preroll, lay),
-            on_transition=lambda token: loop.call_soon_threadsafe(self._on_transition, token))
-        mixer.switch_to(layer, fade, 0.0)
+            on_transition=lambda token: loop.call_soon_threadsafe(self._on_transition, token),
+            on_music_end=lambda _: loop.call_soon_threadsafe(self._on_music_end, mixer),
+            fx_volume=self.fx_volume)
         self._mixer = mixer
         vc.play(MixerSource(mixer), after=lambda err, m=mixer: loop.call_soon_threadsafe(self._on_mixer_end, m, err))
-        return False
+        return mixer
 
     def _start_current(self, offset: float = 0.0, *, fade: float | None = None, keep_paused: bool = False) -> None:
         vc = self.vc
@@ -330,9 +346,22 @@ class GuildPlayer:
 
     def _on_mixer_end(self, mixer: Mixer, err: Exception | None) -> None:
         """The whole mix ran dry: no cross-fade was possible (last track, unknown length, a failure)."""
-        if mixer is not self._mixer or self.state != "playing":
+        if mixer is not self._mixer:
             return  # a stopped or replaced mix reporting in late
+        if self.state != "playing":
+            self._mixer = None   # a mix of sound effects only, and the last one has ended
+            return
         self._mixer = self._layer = None
+        self._music_ran_out(err)
+
+    def _on_music_end(self, mixer: Mixer) -> None:
+        """The music ran dry while sound effects keep the mix going: the same as above, on the same voice stream."""
+        if mixer is not self._mixer or self.state != "playing":
+            return
+        self._layer = None
+        self._music_ran_out(None)
+
+    def _music_ran_out(self, err: Exception | None) -> None:
         quick = (time.monotonic() - self._t_start) < 1.5
         if err or quick:
             self._fail_streak += 1
@@ -376,18 +405,18 @@ class GuildPlayer:
         self._finish()
 
     def pause(self) -> None:
-        vc = self.vc
-        if self.state != "playing" or not vc:
+        mixer = self._mixer
+        if self.state != "playing" or mixer is None:
             raise PlayerError("not_playing", 409)
-        vc.pause()
+        mixer.paused = True   # the music freezes; the voice client goes on, so that sound effects can still sound
         self._elapsed_base = self.elapsed()
         self.state = "paused"
 
     def resume(self) -> None:
-        vc = self.vc
-        if self.state != "paused" or not vc:
+        mixer = self._mixer
+        if self.state != "paused" or mixer is None:
             raise PlayerError("not_paused", 409)
-        vc.resume()
+        mixer.paused = False
         self._t_start = time.monotonic()
         self.state = "playing"
 
@@ -430,6 +459,71 @@ class GuildPlayer:
         if self._mixer:
             self._mixer.volume = self.volume
 
+    # ---- sound effects (the sampler) -------------------------------------------------------------------------------
+
+    def set_fx_volume(self, volume: float) -> None:
+        self.fx_volume = max(0.0, min(volume, 1.5))
+        if self._mixer:
+            self._mixer.fx_volume = self.fx_volume
+
+    def _fx_layer(self, item: QueueItem, loop: bool, volume: float) -> Layer:
+        """A stream for an effect: the part of the file that is wanted (a hand-set or detected trim), without fades."""
+        start, end, cut = self._span(item)
+        before = f"-ss {start:.2f}" if start > 0 else None
+
+        def make():
+            return discord.FFmpegPCMAudio(item.path, before_options=before, options="-vn")
+
+        gain = self.manager.gain_for(item) * max(0.0, min(volume, 1.5))
+        if loop:
+            frames = round((end - start) / FRAME_SECONDS) if (cut and end) else None
+            return Layer(LoopingSource(make, frames), item=None, offset=start, duration=end, gain=gain)
+        return Layer(make(), item=None, offset=start, duration=end, gain=gain, stop_at=end if cut else None)
+
+    def _fx_mixer(self) -> Mixer:
+        vc = self.vc
+        assert vc is not None
+        mixer = self._mixer
+        if mixer is not None and not mixer.ended and not mixer.closed and vc.is_playing():
+            return mixer
+        if vc.is_playing() or vc.is_paused():
+            vc.stop()
+        return self._new_mixer(vc)
+
+    def fx_start(self, key: int, item: QueueItem, *, loop: bool, momentary: bool = False, volume: float = 1.0) -> None:
+        """Start an effect (it plays over the music, or alone). The same key again starts it over."""
+        if not self.connected():
+            raise PlayerError("not_connected", 409)
+        if not os.path.isfile(item.path):
+            raise PlayerError("track_missing", 404)
+        layer = self._fx_layer(item, loop, volume)
+        try:
+            ok = self._fx_mixer().add_fx(layer, key, loop=loop, momentary=momentary)
+        except Exception:  # noqa: BLE001
+            layer.close()
+            raise
+        if not ok:
+            layer.close()
+            raise PlayerError("too_many_effects", 409)
+
+    def fx_toggle(self, key: int, item: QueueItem, *, loop: bool, volume: float = 1.0) -> bool:
+        """A press of a pad: stops the effect when it sounds, starts it otherwise. True when it was started."""
+        mixer = self._mixer
+        if mixer is not None and any(e["key"] == key for e in mixer.fx_info()):
+            mixer.stop_fx(key)
+            return False
+        self.fx_start(key, item, loop=loop, volume=volume)
+        return True
+
+    def fx_release(self, key: int) -> None:
+        """The held pad was let go: a momentary effect stops (one that was latched stays)."""
+        if self._mixer is not None:
+            self._mixer.stop_fx(key, momentary_only=True)
+
+    def fx_stop(self, key: int | None = None) -> None:
+        if self._mixer is not None:
+            self._mixer.stop_fx(key)
+
     def refresh_settings(self) -> None:
         """The administrator changed the loudness or fade settings: apply them to what is playing right now."""
         mixer = self._mixer
@@ -469,6 +563,9 @@ class GuildPlayer:
             "channel_name": channel.name if channel else None,
             "state": self.state,
             "volume": self.volume,
+            "fx_volume": self.fx_volume,
+            "fx": [{"pad_id": e["key"], "loop": e["loop"], "momentary": e["momentary"]}
+                   for e in (self._mixer.fx_info() if self._mixer is not None and not self._mixer.ended else [])],
             "loop": self.loop,
             "shuffle": self.shuffle,
             "playlist": self.playlist,
@@ -680,6 +777,26 @@ class BotManager:
         self.require_ready()
         await self.player(guild_id).play(items, playlist, controller, loop=loop, shuffle=shuffle, fade=fade,
                                          volume=volume)
+
+    def fx_toggle(self, guild_id: int, key: int, item: QueueItem, *, loop: bool, volume: float) -> bool:
+        self.require_ready()
+        return self.player(guild_id).fx_toggle(key, item, loop=loop, volume=volume)
+
+    def fx_hold(self, guild_id: int, key: int, item: QueueItem, *, loop: bool, volume: float) -> None:
+        self.require_ready()
+        self.player(guild_id).fx_start(key, item, loop=loop, momentary=True, volume=volume)
+
+    def fx_release(self, guild_id: int, key: int) -> None:
+        self.require_ready()
+        self.player(guild_id).fx_release(key)
+
+    def fx_stop(self, guild_id: int, key: int | None = None) -> None:
+        self.require_ready()
+        self.player(guild_id).fx_stop(key)
+
+    def fx_volume(self, guild_id: int, volume: float) -> None:
+        self.require_ready()
+        self.player(guild_id).set_fx_volume(volume)
 
     def control(self, guild_id: int, action: str, value=None) -> None:
         self.require_ready()

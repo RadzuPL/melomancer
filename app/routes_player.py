@@ -6,7 +6,7 @@ from typing import Literal
 
 from pydantic import BaseModel, Field
 
-from . import library
+from . import library, sampler
 from .db import tx
 from .deps import current_user, get_settings
 from .player import PlayerError, QueueItem
@@ -255,6 +255,67 @@ def jump(guild_id: str, body: JumpIn, request: Request, user: dict = Depends(cur
         return bot.state(gid)
 
     return _run(call)
+
+
+# ---- sound effects: the pads of the sampler, mixed into the voice stream ----
+
+def _fx_call(guild_id: str, request: Request, user: dict, pad_id: int | None, action):
+    """Common to the effect requests: the server must be this person's, the pad their own."""
+    gid = _check(request, user, guild_id)
+    bot = _bot(request)
+    settings = get_settings(request)
+
+    def call():
+        _check_lock(bot, gid, user)
+        pad = item = None
+        if pad_id is not None:
+            with tx(settings.db_path) as conn:
+                pad = sampler.pad_for(conn, user, pad_id)
+                item = sampler.queue_item(conn, settings, pad) if action is not _release else None
+        action(bot, gid, pad, item)
+        return bot.state(gid)
+
+    return _run(call)
+
+
+def _toggle(bot, gid, pad, item):
+    bot.fx_toggle(gid, pad["id"], item, loop=pad["mode"] == "loop", volume=pad["volume"])
+
+
+def _hold(bot, gid, pad, item):
+    bot.fx_hold(gid, pad["id"], item, loop=pad["mode"] == "loop", volume=pad["volume"])
+
+
+def _release(bot, gid, pad, item):
+    bot.fx_release(gid, pad["id"])
+
+
+@router.post("/{guild_id}/fx/stop")
+def fx_stop(guild_id: str, request: Request, user: dict = Depends(current_user)):
+    """Every effect of this server stops."""
+    return _fx_call(guild_id, request, user, None, lambda bot, gid, pad, item: bot.fx_stop(gid))
+
+
+@router.post("/{guild_id}/fx/volume")
+def fx_volume(guild_id: str, body: VolumeIn, request: Request, user: dict = Depends(current_user)):
+    return _fx_call(guild_id, request, user, None, lambda bot, gid, pad, item: bot.fx_volume(gid, body.volume))
+
+
+@router.post("/{guild_id}/fx/{pad_id}/toggle")
+def fx_toggle(guild_id: str, pad_id: int, request: Request, user: dict = Depends(current_user)):
+    """A press of a pad: starts its track as an effect, or stops it when it sounds."""
+    return _fx_call(guild_id, request, user, pad_id, _toggle)
+
+
+@router.post("/{guild_id}/fx/{pad_id}/hold")
+def fx_hold(guild_id: str, pad_id: int, request: Request, user: dict = Depends(current_user)):
+    """A pad is held down (the right mouse button): it sounds until the matching release."""
+    return _fx_call(guild_id, request, user, pad_id, _hold)
+
+
+@router.post("/{guild_id}/fx/{pad_id}/release")
+def fx_release(guild_id: str, pad_id: int, request: Request, user: dict = Depends(current_user)):
+    return _fx_call(guild_id, request, user, pad_id, _release)
 
 
 @router.patch("/{guild_id}/options")

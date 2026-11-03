@@ -82,6 +82,41 @@ class FakeBot:
         self.played.append({"gid": gid, "titles": [i.title for i in items], "opts": opts, "playlist": playlist,
                             "items": items})
 
+    # ---- sound effects: remembers what was asked, plays nothing ----
+
+    def _fx_on(self, gid):
+        return self._st(gid).setdefault("fx", [])
+
+    def _need_voice(self, gid):
+        if not self._st(gid)["connected"]:
+            raise PlayerError("not_connected", 409)
+
+    def fx_toggle(self, gid, key, item, *, loop, volume):
+        self._need_voice(gid)
+        on = self._fx_on(gid)
+        self.fx_calls = getattr(self, "fx_calls", []) + [("toggle", gid, key, item.title, loop, volume)]
+        if any(e["pad_id"] == key for e in on):
+            on[:] = [e for e in on if e["pad_id"] != key]
+            return False
+        on.append({"pad_id": key, "loop": loop, "momentary": False})
+        return True
+
+    def fx_hold(self, gid, key, item, *, loop, volume):
+        self._need_voice(gid)
+        self.fx_calls = getattr(self, "fx_calls", []) + [("hold", gid, key, item.title, loop, volume)]
+        self._fx_on(gid).append({"pad_id": key, "loop": loop, "momentary": True})
+
+    def fx_release(self, gid, key):
+        self.fx_calls = getattr(self, "fx_calls", []) + [("release", gid, key)]
+        on = self._fx_on(gid)
+        on[:] = [e for e in on if not (e["pad_id"] == key and e["momentary"])]
+
+    def fx_stop(self, gid, key=None):
+        self._fx_on(gid).clear()
+
+    def fx_volume(self, gid, volume):
+        self._st(gid)["fx_volume"] = volume
+
     def control(self, gid, action, value=None):
         st = self._st(gid)
         if action == "pause":

@@ -48,11 +48,13 @@ TEXT = {
         "set1": "Dark Coast", "set2": "Sunday Campaign", "combat": "Combat", "locations": "Locations", "scenes": "Scenes",
         "harbour": "Harbour at night", "tavern": "Old tavern", "forest": "Forest road", "investigation": "Investigation",
         "dread": "Dread", "guild": "Friday Table", "channels": ["Table voice", "Backstage"], "mine": "session 3",
+        "pads": ["Thunder", "Door slam", "Wolves", "Tavern brawl", "Rain", "Heartbeat", "Footsteps", "Church bells"],
     },
     "pl": {
         "set1": "Mroczne Wybrzeże", "set2": "Niedzielna kampania", "combat": "Walka", "locations": "Lokacje", "scenes": "Sceny",
         "harbour": "Port nocą", "tavern": "Stara karczma", "forest": "Leśny trakt", "investigation": "Śledztwo",
         "dread": "Groza", "guild": "Piątkowy stół", "channels": ["Głosowy przy stole", "Zaplecze"], "mine": "sesja 3",
+        "pads": ["Grzmot", "Trzaśnięcie drzwi", "Wilki", "Bójka w karczmie", "Deszcz", "Bicie serca", "Kroki", "Dzwony kościelne"],
     },
 }
 
@@ -101,7 +103,15 @@ def demo(lang: str) -> dict:
     state = {"guild_id": "111", "connected": True, "channel_id": "1001", "channel_name": t["channels"][0], "state": "playing",
              "volume": 0.55, "loop": True, "shuffle": False, "playlist": {"id": 11, "name": t["harbour"], "set": t["set1"]},
              "now": {"track_id": "t01", "title": by_id["t01"]["title"], "duration": 250, "elapsed": 96.0, "index": 0}, "position": 1,
-             "queue": queue, "queue_length": len(queue), "controller_id": 1, "controller": "admin"}
+             "queue": queue, "queue_length": len(queue), "controller_id": 1, "controller": "admin",
+             "fx": [{"pad_id": 5, "loop": True, "momentary": False}], "fx_volume": 0.6}
+    # pad: (track, mode, colour 0-5); the rain loops (and is on in the picture)
+    pad_plan = [("t06", "once", 3), ("t11", "once", 0), ("t08", "loop", 4), ("t04", "once", 2), ("t02", "loop", 4),
+                ("t11", "loop", 3), ("t09", "once", 0), ("t11", "once", 5)]
+    pads = [{"id": n + 1, "position": n, "name": t["pads"][n], "track_id": tid,
+             "track": {"title": by_id[tid]["title"], "duration": by_id[tid]["duration"], "deleted": False},
+             "mode": mode, "volume": 1.0, "color": color, "item": None}
+            for n, (tid, mode, color) in enumerate(pad_plan)]
     guilds = [{"id": "111", "name": t["guild"], "channels": [{"id": "1001", "name": t["channels"][0]}, {"id": "1002", "name": t["channels"][1]}],
                "state": state}]
 
@@ -137,6 +147,7 @@ def demo(lang: str) -> dict:
         "/api/tracks": tracks,
         "/api/tags": {"shared": tag_counts("tags"), "mine": tag_counts("my_tags")},
         "/api/people": [],
+        "/api/sampler": {"pads": pads},
     }
     for pid, p in playlists.items():
         routes[f"/api/playlists/{pid}"] = p
@@ -194,7 +205,11 @@ def main() -> int:
                     page.wait_for_selector("ul.items li")
                     page.wait_for_timeout(400)
                     shoot(page, "playlists", lang, dark)
-                    tabs.nth(5).click()
+                    tabs.nth(3).click()
+                    page.wait_for_selector(".fxpad")
+                    page.wait_for_timeout(400)
+                    shoot(page, "sampler", lang, dark)
+                    tabs.nth(6).click()
                     page.wait_for_selector(".tile .spark polyline")
                     page.wait_for_timeout(400)
                     shoot(page, "settings", lang, dark)

@@ -329,3 +329,34 @@ input.timefield { width: 8rem; }
 .botsteps summary { cursor: pointer; font-weight: 600; }
 .botsteps ol { margin: .6rem 0; padding-left: 1.4rem; display: grid; gap: .3rem; }
 .notice .btn { margin-top: .5rem; }
+
+/* The sampler: big pads */
+.sampler-head { display: flex; flex-wrap: wrap; align-items: center; gap: .6rem 1.2rem; margin-bottom: 1rem; }
+.bad-text { color: var(--bad); }
+.fxvolume { width: 140px; }
+.fxpads { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 12px; }
+.fxpad { min-height: 120px; border-radius: var(--radius); border: 1px solid var(--line); background: var(--panel-2); color: var(--text); font: inherit; padding: .8rem; display: flex; flex-direction: column; justify-content: space-between; align-items: flex-start; text-align: left; cursor: pointer; user-select: none; -webkit-user-select: none; touch-action: manipulation; transition: border-color .15s, background .15s, box-shadow .15s; }
+.fxpad:active:not(.editing) { transform: scale(.98); }
+.fxpad:hover:not(.editing) { border-color: var(--accent-hover); }
+.fxpad-name { font-weight: 600; font-size: 1.05rem; word-break: break-word; }
+.fxpad-meta { color: var(--muted); font-size: .86rem; }
+.fxpad.empty:not(.editing) { opacity: .6; }
+.fxpad.empty { border-style: dashed; }
+.fxpad.gone:not(.editing) { opacity: .5; }
+.fxpad.add { align-items: center; justify-content: center; border-style: dashed; color: var(--accent-text); background: transparent; }
+.swatch { width: 20px; height: 20px; padding: 0; border-radius: 50%; border: 2px solid var(--line); cursor: pointer; background: var(--panel-2); }
+.fxpad-c1 { background: var(--ok-bg); border-color: var(--ok-line); }
+.fxpad-c2 { background: var(--warn-bg); border-color: var(--warn-line); }
+.fxpad-c3 { background: var(--bad-bg); border-color: var(--bad-line); }
+.fxpad-c4 { background: var(--accent-soft); border-color: var(--accent-line); }
+.fxpad-c5 { background: var(--disabled-bg); }
+.swatch.sel { box-shadow: 0 0 0 2px var(--accent); }
+.fxpad.on { background: var(--accent); border-color: var(--accent); color: var(--on-accent); box-shadow: 0 0 0 3px var(--accent-ring); }
+.fxpad.on .fxpad-meta { color: inherit; }
+.fxpad.editing { cursor: default; gap: .5rem; justify-content: flex-start; }
+.fxpad-row { display: flex; flex-wrap: wrap; align-items: center; gap: .4rem; width: 100%; }
+.fxpad-row input[type="range"] { flex: 1; min-width: 60px; }
+button.linklike { background: none; border: 0; padding: 0; color: inherit; cursor: pointer; text-align: left; }
+button.linklike:hover { color: var(--accent-hover); }
+.trackpick { width: 100%; min-width: 22rem; height: auto; padding: .3rem; }
+.sampler-hint { margin-top: 1rem; }

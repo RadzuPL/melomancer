@@ -177,9 +177,9 @@ def test_jump_rejects_bad_requests(rig):
 def test_jump_while_paused_starts_playing_again(rig):
     start(rig)
     rig.player.pause()
-    assert rig.vc._paused
+    assert rig.player._mixer.paused
     rig.player.jump(3)
-    assert rig.player.state == "playing" and not rig.vc._paused
+    assert rig.player.state == "playing" and not rig.player._mixer.paused
     assert played_paths(rig)[-1] == "3.opus"
     settle(rig)
     assert pull(rig) == 4000
@@ -220,7 +220,7 @@ def test_seek_keeps_a_paused_player_paused_and_waits_for_the_resume(rig):
     assert pull(rig) == 1000
     rig.player.pause()
     rig.player.seek(30)
-    assert rig.player.state == "paused" and rig.vc._paused
+    assert rig.player.state == "paused" and rig.player._mixer.paused
     assert rig.player.snapshot()["now"]["elapsed"] == 30
     assert CREATED[-1].before_options == "-ss 30.00" and len(rig.vc.sources) == 1
     assert len(rig.player._mixer.layers()) == 2        # the old position and the new one, waiting for the resume
@@ -491,3 +491,137 @@ def test_a_hand_set_end_at_the_end_of_the_file_cancels_an_automatic_cut(rig):
     while pull(rig) is not None:
         frames += 1
     assert frames == 200
+
+
+# ---- sound effects (the sampler) ------------------------------------------------------------------------------------------
+
+def fx_levels(rig, n=30):
+    """The level of the first sample of the next frames, for as long as there is sound."""
+    levels = []
+    for _ in range(n):
+        frame = rig.vc.source.read()
+        if frame == b"":
+            break
+        levels.append(array("h", frame)[0])
+        time.sleep(0.001)
+    return levels
+
+
+def fx_on(rig):
+    return {e["pad_id"] for e in rig.player.snapshot()["fx"]}
+
+
+def test_an_effect_sounds_over_the_music_and_is_reported_in_the_state(rig):
+    rig.player.fx_volume = 1.0
+    start(rig)
+    settle(rig)
+    assert pull(rig) == 1000
+    rig.player.fx_start(7, rig.items[2], loop=False)       # track 2 has the level 3000
+    assert fx_on(rig) == {7} and rig.player.snapshot()["fx"][0] == {"pad_id": 7, "loop": False, "momentary": False}
+    wait_for(lambda: pull(rig) == 4000)                     # music 1000 + effect 3000
+    assert len(rig.vc.sources) == 1, "the effect joins the running mix: no new stream on the voice client"
+
+
+def test_an_effect_plays_alone_when_there_is_no_music(rig):
+    rig.player.fx_volume = 1.0
+    rig.player.fx_start(1, rig.items[1], loop=False)
+    assert rig.player.state == "idle" and len(rig.vc.sources) == 1
+    wait_for(lambda: pull(rig) == 2000)
+    assert fx_on(rig) == {1}
+
+
+def test_music_that_starts_later_joins_the_mix_that_the_effect_started(rig):
+    rig.player.fx_volume = 1.0
+    rig.player.fx_start(1, rig.items[1], loop=True)
+    start(rig)
+    settle(rig)
+    assert len(rig.vc.sources) == 1, "one voice stream for both"
+    wait_for(lambda: pull(rig) == 3000)                    # music 1000 + effect 2000
+    assert rig.player.state == "playing" and fx_on(rig) == {1}
+
+
+def test_stopping_the_music_does_not_cut_an_effect_short(rig):
+    rig.player.fx_volume = 1.0
+    start(rig)
+    settle(rig)
+    rig.player.fx_start(1, rig.items[1], loop=True)
+    rig.player.stop()
+    assert rig.player.state == "idle" and rig.vc.stops == 0 and fx_on(rig) == {1}
+    wait_for(lambda: pull(rig) == 2000)                    # only the effect is left
+    rig.player.fx_stop()
+    assert fx_on(rig) == set()
+    assert fx_levels(rig)[-1] == 0 or fx_levels(rig) == [], "it fades out and the mix ends"
+
+
+def test_an_effect_sounds_while_the_music_is_paused_and_the_music_stays_where_it_was(rig):
+    rig.player.fx_volume = 1.0
+    start(rig)
+    settle(rig)
+    assert pull(rig) == 1000
+    rig.player.pause()
+    assert rig.player.state == "paused" and rig.vc.is_playing(), "the voice client itself is never paused"
+    rig.player.fx_start(3, rig.items[1], loop=False)
+    wait_for(lambda: pull(rig) == 2000)                    # the effect alone
+    rig.player.resume()
+    assert rig.player.state == "playing"
+    wait_for(lambda: pull(rig) == 3000)
+
+
+def test_when_the_last_track_ends_under_an_effect_the_player_goes_idle_and_the_effect_plays_on(rig):
+    FRAMES["0"] = 8
+    rig.player.fx_volume = 1.0
+    start(rig, loop=False, volume=None)
+    rig.player.items, rig.player.order = [rig.items[0]], [0]
+    settle(rig)
+    rig.player.fx_start(5, rig.items[1], loop=True)
+    for _ in range(60):
+        rig.vc.source.read()
+        time.sleep(0.001)
+    assert rig.player.state == "idle" and rig.vc.stops == 0, "the music is over, the voice stream goes on for the effect"
+    assert fx_on(rig) == {5}
+
+
+def test_pressing_a_pad_twice_starts_and_stops_it_and_releasing_stops_only_a_held_one(rig):
+    assert rig.player.fx_toggle(1, rig.items[1], loop=False) is True and fx_on(rig) == {1}
+    assert rig.player.fx_toggle(1, rig.items[1], loop=False) is False and fx_on(rig) == set()
+    rig.player.fx_start(2, rig.items[1], loop=False, momentary=True)
+    rig.player.fx_start(3, rig.items[1], loop=True)
+    assert fx_on(rig) == {2, 3}
+    rig.player.fx_release(2)
+    rig.player.fx_release(3)
+    assert fx_on(rig) == {3}, "a latched effect ignores the release"
+
+
+def test_effects_need_a_voice_connection_and_a_file(rig):
+    rig.items[1].path = str(Path(rig.items[1].path).with_name("gone.opus"))
+    with pytest.raises(PlayerError) as caught:
+        rig.player.fx_start(1, rig.items[1], loop=False)
+    assert caught.value.code == "track_missing"
+    rig.vc.is_connected = lambda: False
+    with pytest.raises(PlayerError) as caught:
+        rig.player.fx_start(1, rig.items[0], loop=False)
+    assert caught.value.code == "not_connected"
+
+
+def test_too_many_effects_are_refused_with_a_code(rig):
+    for key in range(mixer_mod.MAX_FX):
+        rig.player.fx_start(key, rig.items[0], loop=True)
+    with pytest.raises(PlayerError) as caught:
+        rig.player.fx_start(99, rig.items[0], loop=True)
+    assert caught.value.code == "too_many_effects" and len(fx_on(rig)) == mixer_mod.MAX_FX
+
+
+def test_losing_the_voice_connection_ends_the_effects_too(rig):
+    rig.player.fx_start(1, rig.items[1], loop=True)
+    rig.player.wanted = True
+    rig.player.on_voice_dropped()
+    assert fx_on(rig) == set() and rig.vc.stops == 1
+
+
+def test_the_effect_volume_is_its_own_and_follows_a_change_while_playing(rig):
+    rig.player.fx_start(1, rig.items[1], loop=True)
+    assert rig.player.snapshot()["fx_volume"] == 0.6
+    rig.player.set_fx_volume(0.1)
+    assert rig.player._mixer.fx_volume == 0.1
+    rig.player.set_fx_volume(9)
+    assert rig.player.snapshot()["fx_volume"] == 1.5, "capped like the music volume"

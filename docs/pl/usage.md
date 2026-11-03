@@ -2,7 +2,7 @@
 
 Języki: [English](../en/usage.md) · **Polski**
 
-Panel ma cztery zakładki dla wszystkich, **Odtwarzacz**, **Biblioteka**, **Playlisty** i **Pobieranie**, oraz dwie dla administratorów: **Użytkownicy** i **Ustawienia**. Po prawej w górnym pasku są trzy małe kontrolki: ikona **motywu** (każde kliknięcie przełącza na następny: automatyczny, jasny, ciemny; automatyczny podąża za systemem, wybór zapamiętuje przeglądarka), znacznik **PL / EN** (kliknięcie przełącza język, zapamiętywany dla każdego użytkownika) oraz **nazwa użytkownika**, która otwiera menu ze **Zmień hasło** i **Wyloguj**.
+Panel ma pięć zakładek dla wszystkich, **Odtwarzacz**, **Biblioteka**, **Playlisty**, **Sampler** i **Pobieranie**, oraz dwie dla administratorów: **Użytkownicy** i **Ustawienia**. Po prawej w górnym pasku są trzy małe kontrolki: ikona **motywu** (każde kliknięcie przełącza na następny: automatyczny, jasny, ciemny; automatyczny podąża za systemem, wybór zapamiętuje przeglądarka), znacznik **PL / EN** (kliknięcie przełącza język, zapamiętywany dla każdego użytkownika) oraz **nazwa użytkownika**, która otwiera menu ze **Zmień hasło** i **Wyloguj**.
 
 ## Idea w minutę
 
@@ -101,6 +101,24 @@ Sterowanie: poprzedni, pauza/wznów, następny, stop, pętla, losowo oraz suwak 
 Jeśli połączenie samo się zerwie, bot czeka około 35 sekund, zanim będzie mógł dołączyć ponownie. To celowe, szybsze ponowne wejście zwykle kończy się tym, że Discord zabija także nową sesję. W komunikacie zobaczysz, ile sekund zostało.
 
 Bot opuszcza kanał po 30 minutach bez żadnego człowieka w środku (`IDLE_LEAVE_MINUTES`).
+
+## Sampler
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="../img/sampler-pl-dark.png">
+  <img alt="Zakładka Sampler" src="../img/sampler-pl.png">
+</picture>
+
+Zakładka **Sampler** to tablica dużych przycisków (padów), a każdy gra jeden utwór jako **efekt dźwiękowy** nad muzyką: grzmot, trzaśnięcie drzwi, wilki, dzwon. Każdy ma własną tablicę (prywatną, na początku z ośmioma pustymi padami). Utwory pochodzą ze wspólnej biblioteki, więc efekt wgrywasz jak każdy inny utwór i możesz go otagować, na przykład `fx`, żeby go potem znaleźć.
+
+- **Kliknięcie** pada włącza efekt, kolejne go wyłącza (z bardzo krótkim wyciszeniem, więc bez trzasku).
+- Pad ustawiony na **raz** gra utwór do końca i świeci się, dopóki gra. Pad ustawiony na **pętlę** powtarza się, aż klikniesz go ponownie.
+- **Prawy przycisk myszy**: efekt gra tylko, dopóki trzymasz przycisk, i milknie w chwili puszczenia (pad z pętlą powtarza się, póki jest trzymany). Ekran dotykowy nie ma prawego przycisku, więc tam jest tylko stuknięcie.
+- **Zatrzymaj wszystkie** wycisza wszystkie efekty. **Głośność efektów** jest osobna od głośności muzyki, a w trybie edycji każdy pad ma jeszcze własną głośność.
+- Mały przycisk **Edycja** w rogu zamienia pady w ustawienia (wtedy nie grają): **Wybierz utwór** (z wyszukiwarką), **Pętla**, głośność pada, jeden z sześciu kolorów, **◀ ▶** do przesuwania, **✕** do usunięcia, kliknięcie nazwy zmienia ją (puste to tytuł utworu) i **Dodaj przycisk** (do 48).
+- Gdzie efekty grają, zależy od odtwarzacza: w tej przeglądarce, gdy włączone jest **Odtwarzaj tutaj**, a poza tym na kanale głosowym, na którym jest bot (serwer wybrany w zakładce Odtwarzacz). Grają nad muzyką, przy zapauzowanej muzyce i gdy muzyki nie ma wcale. Gdy nie ma gdzie grać, mówi o tym linia nad padami.
+- Serwerem steruje naraz jedna osoba: gdy gra tam cudza playlista, Twoje pady odpowiedzą „ten serwer obsługuje teraz ktoś inny”, tak jak przyciski odtwarzacza.
+- Pad, którego utwór usunięto, jest wyszarzony, dopóki nie wybierzesz innego. Początek i koniec ustawione dla utworu w Bibliotece oraz wyrównywanie głośności działają też na efekty. Na Discordzie może grać naraz do ośmiu efektów.
 
 ## Pobieranie
 

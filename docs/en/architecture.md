@@ -43,6 +43,7 @@ The browser side is a static page (`app/static`): plain JavaScript, no build ste
 | `app/player.py` | `GuildPlayer` (queue, volume, reconnect cool-down) and `BotManager` |
 | `app/loudness.py` | Background analysis (loudness and silence in one ffmpeg pass), the playback gain, `RuntimeSettings` (everything the administrator changes in the panel) |
 | `app/selfupdate.py`, `app/swap.py`, `app/lifecycle.py` | Installing an update from the panel in the Windows package: download, check and unpack (a thread), then a helper in a process of its own swaps the folders (see Updating the Windows package) |
+| `app/routes_sampler.py`, `app/sampler.py` | The sampler's pads: CRUD of a person's pads, and the turning of a pad into a track the player can play (see Sound effects) |
 | `app/botsetup.py` | Setting up the bot from the panel on a desktop run (Windows): checking the pasted token and Application ID, and replacing those two lines of `config.toml` (see Bot setup from the panel) |
 | `app/updates.py` | The look at the newest GitHub release for the Settings tab: version parsing and comparison, a cache with ETag, a background thread (see Update notice) |
 | `app/sysload.py` | Container CPU and memory from the cgroup (v2 or v1), sampled every 2 s, the last ten minutes kept (three minutes of them go to the charts), for the Settings tab |
@@ -66,6 +67,7 @@ users ──< sessions
          └──< set_groups (folder, optional) ──< playlists
 downloads (user, url, status, track)
 user_prefs (user, key, value: the server and channel last chosen in the player)
+sampler_pads (user, position, name, track, mode once|loop, volume, colour)
 ```
 
 - **tracks** are never physically deleted. Deleting sets `deleted_at` and removes the file, so `playlist_items` keep pointing at a row with the old title (the greyed-out entry). A partial unique index keeps `sha256` unique among live tracks only, so re-uploading identical content revives the old row (same id).
@@ -87,6 +89,7 @@ user_prefs (user, key, value: the server and channel last chosen in the player)
 | Download jobs | owner, administrator | owner, administrator |
 | Users, server access | administrator | administrator |
 | Player of a Discord server | users granted that server, administrators | same, one controller at a time |
+| Sampler pads | the owner only (administrators too: a sampler is a personal board) | the owner |
 
 ## Playback
 
@@ -103,6 +106,14 @@ user_prefs (user, key, value: the server and channel last chosen in the player)
 - **Reconnects.** If the voice session ends unexpectedly, the player resets and refuses new connections for 35 seconds. `discord.py` keeps a timer for the old session for about 30 seconds, and joining again inside that window can get every new session killed. The same lesson is built into the `discord-stream-bot` project.
 - **Idle leave.** A background task checks every 30 seconds; a channel without any human for `IDLE_LEAVE_MINUTES` is left.
 - Discord ids are always strings in the API (JavaScript cannot hold 64-bit integers).
+
+### Sound effects (the sampler)
+
+- **A second bus in the mixer.** Next to the music layers `Mixer` keeps up to eight *effect slots* (`add_fx`, `stop_fx`, `fx_info`), each a `Layer` with a key (the pad id), a fade of 10 ms in and 60 ms out, and the volume of the effect bus, which glides like the music volume but is separate (`GuildPlayer.fx_volume`). Effects are summed with the music with the same saturating add. A looping effect is a `LoopingSource`: when the stream ends the thread that reads ahead for the layer starts the file again (for a trimmed track after the wanted part), so the audio thread never starts a process.
+- **Pause is the mixer's.** The voice client is never paused any more: `Mixer.paused` freezes the music (its streams are not read) and hands out silence, and effects go on over it. This is what lets a pad sound while the music is paused.
+- **The mix outlives the music.** `Mixer.read` ends (EOF) only when there is neither music nor an effect. When the music runs out while effects play, the mixer tells the player through `on_music_end` (without effects the old way holds: the end of the voice stream is the signal) and the player moves on to the next track or goes idle without stopping the stream. `GuildPlayer._stop_audio` therefore clears only the music while effects play (`Mixer.clear_music`); a lost connection (`everything=True`) ends all. An effect with no music creates a mix on the voice client by itself, and music started later joins it.
+- **Requests.** `POST /player/{guild}/fx/{pad}/toggle` (a press), `.../hold` and `.../release` (the right mouse button; a momentary effect stops on release, a latched one ignores it), `POST /player/{guild}/fx/stop` and `.../fx/volume`. They follow the rules of the other player requests (the server must be the person's, one controller at a time) and the pad must be the person's own; the state carries `fx` (the pads that sound) and `fx_volume`. `sampler.queue_item` turns the pad's track into the same `QueueItem` the playlists use, so the loudness gain and the trims apply.
+- **In the browser** `LocalFx` (`app/static/local.js`) is the same bus in Web Audio: each effect is an `<audio>` element with its gain and a short envelope, played from the pad's `item` (the same `playback.entry` as the local player), through a master of its own and not the music's, so that it sounds while the music is paused. A loop of an untrimmed track uses the element's own loop, a trimmed one seeks back at its end. Change an effect's behaviour in both places.
 
 ## Playing in the browser
 
@@ -131,6 +142,7 @@ All paths are under `/api`; state-changing requests need the header `X-Melomance
 | Library | `GET /tracks`, `POST /tracks/upload`, `PATCH/DELETE /tracks/{id}`, `GET /tracks/{id}/usage`, `GET /tracks/{id}/stream`, `PUT /tracks/{id}/my-tags`, `GET /tags` |
 | Downloads | `GET/POST /downloads` (the list also carries live progress, elapsed seconds and the remaining pause; `POST` takes `tags` and `my_tags`), `DELETE /downloads/{id}` |
 | Playlists | `GET/POST /sets`, `PATCH/DELETE /sets/{id}`, `POST /sets/{id}/playlists`, `PUT /sets/{id}/playlists/order`, `POST /sets/{id}/groups`, `PUT /sets/{id}/groups/order`, `PATCH/DELETE /groups/{id}`, `POST /groups/{id}/playlists`, `PUT /groups/{id}/playlists/order`, `GET/PATCH/DELETE /playlists/{id}`, `POST /playlists/{id}/copy` (one target: `user_id`, `set_id` or `group_id`), `POST /playlists/{id}/items`, `PUT /playlists/{id}/order`, `PUT/DELETE /playlists/{id}/items/{item}` |
+| Sampler | `GET /sampler` (the first visit creates eight empty pads), `POST /sampler/pads`, `PATCH/DELETE /sampler/pads/{id}` (name, track or an explicit null, mode, volume, colour), `PUT /sampler/order`; each pad carries the `item` for the browser |
 | Player | `GET/PUT /player/choice` (the server and channel last chosen, kept per person), `GET /player/guilds`, `GET /player/{guild}/state`, `POST /player/{guild}/connect`, `disconnect`, `play`, `pause`, `resume`, `next`, `prev`, `jump`, `seek`, `stop`, `volume`, `PATCH /player/{guild}/options` |
 | People | `GET /people` (active accounts other than yours, names only, for choosing who to copy to) |
 | Local playback | `POST /local/queue` (the same body as `play`: `playlist_id`, `track_id` or `tags` + `mode`), `POST /local/resolve` (`track_ids`) |
@@ -160,4 +172,4 @@ In the Windows package the Settings tab can install the update itself (`app/self
 
 ## Not built yet
 
-Ambient layers under the music and a sound-effects board (the mixer is the place for both). The data model does not stand in the way of any of them.
+Ambient layers under the music (the mixer is the place for them; the effect bus is the first step). The data model does not stand in the way.
