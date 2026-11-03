@@ -56,6 +56,8 @@ def test_wrong_values_are_refused(env, wavs):
     assert env.client.patch(f"/api/sampler/pads/{pad_id}", json={"mode": "forever"}).status_code == 422
     assert env.client.patch(f"/api/sampler/pads/{pad_id}", json={"volume": 9}).status_code == 422
     assert env.client.patch(f"/api/sampler/pads/{pad_id}", json={"color": 12}).status_code == 422
+    assert env.client.patch(f"/api/sampler/pads/{pad_id}", json={"name": "x" * 101}).status_code == 422
+    assert env.client.patch(f"/api/sampler/pads/{pad_id}", json={"name": "x" * 100}).status_code == 200, "what is accepted is kept whole"
 
 
 def test_a_deleted_track_leaves_a_greyed_pad_that_cannot_play(env, wavs):

@@ -24,7 +24,7 @@ COLORS = 6
 
 
 class PadPatchIn(BaseModel):
-    name: str | None = Field(default=None, max_length=200)
+    name: str | None = Field(default=None, max_length=100)   # the length of the rename box in the panel
     track_id: str | None = None          # read with model_fields_set: an explicit null empties the pad
     mode: Literal["once", "loop"] | None = None
     volume: float | None = Field(default=None, ge=0, le=1.5)
@@ -79,7 +79,7 @@ def patch_pad(pad_id: int, body: PadPatchIn, request: Request, user: dict = Depe
         pad_for(conn, user, pad_id)
         changes: dict[str, object] = {}
         if body.name is not None:
-            changes["name"] = " ".join(body.name.split())[:60]
+            changes["name"] = " ".join(body.name.split())
         if "track_id" in body.model_fields_set:
             if body.track_id is not None and not conn.execute(
                     "SELECT 1 FROM tracks WHERE id=? AND deleted_at IS NULL", (body.track_id,)).fetchone():
