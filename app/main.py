@@ -79,9 +79,11 @@ def create_app(settings: Settings | None = None, bot=None, downloader: Downloade
         app.state.loudness.start()
         app.state.load.start()
         app.state.updates.start()
+        lifecycle.set_update_info(app.state.updates.status)   # the tray icon of the Windows package says "update available"
         try:
             yield
         finally:
+            lifecycle.set_update_info(None)
             app.state.updates.stop()
             app.state.load.stop()
             app.state.loudness.stop()
@@ -96,7 +98,6 @@ def create_app(settings: Settings | None = None, bot=None, downloader: Downloade
     app.state.loudness = loudness or LoudnessWorker(settings, app.state.runtime)
     app.state.load = LoadMonitor()
     app.state.updates = updates or UpdateChecker(settings, app.state.runtime)
-    lifecycle.set_update_info(app.state.updates.status)   # the tray icon of the Windows package says "update available"
     app.state.installer = installer or create_installer(settings)
     app.state.downloader = downloader or Downloader(settings)
     app.state.throttle = LoginThrottle(settings.login_max_failures, settings.login_window_seconds)
