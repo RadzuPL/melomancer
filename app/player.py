@@ -8,10 +8,12 @@ import os
 import random
 import time
 from dataclasses import dataclass
+from pathlib import Path
 
 import discord
 
 from .config import Settings
+from .davecheck import silent_voice_problem
 from .loudness import RuntimeSettings, linear_gain
 from .mixer import FRAME_SECONDS, Layer, LoopingSource, Mixer
 from .playback import span
@@ -618,6 +620,11 @@ class BotManager:
         log.info("discord.py %s, davey %s", discord.__version__, davey or "MISSING")
         if davey is None:
             log.warning("'davey' is not installed - Discord voice requires DAVE support since 2026-03-01.")
+        else:
+            where = getattr(discord, "__file__", None)
+            problem = silent_voice_problem(davey, Path(where).parent if where else None)
+            if problem:
+                log.warning(problem)
         if not self.settings.discord_token:
             log.warning("DISCORD_TOKEN is not set: the panel runs, but the bot stays offline.")
             return

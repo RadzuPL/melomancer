@@ -34,6 +34,7 @@ To celowe 35 sekund oczekiwania po zerwaniu sesji głosowej. Poczekaj i naciśni
 - Suwak głośności na 0 % albo bot wyciszony przez ciebie w Discordzie. Kliknij bota prawym przyciskiem na kanale, żeby zobaczyć jego głośność użytkownika.
 - Log pokazuje `File missing for ...`: plik audio zniknął z folderu danych. Zastąp go albo wgraj ponownie.
 - Sprawdź, czy pierwsze linie logu mówią `discord.py 2.7.x, davey ...`, a nie `davey MISSING`. Głos potrzebuje obu od czasu wymogu szyfrowania end-to-end w Discordzie (https://docs.discord.com/developers/topics/voice-connections). Jeśli brakuje, pobierz najnowszy obraz.
+- Bot dołącza, a nawet świeci się jak mówiący, ale nic nie słychać, a log ostrzega `davey ... needs prepare_transition`: biblioteka DAVE `davey` 0.2 nie działa jeszcze z discord.py 2.7.1. Obraz przypina `davey<0.2`, więc pobierz najnowszy obraz. Inne boty na discord.py mają to samo, tam trzeba przypiąć `davey<0.2` w wymaganiach.
 
 **Inny użytkownik widzi „Ten serwer obsługuje teraz ktoś inny.”**
 Na tym serwerze gra playlista innego użytkownika. On (albo administrator) naciska **Stop**.
