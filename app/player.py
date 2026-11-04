@@ -621,7 +621,8 @@ class BotManager:
         if davey is None:
             log.warning("'davey' is not installed - Discord voice requires DAVE support since 2026-03-01.")
         else:
-            problem = silent_voice_problem(davey, Path(getattr(discord, "__file__", "") or ".").parent)
+            where = getattr(discord, "__file__", None)
+            problem = silent_voice_problem(davey, Path(where).parent if where else None)
             if problem:
                 log.warning(problem)
         if not self.settings.discord_token:
