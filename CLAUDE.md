@@ -112,6 +112,10 @@ UI changes are checked: extend its mock data and assertions with every UI change
   returns 201, and deleting a track that is on a playlist needs `?force=true`.
 - Text whose width changes (a percentage, a time) next to a flexible slider makes the slider resize: give the text a
   fixed width.
+- `davey` is pinned `<0.2` in `requirements.txt` on purpose: davey 0.2 needs `prepare_transition`, discord.py 2.7.1 never calls
+  it, and the bot then joins voice and plays in silence with nothing in the log (it happened on 2026-11-02, the unpinned
+  Monday rebuild pulled it). Lift the pin only after a discord.py release that supports davey 0.2; the start-up warning
+  in `app/davecheck.py` says when the pairing is bad.
 - The ffmpeg analysis (`loudnorm` and `silencedetect` in one pass) is run under `nice`, so that it does not compete
   with the voice stream.
 

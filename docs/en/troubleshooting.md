@@ -34,6 +34,7 @@ This is the deliberate 35 second wait after the voice session dropped. Wait and 
 - Volume slider at 0 %, or the bot muted by you in Discord. Right-click the bot in the channel to see its user volume.
 - The log shows `File missing for ...`: the audio file was lost from the data folder. Replace or re-upload it.
 - Check that the first lines of the log say `discord.py 2.7.x, davey ...` and not `davey MISSING`. Voice needs both since Discord's end-to-end encryption requirement (https://docs.discord.com/developers/topics/voice-connections). Pull the newest image if it is missing.
+- The bot joins and even lights up as speaking, but nothing is heard, and the log warns `davey ... needs prepare_transition`: the DAVE library `davey` 0.2 does not work with discord.py 2.7.1 yet. The image pins `davey<0.2`, so pull the newest image. Other bots built on discord.py hit the same thing, there pin `davey<0.2` in their requirements.
 
 **Another user says "Someone else is controlling this server right now."**
 Another user's playlist is playing on that server. They (or an administrator) press **Stop**.
