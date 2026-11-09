@@ -7,7 +7,7 @@ from pydantic import BaseModel, Field
 from .db import tx
 from .deps import current_user, get_settings
 from .playback import entry
-from .routes_player import PlayIn, resolve_target
+from .routes_player import PlayIn, resolve_target, start_index
 
 router = APIRouter(prefix="/api/local")
 
@@ -26,7 +26,8 @@ def queue(body: PlayIn, request: Request, user: dict = Depends(current_user)):
         rows, meta, opts = resolve_target(conn, user, body)
     if not rows:
         raise HTTPException(400, "empty_playlist")
-    return {"playlist": meta, "options": opts, "settings_rev": runtime.rev,
+    # `start` is where to begin in `items` (null: at the start), see PlayIn.start_track
+    return {"playlist": meta, "options": opts, "settings_rev": runtime.rev, "start": start_index(rows, body),
             "items": [entry(r, runtime) for r in rows]}
 
 

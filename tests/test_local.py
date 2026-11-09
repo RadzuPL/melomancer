@@ -51,6 +51,18 @@ def test_queue_of_a_playlist_has_spans_gains_and_options(env, wavs):
     assert (second["start"], second["end"]) == (10.0, 60.0) and second["gain"] == 1.0
 
 
+def test_queue_says_where_to_begin_when_a_start_track_is_given(env, wavs):
+    login(env, "admin")
+    ids = [upload(env, w).json()["id"] for w in wavs[:3]]
+    playlist = _playlist(env, ids)
+    plain = env.client.post("/api/local/queue", json={"playlist_id": playlist}).json()
+    assert plain["start"] is None
+    res = env.client.post("/api/local/queue", json={"playlist_id": playlist, "start_track": ids[2]}).json()
+    assert res["start"] == 2 and [i["track_id"] for i in res["items"]] == ids  # all of it, in order
+    assert env.client.post("/api/local/queue", json={"playlist_id": playlist, "start_track": "nope"}).status_code == 404
+    assert env.client.post("/api/local/queue", json={"track_id": ids[0], "start_track": ids[0]}).status_code == 400
+
+
 def test_queue_follows_the_switches_and_the_settings_revision(env, wavs):
     login(env, "admin")
     track = upload(env, wavs[0]).json()["id"]

@@ -522,14 +522,29 @@ function langToggle(change = setLang) {
   }));
 }
 
+/* The icons of the theme button (the same drawings as in Charmancer): a half-filled circle follows the system, a sun is
+   light, a moon is dark. The markup is fixed here, nothing in it comes from a user. */
+const THEME_ICONS = {
+  auto: '<circle cx="12" cy="12" r="8"/><path d="M12 4a8 8 0 0 1 0 16z" fill="currentColor" stroke="none"/>',
+  light: '<circle cx="12" cy="12" r="4"/><path d="M12 2.5v2.5M12 19v2.5M2.5 12H5M19 12h2.5M5.3 5.3l1.8 1.8M16.9 16.9l1.8 1.8M5.3 18.7l1.8-1.8M16.9 7.1l1.8-1.8"/>',
+  dark: '<path d="M20 14.5A8.5 8.5 0 1 1 9.5 4a6.8 6.8 0 0 0 10.5 10.5z"/>',
+};
+
+function themeIcon(mode) {
+  const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  for (const [k, v] of Object.entries({ viewBox: "0 0 24 24", width: "16", height: "16", fill: "none", stroke: "currentColor",
+    "stroke-width": "2", "stroke-linecap": "round", "stroke-linejoin": "round", "aria-hidden": "true" })) svg.setAttribute(k, v);
+  svg.innerHTML = THEME_ICONS[mode];
+  return svg;
+}
+
 function themeMenu() {
-  const icons = { auto: "◐", light: "☀", dark: "☾" };
   const order = ["auto", "light", "dark"];
   const button = h("button", { type: "button", class: "hdr-btn hdr-icon" });
   const paint = () => {
     const mode = MelomancerTheme.get();
     const label = tr("theme") + ": " + tr("theme_" + mode);
-    button.textContent = icons[mode];
+    button.replaceChildren(themeIcon(mode));
     button.title = label;
     button.setAttribute("aria-label", label);
   };
@@ -767,8 +782,10 @@ async function viewPlayer(main) {
     api("GET", `/api/playlists/${p.id}`).then((detail) => {
       if (ps.openPad !== String(p.id) || !document.body.contains(list)) return;  // closed or replaced meanwhile
       const items = detail.items.filter((i) => !i.deleted);  // as in the queue: a deleted track cannot be played
-      fill(list, items.length ? items.map((i) => h("button", { type: "button", class: "qrow", "data-track": i.track_id, title: i.title, onclick: () => playTrack(i) },
-        h("span", { class: "muted small qnum" }, "▶"), h("span", { class: "t" }, i.title), h("span", { class: "muted small" }, fmtTime(i.duration))))
+      fill(list, items.length ? items.map((i) => h("div", { class: "padtrack", "data-track": i.track_id },
+        h("button", { type: "button", class: "qrow", title: i.title, onclick: () => playTrack(i) },
+          h("span", { class: "muted small qnum" }, "▶"), h("span", { class: "t" }, i.title), h("span", { class: "muted small" }, fmtTime(i.duration))),
+        h("button", { type: "button", class: "qfrom", title: tr("pad_from_here"), "aria-label": tr("pad_from_here") + ": " + i.title, onclick: () => playFrom(p, i) }, "⏭")))
         : h("div", { class: "muted pad-text" }, tr("playlist_empty")));
       markTracks();
     }).catch(fail);
@@ -781,10 +798,17 @@ async function viewPlayer(main) {
     return playOnDiscord({ track_id: item.track_id }, item.title);
   }
 
+  /* The playlist from this track on: all of it, but beginning here (with shuffle on, only the start is here). */
+  async function playFrom(p, item) {
+    const target = { playlist_id: p.id, start_track: item.track_id };
+    if (LocalPlayer.on) return playHere(target);
+    return playOnDiscord(target, p.name);
+  }
+
   function markTracks() {
     const s = ps.st;
     const now = s && s.state !== "idle" && s.now ? s.now.track_id : null;
-    for (const row of padsBox.querySelectorAll(".padtracks .qrow")) row.classList.toggle("current", row.dataset.track === now);
+    for (const row of padsBox.querySelectorAll(".padtrack")) row.classList.toggle("current", row.dataset.track === now);
   }
 
   function applyState(st) {
