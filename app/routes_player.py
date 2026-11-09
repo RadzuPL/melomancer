@@ -25,6 +25,9 @@ class PlayIn(BaseModel):
     # Play whatever carries these tags right now, without a saved playlist.
     tags: list[str] | None = Field(default=None, max_length=10)
     mode: Literal["all", "any"] = "any"
+    # With a playlist or a tag selection: begin at this track and go on from there (with shuffle on, it only starts
+    # there and the rest follows in the shuffled order).
+    start_track: str | None = Field(default=None, max_length=128)
 
 
 class ChoiceIn(BaseModel):
@@ -153,6 +156,18 @@ def resolve_target(conn, user: dict, body: PlayIn):
     return rows, meta, opts
 
 
+def start_index(rows, body: PlayIn) -> int | None:
+    """Where a playlist or a tag selection begins: the position of the chosen track in it (None: at the start)."""
+    if not body.start_track:
+        return None
+    if body.track_id:
+        raise HTTPException(400, "bad_request")  # a single track has nothing to go on with
+    for position, row in enumerate(rows):
+        if row["id"] == body.start_track:
+            return position
+    raise HTTPException(404, "not_found")  # the list changed since it was shown
+
+
 @router.get("/choice")
 def get_choice(request: Request, user: dict = Depends(current_user)):
     """The server and voice channel this person chose last, to be selected again in the player."""
@@ -185,6 +200,9 @@ async def play(guild_id: str, body: PlayIn, request: Request, user: dict = Depen
     bot = _bot(request)
     with tx(settings.db_path) as conn:
         rows, meta, opts = resolve_target(conn, user, body)
+    start = start_index(rows, body)
+    if start is not None:
+        opts["start_track"] = body.start_track  # by id: the bot leaves out files it cannot find, so a position could shift
     items = [QueueItem(r["id"], r["title"], str(library.track_path(settings, r["id"], r["ext"])), r["duration"],
                        r["loudness"], r["peak"], r["silence_lead"] or 0.0, r["silence_trail"] or 0.0,
                        r["trim_start"], r["trim_end"])

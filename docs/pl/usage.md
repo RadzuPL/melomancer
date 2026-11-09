@@ -2,7 +2,7 @@
 
 Języki: [English](../en/usage.md) · **Polski**
 
-Panel ma pięć zakładek dla wszystkich, **Odtwarzacz**, **Biblioteka**, **Playlisty**, **Sampler** i **Pobieranie**, oraz dwie dla administratorów: **Użytkownicy** i **Ustawienia**. Po prawej w górnym pasku są trzy małe kontrolki: ikona **motywu** (każde kliknięcie przełącza na następny: automatyczny, jasny, ciemny; automatyczny podąża za systemem, wybór zapamiętuje przeglądarka), znacznik **PL / EN** (kliknięcie przełącza język, zapamiętywany dla każdego użytkownika) oraz **nazwa użytkownika**, która otwiera menu ze **Zmień hasło** i **Wyloguj**.
+Panel ma pięć zakładek dla wszystkich, **Odtwarzacz**, **Biblioteka**, **Playlisty**, **Sampler** i **Pobieranie**, oraz dwie dla administratorów: **Użytkownicy** i **Ustawienia**. Po prawej w górnym pasku są trzy małe kontrolki, każda w ramce: ikona **motywu** (półkole, słońce albo księżyc; każde kliknięcie przełącza na następny: automatyczny, jasny, ciemny; automatyczny podąża za systemem, wybór zapamiętuje przeglądarka), przełącznik **PL / EN** (oba języki obok siebie, bieżący podświetlony; kliknij drugi, żeby przełączyć, wybór jest zapamiętywany dla każdego użytkownika) oraz **nazwa użytkownika**, która otwiera menu ze **Zmień hasło** i **Wyloguj**.
 
 ## Idea w minutę
 
@@ -87,6 +87,8 @@ Po prawej wybrana playlista.
 4. Naciśnij playlistę. Jeśli bot jest na kanale (albo włączone jest **Odtwarzaj tutaj**), zaczyna grać, a aktywna playlista jest podświetlona. Panel nigdy sam nie łączy bota, więc przypadkowe kliknięcie nie sprawi, że zacznie nadawać na jakimś serwerze: gdy bot nie jest połączony, playlista jest tylko *wybrana* (przerywana ramka, „Wybrana: ...”), nic nie gra. Utwory wybranej playlisty i tak są wylistowane, zatrzymane. Naciśnij **Połącz** albo włącz **Odtwarzaj tutaj**, potem **▶** (albo ponownie playlistę); wybór zostaje przy przełączaniu między jednym a drugim.
 
 Pod przyciskami widać **listę utworów grającej playlisty** z podświetlonym bieżącym. Kliknij dowolny utwór, żeby zagrać go od razu; odtwarzanie idzie dalej od niego (przy losowaniu dalej w wylosowanej kolejności). Brakujące i usunięte utwory nie są na liście.
+
+**Jeden utwór sam.** Naciśnięcie playlisty gra ją całą, co się sprawdza przy zaplanowanej scenie. Na scenę, której nikt nie przewidział, służy mała strzałka w rogu playlisty (▾): otwiera utwory tej playlisty pod rzędem playlist (playlista z tagów pokazuje to, co pasuje w tej chwili). Kliknij tam utwór, a zagra **tylko ten utwór**, zastępując to, co gra, i bez niczego po nim. Przycisk **⏭** na końcu wiersza robi coś innego: gra **całą playlistę od tego utworu** i idzie dalej (przy losowaniu tylko start jest od tego utworu, reszta idzie w wylosowanej kolejności). Utwór, który gra teraz, jest na tej liście również podświetlony. Tak jak playlista, utwór wybrany przy niepołączonym bocie jest tylko wybrany, dopóki nie połączysz i nie naciśniesz **▶** (przy **⏭** wybrana jest playlista, która zacznie od tego utworu). Ponowne kliknięcie strzałki albo **Zamknij** chowa listę.
 
 Pasek postępu bieżącego utworu jest też **suwakiem przewijania**: przeciągnij go albo kliknij w wybranym miejscu, żeby tam skoczyć, co przydaje się przy utworach, które długo się rozkręcają. Nowe miejsce wchodzi płynnie na stare (krótkie przejście, domyślnie 0,3 s), więc nie ma trzasku ani przerwy. Wstrzymany odtwarzacz zostaje wstrzymany i skacze dopiero po wznowieniu.
 

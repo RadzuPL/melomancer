@@ -7,7 +7,7 @@ const state = {
   user: null, lang: "pl", tab: "player", system: null,
   tracks: [], tags: { shared: [], mine: [] }, sets: [], showAllSets: false,
   lib: { q: "", tag: "", mine: false, selected: new Set() },
-  player: { guilds: [], guildId: "", channelId: "", setId: "", st: null, stAt: 0, timer: null, armed: null },
+  player: { guilds: [], guildId: "", channelId: "", setId: "", st: null, stAt: 0, timer: null, armed: null, openPad: "" },
   pl: { selected: null, detail: null },
   dlTags: { shared: [], mine: [] }, upTags: { shared: [], mine: [] },
   quick: { tags: new Set(), mode: "any" },
@@ -511,20 +511,40 @@ function menu(trigger, items) {
   return wrap;
 }
 
-function langToggle() {
-  const other = state.lang === "pl" ? "en" : "pl";
-  const label = tr("switch_language", { lang: other.toUpperCase() });
-  return h("button", { class: "ghost", title: label, "aria-label": label, onclick: () => setLang(other) }, state.lang.toUpperCase());
+/* Both languages side by side in one frame, the current one tinted. `change` is what a click on the other one does:
+   in the panel it is saved for the person, on the login page there is nobody to save it for yet. */
+function langToggle(change = setLang) {
+  return h("div", { class: "lang", role: "group", "aria-label": tr("language") }, ["pl", "en"].map((code) => {
+    const current = state.lang === code;
+    const label = tr("switch_language", { lang: code.toUpperCase() });
+    return h("button", { type: "button", class: current ? "on" : "", "aria-pressed": String(current), "data-lang": code,
+      title: current ? "" : label, "aria-label": label, onclick: () => { if (!current) change(code); } }, code.toUpperCase());
+  }));
+}
+
+/* The icons of the theme button (the same drawings as in Charmancer): a half-filled circle follows the system, a sun is
+   light, a moon is dark. The markup is fixed here, nothing in it comes from a user. */
+const THEME_ICONS = {
+  auto: '<circle cx="12" cy="12" r="8"/><path d="M12 4a8 8 0 0 1 0 16z" fill="currentColor" stroke="none"/>',
+  light: '<circle cx="12" cy="12" r="4"/><path d="M12 2.5v2.5M12 19v2.5M2.5 12H5M19 12h2.5M5.3 5.3l1.8 1.8M16.9 16.9l1.8 1.8M5.3 18.7l1.8-1.8M16.9 7.1l1.8-1.8"/>',
+  dark: '<path d="M20 14.5A8.5 8.5 0 1 1 9.5 4a6.8 6.8 0 0 0 10.5 10.5z"/>',
+};
+
+function themeIcon(mode) {
+  const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  for (const [k, v] of Object.entries({ viewBox: "0 0 24 24", width: "16", height: "16", fill: "none", stroke: "currentColor",
+    "stroke-width": "2", "stroke-linecap": "round", "stroke-linejoin": "round", "aria-hidden": "true" })) svg.setAttribute(k, v);
+  svg.innerHTML = THEME_ICONS[mode];
+  return svg;
 }
 
 function themeMenu() {
-  const icons = { auto: "◐", light: "☀", dark: "☾" };
   const order = ["auto", "light", "dark"];
-  const button = h("button", { class: "ghost icon-only" });
+  const button = h("button", { type: "button", class: "hdr-btn hdr-icon" });
   const paint = () => {
     const mode = MelomancerTheme.get();
     const label = tr("theme") + ": " + tr("theme_" + mode);
-    button.textContent = icons[mode];
+    button.replaceChildren(themeIcon(mode));
     button.title = label;
     button.setAttribute("aria-label", label);
   };
@@ -537,7 +557,7 @@ function themeMenu() {
 }
 
 function userMenu() {
-  const trigger = h("button", { class: "btn small" }, state.user.username + " ▾");
+  const trigger = h("button", { type: "button", class: "hdr-btn hdr-user" }, h("span", { class: "name" }, state.user.username));
   // Signed in automatically (a desktop run): signing out would only be undone by the next page load.
   const auto = !!(state.system && state.system.auto_login);
   return menu(trigger, () => [
@@ -597,8 +617,7 @@ function viewLogin() {
   h("button", { class: "btn primary", type: "submit" }, tr("login")));
   return h("div", { class: "login card" }, h("h1", {}, "Melomancer"), form,
     h("div", { class: "row" }, h("span", { class: "grow" }), themeMenu(),
-      h("button", { class: "ghost", title: tr("switch_language", { lang: (state.lang === "pl" ? "en" : "pl").toUpperCase() }),
-        onclick: () => { state.lang = state.lang === "pl" ? "en" : "pl"; pref("lang", state.lang); render(); } }, state.lang.toUpperCase())));
+      langToggle((code) => { state.lang = code; pref("lang", code); render(); })));
 }
 
 /* ---------- player ---------- */
@@ -724,14 +743,72 @@ async function viewPlayer(main) {
     padsBox.replaceChildren();
     if (!set) { padsBox.append(h("p", { class: "muted" }, tr("no_sets_hint"))); return; }
     if (!set.playlists.length && !set.groups.some((g) => g.playlists.length)) padsBox.append(h("p", { class: "muted" }, tr("no_groups_hint")));
-    const pad = (p) => h("button", {
-      class: "pad" + (ps.st && ps.st.playlist && ps.st.playlist.id === p.id ? " active" : ""), "data-id": p.id,
-      onclick: () => playPad(p),
-    }, (p.kind === "tags" ? "🏷 " : "") + p.name, h("span", { class: "count" }, tr("n_tracks", { n: p.count - p.missing }) + (p.missing ? " ⚠ " + p.missing : "")));
-    if (set.playlists.length) padsBox.append(h("div", { class: "pads" }, set.playlists.map(pad)));
+    // Pressing a playlist plays it at once (one click per scene). The small arrow beside it opens its tracks instead,
+    // for the scene nobody planned: there one track can be played alone, without starting the whole list.
+    const pad = (p) => {
+      const open = ps.openPad === String(p.id);
+      const label = tr(open ? "pad_tracks_hide" : "pad_tracks_show");
+      return h("div", { class: "padwrap" },
+        h("button", {
+          class: "pad" + (ps.st && ps.st.playlist && ps.st.playlist.id === p.id ? " active" : ""), "data-id": p.id,
+          onclick: () => playPad(p),
+        }, (p.kind === "tags" ? "🏷 " : "") + p.name, h("span", { class: "count" }, tr("n_tracks", { n: p.count - p.missing }) + (p.missing ? " ⚠ " + p.missing : ""))),
+        h("button", { type: "button", class: "padmore" + (open ? " on" : ""), "data-more": p.id, title: label, "aria-label": label,
+          "aria-expanded": String(open), onclick: () => toggleTracks(p) }, open ? "▴" : "▾"));
+    };
+    // A group of pads, followed by the track list of the one that is open (full width, under the row it belongs to).
+    const grid = (list) => {
+      const open = list.find((p) => ps.openPad === String(p.id));
+      return [h("div", { class: "pads" }, list.map(pad)), open ? trackPanel(open) : null];
+    };
+    if (set.playlists.length) padsBox.append(...grid(set.playlists).filter(Boolean));
     for (const group of set.groups) {
-      if (group.playlists.length) padsBox.append(h("h3", {}, "📁 " + group.name), h("div", { class: "pads" }, group.playlists.map(pad)));
+      if (group.playlists.length) padsBox.append(h("h3", {}, "📁 " + group.name), ...grid(group.playlists).filter(Boolean));
     }
+  }
+
+  function toggleTracks(p) {
+    ps.openPad = ps.openPad === String(p.id) ? "" : String(p.id);
+    fillPads();
+    applyState();  // the new pads know nothing yet about what is playing or selected
+  }
+
+  function trackPanel(p) {
+    const list = h("div", { class: "queue" }, h("div", { class: "muted small pad-text" }, "…"));
+    const panel = h("div", { class: "padtracks", "data-playlist": p.id },
+      h("div", { class: "row" }, h("strong", { class: "grow" }, p.name),
+        h("button", { type: "button", class: "btn small", onclick: () => toggleTracks(p) }, tr("close"))),
+      h("div", { class: "muted small" }, tr("pad_tracks_hint")), list);
+    api("GET", `/api/playlists/${p.id}`).then((detail) => {
+      if (ps.openPad !== String(p.id) || !document.body.contains(list)) return;  // closed or replaced meanwhile
+      const items = detail.items.filter((i) => !i.deleted);  // as in the queue: a deleted track cannot be played
+      fill(list, items.length ? items.map((i) => h("div", { class: "padtrack", "data-track": i.track_id },
+        h("button", { type: "button", class: "qrow", title: i.title, onclick: () => playTrack(i) },
+          h("span", { class: "muted small qnum" }, "▶"), h("span", { class: "t" }, i.title), h("span", { class: "muted small" }, fmtTime(i.duration))),
+        h("button", { type: "button", class: "qfrom", title: tr("pad_from_here"), "aria-label": tr("pad_from_here") + ": " + i.title, onclick: () => playFrom(p, i) }, "⏭")))
+        : h("div", { class: "muted pad-text" }, tr("playlist_empty")));
+      markTracks();
+    }).catch(fail);
+    return panel;
+  }
+
+  /* One track alone: it replaces whatever plays, and nothing follows it. */
+  async function playTrack(item) {
+    if (LocalPlayer.on) return playHere({ track_id: item.track_id });
+    return playOnDiscord({ track_id: item.track_id }, item.title);
+  }
+
+  /* The playlist from this track on: all of it, but beginning here (with shuffle on, only the start is here). */
+  async function playFrom(p, item) {
+    const target = { playlist_id: p.id, start_track: item.track_id };
+    if (LocalPlayer.on) return playHere(target);
+    return playOnDiscord(target, p.name);
+  }
+
+  function markTracks() {
+    const s = ps.st;
+    const now = s && s.state !== "idle" && s.now ? s.now.track_id : null;
+    for (const row of padsBox.querySelectorAll(".padtrack")) row.classList.toggle("current", row.dataset.track === now);
   }
 
   function applyState(st) {
@@ -765,6 +842,7 @@ async function viewPlayer(main) {
     shuffleB.classList.toggle("on", !!(s && s.shuffle));
     if (s && !dragging) { vol.value = Math.round(s.volume * 100); volUi.paint(); volLabel.textContent = vol.value + "%"; }
     paintQueue(s, playing);
+    markTracks();
     for (const pad of padsBox.querySelectorAll(".pad")) {
       pad.classList.toggle("active", !!(playing && s.playlist && String(s.playlist.id) === pad.dataset.id));
       pad.classList.toggle("armed", !!(armed && ps.armed.target.playlist_id !== undefined && String(ps.armed.target.playlist_id) === pad.dataset.id));
@@ -917,6 +995,9 @@ async function viewPlayer(main) {
       if (target.playlist_id !== undefined) {
         const detail = await api("GET", `/api/playlists/${target.playlist_id}`);
         armed.queue = detail.items.filter((i) => !i.deleted).map((i) => ({ track_id: i.track_id, title: i.title, duration: i.duration }));
+      } else if (target.track_id !== undefined) {
+        const known = state.tracks.find((t) => t.id === target.track_id);
+        armed.queue = [{ track_id: target.track_id, title: known ? known.title : name, duration: known ? known.duration : 0 }];
       } else {
         armed.queue = quickMatches().map((t) => ({ track_id: t.id, title: t.title, duration: t.duration }));
       }

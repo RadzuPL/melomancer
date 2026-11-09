@@ -105,7 +105,8 @@ const LocalPlayer = {
 
   /* ----- starting ----- */
 
-  /* target: {playlist_id} | {track_id} | {tags, mode} -- exactly what the bot's play request takes. */
+  /* target: {playlist_id} | {track_id} | {tags, mode}, and with a playlist or tags also {start_track}: exactly what the
+     bot's play request takes. */
   async play(target) {
     this.ensureContext();
     const data = await api("POST", "/api/local/queue", target);
@@ -117,12 +118,13 @@ const LocalPlayer = {
     this.cfg.rev = data.settings_rev;
     this.gen++;
     this.dropNext();
-    this.order = this.freshOrder();
+    const first = data.start === null || data.start === undefined ? undefined : data.start;  // begin at this track
+    this.order = this.freshOrder(first);  // with shuffle it leads the new order; without, the position moves instead
     this.failStreak = 0;
-    this.pos = 0;
+    this.pos = first !== undefined && !this.shuffle ? first : 0;
     this.state = "playing";  // a track that cannot be loaded is skipped from here
     if (this.channel) this.channel.postMessage({ type: "start", id: this.id });  // other tabs of this panel go quiet
-    await this.begin(this.order, 0, { fade: this.cfg.crossfade });
+    await this.begin(this.order, this.pos, { fade: this.cfg.crossfade });
     if (this.state !== "idle") this.startTimers();
   },
 

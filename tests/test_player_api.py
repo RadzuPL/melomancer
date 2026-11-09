@@ -45,6 +45,21 @@ def test_play_playlist_skips_deleted_tracks(env, wavs):
     assert env.bot.played[-1]["opts"]["loop"] is True
 
 
+def test_play_can_begin_at_a_chosen_track_of_a_playlist(env, wavs):
+    login(env, "admin")
+    playlist_id, ids = _playlist_with_tracks(env, wavs, 3)
+    env.client.post("/api/player/111/connect", json={"channel_id": "100100"})
+    res = env.client.post("/api/player/111/play", json={"playlist_id": playlist_id, "start_track": ids[1]})
+    assert res.status_code == 200
+    assert env.bot.played[-1]["titles"] == ["tone0", "tone1", "tone2"]  # the whole list; only the start moves
+    assert env.bot.played[-1]["opts"]["start_track"] == ids[1]
+    env.client.post("/api/player/111/play", json={"playlist_id": playlist_id})
+    assert "start_track" not in env.bot.played[-1]["opts"]
+    # a track that is not in the list (it changed since the list was shown), and a single track with nothing to go on with
+    assert env.client.post("/api/player/111/play", json={"playlist_id": playlist_id, "start_track": "nope"}).status_code == 404
+    assert env.client.post("/api/player/111/play", json={"track_id": ids[0], "start_track": ids[0]}).status_code == 400
+
+
 def test_play_needs_exactly_one_target_and_a_connection(env, wavs):
     login(env, "admin")
     playlist_id, ids = _playlist_with_tracks(env, wavs, 1)

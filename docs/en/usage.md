@@ -2,7 +2,7 @@
 
 Languages: **English** · [Polski](../pl/usage.md)
 
-The panel has five tabs for everyone, **Player**, **Library**, **Playlists**, **Sampler** and **Downloads**, and two more for administrators: **Users** and **Settings**. At the right of the top bar there are three small controls: the **theme** icon (each click switches to the next one: automatic, light, dark; automatic follows your system, and the choice is remembered in the browser), the **PL / EN** marker (click to switch the language; it is remembered per user) and your **user name**, which opens a menu with **Change password** and **Log out**.
+The panel has five tabs for everyone, **Player**, **Library**, **Playlists**, **Sampler** and **Downloads**, and two more for administrators: **Users** and **Settings**. At the right of the top bar there are three small controls, each in a frame: the **theme** icon (a half-filled circle, a sun or a moon; each click switches to the next one: automatic, light, dark; automatic follows your system, and the choice is remembered in the browser), the **PL / EN** switch (both languages side by side, the current one tinted; click the other one to switch, it is remembered per user) and your **user name**, which opens a menu with **Change password** and **Log out**.
 
 ## The idea in one minute
 
@@ -87,6 +87,8 @@ Right side: the selected playlist.
 4. Press a playlist. If the bot is in a channel (or **Play here** is on) it starts playing and the active playlist is highlighted. The panel never connects the bot by itself, so a stray click cannot make it start transmitting on some server: with the bot not connected, the playlist is only *selected* (dashed outline, "Selected: ..."), nothing plays. The tracks of the selected playlist are listed anyway, stopped. Press **Connect** or turn on **Play here**, then **▶** (or press the playlist again); the selection stays when you switch between the two.
 
 Below the controls the **tracks of the playing playlist** are listed, the current one highlighted. Click any track to play it right away; playback then continues from there (with shuffle on, the rest of the shuffled order follows). Missing or deleted tracks are not in the list.
+
+**One track alone.** Pressing a playlist plays all of it, which is what you want for a planned scene. For a scene nobody planned, use the small arrow in the corner of a playlist (▾): it opens the tracks of that playlist under the row of playlists (a tag playlist lists what matches right now). Click a track there and **only that track** plays, replacing whatever is playing and with nothing after it. The **⏭** button at the end of a row does the other thing: it plays the **whole playlist, beginning at that track** and going on from there (with shuffle on, only the start is that track and the rest follows in the shuffled order). The track that is playing now is highlighted in this list too. Like a playlist, a track chosen while the bot is not connected is only selected until you connect and press **▶** (with **⏭** the playlist is selected and starts at that track). The arrow again, or **Close**, hides the list.
 
 The progress bar of the current track is also a **seek bar**: drag it or click a point to jump there, handy for tracks that take a long time to get going. The new position fades in over the old one (a short cross-fade, 0.3 s by default), so there is no click or gap. A paused player stays paused and makes the jump when you resume.
 

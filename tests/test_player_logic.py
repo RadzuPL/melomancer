@@ -164,6 +164,27 @@ def test_jump_with_shuffle_lands_on_the_chosen_track_and_keeps_every_track_in_th
     assert rig.player.snapshot()["now"]["index"] == 1
 
 
+def test_play_can_begin_at_a_chosen_track_and_goes_on_from_there(rig):
+    start(rig, start_track="t2")
+    assert played_paths(rig) == ["2.opus"]
+    assert rig.player.snapshot()["now"]["index"] == 2
+    rig.player.skip(1)
+    assert played_paths(rig)[-1] == "3.opus"      # the list goes on after it, in order
+    rig.player.skip(1)
+    assert played_paths(rig)[-1] == "0.opus"      # and wraps round, the playlist loops
+
+
+def test_playing_from_a_chosen_track_with_shuffle_leads_with_it_and_keeps_every_track(rig):
+    start(rig, shuffle=True, start_track="t1")
+    assert played_paths(rig) == ["1.opus"]
+    assert rig.player.order[0] == 1 and sorted(rig.player.order) == [0, 1, 2, 3]
+
+
+def test_an_unknown_start_track_changes_nothing(rig):
+    start(rig, start_track="nope")
+    assert played_paths(rig) == ["0.opus"]
+
+
 def test_jump_rejects_bad_requests(rig):
     with pytest.raises(PlayerError) as idle:
         rig.player.jump(0)

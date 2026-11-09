@@ -229,7 +229,7 @@ class GuildPlayer:
             mixer.close()
 
     async def play(self, items: list[QueueItem], playlist: dict | None, controller: dict, *, loop: bool,
-                   shuffle: bool, fade: float, volume: float | None) -> None:
+                   shuffle: bool, fade: float, volume: float | None, start_track: str | None = None) -> None:
         if not self.connected():
             raise PlayerError("not_connected", 409)
         playable = [i for i in items if os.path.isfile(i.path)]
@@ -241,8 +241,9 @@ class GuildPlayer:
         self.loop, self.shuffle, self.fade = loop, shuffle, fade
         if volume is not None:
             self.volume = max(0.0, min(volume, 1.5))
-        self._build_order()
-        self.pos = 0
+        first = next((n for n, item in enumerate(playable) if item.track_id == start_track), None) if start_track else None
+        self._build_order(first)  # with shuffle the chosen track leads; without it the order stays and the position moves
+        self.pos = self.order.index(first) if first is not None else 0
         self._fail_streak = 0
         self._start_current()  # whatever plays now is cross-faded into the new playlist
 
@@ -780,10 +781,10 @@ class BotManager:
         await self.player(guild_id).disconnect()
 
     async def play(self, guild_id: int, items: list[QueueItem], playlist: dict | None, controller: dict, *,
-                   loop: bool, shuffle: bool, fade: float, volume: float | None) -> None:
+                   loop: bool, shuffle: bool, fade: float, volume: float | None, start_track: str | None = None) -> None:
         self.require_ready()
         await self.player(guild_id).play(items, playlist, controller, loop=loop, shuffle=shuffle, fade=fade,
-                                         volume=volume)
+                                         volume=volume, start_track=start_track)
 
     def fx_toggle(self, guild_id: int, key: int, item: QueueItem, *, loop: bool, volume: float) -> bool:
         self.require_ready()

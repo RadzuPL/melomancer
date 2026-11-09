@@ -168,7 +168,9 @@ with sync_playwright() as p:
                     "Content-Range": f"bytes {start}-{end}/{len(WAV)}", "Accept-Ranges": "bytes"})
             return route.fulfill(status=200, content_type="audio/wav", body=WAV, headers={"Accept-Ranges": "bytes"})
         if req.method == "POST" and path == "/api/local/queue":
-            return route.fulfill(status=200, content_type="application/json", body=json.dumps(LOCAL_QUEUE))
+            asked = json.loads(req.post_data) if req.post_data else {}
+            reply = {**LOCAL_QUEUE, "start": 1} if asked.get("start_track") else LOCAL_QUEUE  # "begin at the second track"
+            return route.fulfill(status=200, content_type="application/json", body=json.dumps(reply))
         if req.method == "POST" and path == "/api/local/resolve":
             return route.fulfill(status=200, content_type="application/json", body=json.dumps(
                 {"settings_rev": ROUTES["/api/system"]["settings_rev"], "items": [{**i, "gain": 0.25} for i in LOCAL_ITEMS]}))
@@ -555,24 +557,25 @@ with sync_playwright() as p:
 
     # user menu: username in a frame, the rest hides in a drop-down
     assert page.locator("header.top button:has-text('Wyloguj')").count() == 0, "logout hidden until the menu is open"
-    page.click("header.top button.btn.small")
+    page.click("header.top button.hdr-user")
 
     assert page.locator(".menu:not(.hidden) .menuitem").all_inner_texts() == ["Zmień hasło", "Wyloguj"]
     page.keyboard.press("Escape")
     assert page.locator(".menu:not(.hidden)").count() == 0, "Escape closes the menu"
-    page.click("header.top button.btn.small")
+    page.click("header.top button.hdr-user")
     page.click(".menuitem:has-text('Zmień hasło')")
     page.wait_for_selector(".dialog")
     assert "Zmień hasło" in page.inner_text(".dialog h3")
     page.click(".dialog button:has-text('Zamknij')")
 
     # theme: one click goes to the next mode: auto -> light -> dark -> auto
-    theme = page.locator("header.top button.icon-only")
+    theme = page.locator("header.top button.hdr-icon")
+    assert theme.locator("svg").count() == 1 and theme.inner_text().strip() == "", "the theme button shows a drawn icon, not a letter"
     theme_attr = "document.documentElement.getAttribute('data-theme')"
     assert page.locator(".menu:not(.hidden)").count() == 0, "no drop-down for the theme"
     assert theme.get_attribute("aria-label") == "Motyw: Automatyczny", theme.get_attribute("aria-label")
     theme.click()
-    assert theme.get_attribute("aria-label") == "Motyw: Jasny" and theme.inner_text() == "☀"
+    assert theme.get_attribute("aria-label") == "Motyw: Jasny" and theme.locator("circle").get_attribute("r") == "4", "light: a sun"
     assert page.evaluate(theme_attr) == "light"
     assert page.evaluate("localStorage.getItem('melomancer.theme')") == "light"
     bg = page.evaluate("getComputedStyle(document.body).backgroundColor")
@@ -585,6 +588,7 @@ with sync_playwright() as p:
     page.click("nav.tabs button:has-text('Odtwarzacz')")
     theme.click()
     assert theme.get_attribute("aria-label") == "Motyw: Ciemny" and page.evaluate(theme_attr) == "dark"
+    assert theme.locator("circle").count() == 0 and theme.locator("path").count() == 1, "dark: a moon"
     theme.click()
     assert theme.get_attribute("aria-label") == "Motyw: Automatyczny"
     assert page.evaluate("localStorage.getItem('melomancer.theme')") is None, "auto clears the stored choice"
@@ -611,6 +615,28 @@ with sync_playwright() as p:
     page.screenshot(path=shots + "quick_pick.png", full_page=True)
     page.click(".pad")
     page.wait_for_timeout(300)
+    # ---- one track alone: the arrow beside a playlist opens its tracks, a click on a track plays only that one ----
+    more = page.locator(".padmore[data-more='11']")
+    assert more.get_attribute("aria-expanded") == "false" and page.locator(".padtracks").count() == 0, "closed by default"
+    mark = len(calls)
+    more.click()
+    page.wait_for_selector(".padtracks .qrow")
+    assert "GET /api/playlists/11" in calls[mark:] and not [c for c in calls[mark:] if c.startswith("POST")], "opening plays nothing"
+    assert more.get_attribute("aria-expanded") == "true"
+    rows = page.locator(".padtracks .qrow")
+    assert rows.count() == 1 and "Storm over the harbour" in rows.first.inner_text(), "a deleted track is not offered"
+    assert "current" in page.locator(".padtracks .padtrack").first.get_attribute("class"), "the track that plays now is marked in the list"
+    assert page.locator(".padtracks .qfrom").count() == 1, "a button to play the playlist from that track"
+    assert page.locator(".pad").count() == 2, "the playlists are still there while one is open"
+    page.screenshot(path=shots + "pad_tracks.png", full_page=True)
+    rows.first.click()
+    page.wait_for_timeout(300)
+    assert _k.loads(bodies["/api/player/111/play"]) == {"track_id": "t1"}, bodies["/api/player/111/play"]
+    page.locator(".padtracks .qfrom").first.click()     # the playlist from this track on
+    page.wait_for_timeout(300)
+    assert _k.loads(bodies["/api/player/111/play"]) == {"playlist_id": 11, "start_track": "t1"}, bodies["/api/player/111/play"]
+    more.click()
+    assert page.locator(".padtracks").count() == 0 and more.get_attribute("aria-expanded") == "false", "closes again"
     # ---- playing in the browser: Discord is skipped, the page makes the sound ----
     STATE.update(connected=False, channel_id=None, channel_name=None, state="idle", now=None, playlist=None, queue=[],
                  controller_id=None, controller=None)
@@ -647,6 +673,25 @@ with sync_playwright() as p:
     STATE.update(connected=False, channel_id=None, channel_name=None, state="idle")
     page.reload()
     page.wait_for_selector(".pad")
+    # a track chosen while the bot is not connected is only selected, like a playlist: nothing plays until ▶
+    page.locator(".padmore[data-more='11']").click()
+    page.wait_for_selector(".padtracks .qrow")
+    mark = len(calls)
+    page.locator(".padtracks .qrow").first.click()
+    page.wait_for_timeout(300)
+    assert not [c for c in calls[mark:] if c.startswith("POST")], calls[mark:]
+    assert "Wybrana: Storm over the harbour" in page.inner_text(".now .title"), page.inner_text(".now .title")
+    page.locator(".padmore[data-more='11']").click()
+    assert page.locator(".padtracks").count() == 0
+    # the playlist from a track, bot not connected: the playlist is selected (with the start remembered), nothing plays
+    page.locator(".padmore[data-more='11']").click()
+    page.wait_for_selector(".padtracks .qfrom")
+    mark = len(calls)
+    page.locator(".padtracks .qfrom").first.click()
+    page.wait_for_timeout(300)
+    assert not [c for c in calls[mark:] if c.startswith("POST")], calls[mark:]
+    assert "Wybrana: Dwor" in page.inner_text(".now .title"), page.inner_text(".now .title")
+    page.locator(".padmore[data-more='11']").click()
     # a selected playlist survives turning "Play here" on, and the play button then plays it in the browser
     page.locator(".pad", has_text="Walka").click()
     page.wait_for_timeout(300)
@@ -675,6 +720,16 @@ with sync_playwright() as p:
     assert page.evaluate("LocalPlayer.cur.a.currentTime") >= 20, "plays from the start point the server gave"
     assert "Storm over the harbour" in page.inner_text(".now .title"), page.inner_text(".now .title")
     assert not any(c.startswith("POST /api/player/111/play") for c in calls[-6:]), "Discord is not touched"
+    page.locator(".padmore[data-more='11']").click()
+    page.wait_for_selector(".padtracks .qrow")
+    page.locator(".padtracks .qrow").first.click()
+    page.wait_for_timeout(300)
+    assert _k.loads(bodies["/api/local/queue"]) == {"track_id": "t1"}, bodies["/api/local/queue"]
+    assert not any(c.startswith("POST /api/player/111/play") for c in calls[-6:]), "one track here does not touch Discord either"
+    page.locator(".padtracks .qfrom").first.click()  # the playlist from this track: the server says where to begin
+    until(page, "LocalPlayer.state === 'playing' && !!LocalPlayer.cur && LocalPlayer.snapshot().now.index === 1")
+    assert _k.loads(bodies["/api/local/queue"]) == {"playlist_id": 11, "start_track": "t1"}, bodies["/api/local/queue"]
+    page.locator(".padmore[data-more='11']").click()
 
     # switching panel tabs does not stop the sound
     before = page.evaluate("LocalPlayer.cur.a.currentTime")
@@ -843,10 +898,14 @@ with sync_playwright() as p:
     page.click("nav.tabs button:has-text('Odtwarzacz')")
 
     assert page.locator("header.top select").count() == 0, "no language drop-down any more"
-    page.click("header.top button.ghost:has-text('PL')")
+    assert page.locator("header.top .lang button").count() == 2, "PL and EN side by side"
+    assert page.locator("header.top .lang button.on").inner_text() == "PL", "the current language is marked"
+    page.click("header.top .lang button:has-text('EN')")
     page.wait_for_timeout(300)
     assert page.locator("nav.tabs button:has-text('Player')").count() == 1, "language switch"
-    assert page.locator("header.top button.ghost:has-text('EN')").count() == 1, "marker shows the current language"
+    assert page.locator("header.top .lang button.on").inner_text() == "EN", "marker shows the current language"
+    for sel in ("header.top .lang", "header.top .hdr-icon", "header.top .hdr-user"):
+        assert page.locator(sel).evaluate("e => getComputedStyle(e).borderTopWidth") == "1px", sel + " has a frame"
     page.screenshot(path=shots + "player_en.png", full_page=True)
 
     # a desktop run signs in by itself: no login page, no "log out", and a lapsed session is renewed
