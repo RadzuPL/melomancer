@@ -218,6 +218,14 @@ tr.selected td, tr.selected:hover td { background: var(--accent-soft); }
 .pad.active { background: var(--accent-soft); border-color: var(--accent); color: var(--accent-text); font-weight: 600; }
 .pad .count { color: var(--muted); font-size: .86rem; font-weight: 400; display: block; margin-top: .2rem; }
 .pad.active .count { color: var(--accent-text); opacity: .8; }
+/* a playlist pad with the small arrow that opens its tracks (to play one of them alone) */
+.padwrap { position: relative; display: flex; }
+.padwrap .pad { flex: 1; min-width: 0; padding-right: 2.6rem; }
+.padmore { position: absolute; top: .4rem; right: .4rem; width: 2rem; height: 2rem; padding: 0; background: none; border: 0; border-radius: var(--radius-control); color: var(--muted); cursor: pointer; font: inherit; line-height: 1; transition: color .2s, background-color .2s; }
+.padmore:hover { color: var(--text); background: var(--hover); }
+.padmore.on { color: var(--accent-text); background: var(--accent-soft); }
+.padtracks { margin: .8rem 0 1rem; padding: .7rem .9rem .9rem; background: var(--panel-2); border: 1px solid var(--line-soft); border-radius: var(--radius); }
+.padtracks .queue { background: var(--panel); }
 
 /* library */
 .drop { border: 1px dashed var(--line); border-radius: var(--radius); padding: 1.6rem 1rem; text-align: center; color: var(--muted); background: var(--panel-2); transition: border-color .2s; }
@@ -287,11 +295,18 @@ input.seek:hover::-webkit-slider-thumb { transform: scale(1.15); border-color: v
 input.seek::-moz-range-track { background: transparent; height: 4px; }
 input.seek::-moz-range-thumb { width: 10px; height: 10px; border-radius: 50%; background: var(--panel); border: 2px solid var(--accent); }
 
-/* header controls: borderless text/icon buttons and drop-down menus */
-.hdr-right { display: flex; align-items: center; gap: .3rem; }
-button.ghost { background: none; border: 0; color: var(--muted); cursor: pointer; font: inherit; padding: .3rem .6rem; border-radius: var(--radius-control); transition: color .2s, background-color .2s; }
-button.ghost:hover { color: var(--text); background: var(--hover); }
-button.ghost.icon-only { font-size: 1.1rem; line-height: 1; padding: .3rem .5rem; }
+/* header controls: the theme button, the PL / EN switch and the user menu, each in a frame (same height, 32 px) */
+.hdr-right { display: flex; align-items: center; gap: .5rem; }
+.hdr-btn { display: inline-flex; align-items: center; justify-content: center; gap: .45rem; height: 32px; padding: 0 .75rem; background: transparent; border: 1px solid var(--line); border-radius: var(--radius-control); color: var(--muted); cursor: pointer; font: inherit; font-size: .86rem; letter-spacing: .04em; transition: color .2s, border-color .2s; }
+.hdr-btn:hover, .hdr-btn[aria-expanded="true"] { color: var(--text); border-color: var(--accent); }
+.hdr-icon { padding: 0 .6rem; font-size: 1.1rem; line-height: 1; letter-spacing: 0; }
+.hdr-user { color: var(--text); max-width: 14rem; }
+.hdr-user .name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.hdr-user::after { content: ""; flex: none; width: .4em; height: .4em; margin-top: -.2em; border-right: 1.5px solid currentColor; border-bottom: 1.5px solid currentColor; transform: rotate(45deg); }
+.lang { display: inline-flex; height: 32px; border: 1px solid var(--line); border-radius: var(--radius-control); overflow: hidden; }
+.lang button { background: transparent; border: 0; padding: 0 .65rem; color: var(--muted); cursor: pointer; font: inherit; font-size: .86rem; letter-spacing: .06em; transition: color .2s, background-color .2s; }
+.lang button:hover { color: var(--text); }
+.lang button.on { background: var(--accent-soft); color: var(--accent-text); font-weight: 600; cursor: default; }
 .dropdown { position: relative; }
 .menu { position: absolute; right: 0; top: calc(100% + 6px); min-width: 11rem; display: flex; flex-direction: column; background: var(--panel); border-radius: var(--radius); padding: .3rem; box-shadow: var(--shadow); z-index: 10; }
 .menuitem { background: none; border: 0; color: var(--text); text-align: left; padding: .4rem .8rem; border-radius: 4px; cursor: pointer; font: inherit; white-space: nowrap; }

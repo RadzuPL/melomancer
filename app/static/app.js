@@ -7,7 +7,7 @@ const state = {
   user: null, lang: "pl", tab: "player", system: null,
   tracks: [], tags: { shared: [], mine: [] }, sets: [], showAllSets: false,
   lib: { q: "", tag: "", mine: false, selected: new Set() },
-  player: { guilds: [], guildId: "", channelId: "", setId: "", st: null, stAt: 0, timer: null, armed: null },
+  player: { guilds: [], guildId: "", channelId: "", setId: "", st: null, stAt: 0, timer: null, armed: null, openPad: "" },
   pl: { selected: null, detail: null },
   dlTags: { shared: [], mine: [] }, upTags: { shared: [], mine: [] },
   quick: { tags: new Set(), mode: "any" },
@@ -511,16 +511,21 @@ function menu(trigger, items) {
   return wrap;
 }
 
-function langToggle() {
-  const other = state.lang === "pl" ? "en" : "pl";
-  const label = tr("switch_language", { lang: other.toUpperCase() });
-  return h("button", { class: "ghost", title: label, "aria-label": label, onclick: () => setLang(other) }, state.lang.toUpperCase());
+/* Both languages side by side in one frame, the current one tinted. `change` is what a click on the other one does:
+   in the panel it is saved for the person, on the login page there is nobody to save it for yet. */
+function langToggle(change = setLang) {
+  return h("div", { class: "lang", role: "group", "aria-label": tr("language") }, ["pl", "en"].map((code) => {
+    const current = state.lang === code;
+    const label = tr("switch_language", { lang: code.toUpperCase() });
+    return h("button", { type: "button", class: current ? "on" : "", "aria-pressed": String(current), "data-lang": code,
+      title: current ? "" : label, "aria-label": label, onclick: () => { if (!current) change(code); } }, code.toUpperCase());
+  }));
 }
 
 function themeMenu() {
   const icons = { auto: "◐", light: "☀", dark: "☾" };
   const order = ["auto", "light", "dark"];
-  const button = h("button", { class: "ghost icon-only" });
+  const button = h("button", { type: "button", class: "hdr-btn hdr-icon" });
   const paint = () => {
     const mode = MelomancerTheme.get();
     const label = tr("theme") + ": " + tr("theme_" + mode);
@@ -537,7 +542,7 @@ function themeMenu() {
 }
 
 function userMenu() {
-  const trigger = h("button", { class: "btn small" }, state.user.username + " ▾");
+  const trigger = h("button", { type: "button", class: "hdr-btn hdr-user" }, h("span", { class: "name" }, state.user.username));
   // Signed in automatically (a desktop run): signing out would only be undone by the next page load.
   const auto = !!(state.system && state.system.auto_login);
   return menu(trigger, () => [
@@ -597,8 +602,7 @@ function viewLogin() {
   h("button", { class: "btn primary", type: "submit" }, tr("login")));
   return h("div", { class: "login card" }, h("h1", {}, "Melomancer"), form,
     h("div", { class: "row" }, h("span", { class: "grow" }), themeMenu(),
-      h("button", { class: "ghost", title: tr("switch_language", { lang: (state.lang === "pl" ? "en" : "pl").toUpperCase() }),
-        onclick: () => { state.lang = state.lang === "pl" ? "en" : "pl"; pref("lang", state.lang); render(); } }, state.lang.toUpperCase())));
+      langToggle((code) => { state.lang = code; pref("lang", code); render(); })));
 }
 
 /* ---------- player ---------- */
@@ -724,14 +728,63 @@ async function viewPlayer(main) {
     padsBox.replaceChildren();
     if (!set) { padsBox.append(h("p", { class: "muted" }, tr("no_sets_hint"))); return; }
     if (!set.playlists.length && !set.groups.some((g) => g.playlists.length)) padsBox.append(h("p", { class: "muted" }, tr("no_groups_hint")));
-    const pad = (p) => h("button", {
-      class: "pad" + (ps.st && ps.st.playlist && ps.st.playlist.id === p.id ? " active" : ""), "data-id": p.id,
-      onclick: () => playPad(p),
-    }, (p.kind === "tags" ? "🏷 " : "") + p.name, h("span", { class: "count" }, tr("n_tracks", { n: p.count - p.missing }) + (p.missing ? " ⚠ " + p.missing : "")));
-    if (set.playlists.length) padsBox.append(h("div", { class: "pads" }, set.playlists.map(pad)));
+    // Pressing a playlist plays it at once (one click per scene). The small arrow beside it opens its tracks instead,
+    // for the scene nobody planned: there one track can be played alone, without starting the whole list.
+    const pad = (p) => {
+      const open = ps.openPad === String(p.id);
+      const label = tr(open ? "pad_tracks_hide" : "pad_tracks_show");
+      return h("div", { class: "padwrap" },
+        h("button", {
+          class: "pad" + (ps.st && ps.st.playlist && ps.st.playlist.id === p.id ? " active" : ""), "data-id": p.id,
+          onclick: () => playPad(p),
+        }, (p.kind === "tags" ? "🏷 " : "") + p.name, h("span", { class: "count" }, tr("n_tracks", { n: p.count - p.missing }) + (p.missing ? " ⚠ " + p.missing : ""))),
+        h("button", { type: "button", class: "padmore" + (open ? " on" : ""), "data-more": p.id, title: label, "aria-label": label,
+          "aria-expanded": String(open), onclick: () => toggleTracks(p) }, open ? "▴" : "▾"));
+    };
+    // A group of pads, followed by the track list of the one that is open (full width, under the row it belongs to).
+    const grid = (list) => {
+      const open = list.find((p) => ps.openPad === String(p.id));
+      return [h("div", { class: "pads" }, list.map(pad)), open ? trackPanel(open) : null];
+    };
+    if (set.playlists.length) padsBox.append(...grid(set.playlists).filter(Boolean));
     for (const group of set.groups) {
-      if (group.playlists.length) padsBox.append(h("h3", {}, "📁 " + group.name), h("div", { class: "pads" }, group.playlists.map(pad)));
+      if (group.playlists.length) padsBox.append(h("h3", {}, "📁 " + group.name), ...grid(group.playlists).filter(Boolean));
     }
+  }
+
+  function toggleTracks(p) {
+    ps.openPad = ps.openPad === String(p.id) ? "" : String(p.id);
+    fillPads();
+    applyState();  // the new pads know nothing yet about what is playing or selected
+  }
+
+  function trackPanel(p) {
+    const list = h("div", { class: "queue" }, h("div", { class: "muted small pad-text" }, "…"));
+    const panel = h("div", { class: "padtracks", "data-playlist": p.id },
+      h("div", { class: "row" }, h("strong", { class: "grow" }, p.name),
+        h("button", { type: "button", class: "btn small", onclick: () => toggleTracks(p) }, tr("close"))),
+      h("div", { class: "muted small" }, tr("pad_tracks_hint")), list);
+    api("GET", `/api/playlists/${p.id}`).then((detail) => {
+      if (ps.openPad !== String(p.id) || !document.body.contains(list)) return;  // closed or replaced meanwhile
+      const items = detail.items.filter((i) => !i.deleted);  // as in the queue: a deleted track cannot be played
+      fill(list, items.length ? items.map((i) => h("button", { type: "button", class: "qrow", "data-track": i.track_id, title: i.title, onclick: () => playTrack(i) },
+        h("span", { class: "muted small qnum" }, "▶"), h("span", { class: "t" }, i.title), h("span", { class: "muted small" }, fmtTime(i.duration))))
+        : h("div", { class: "muted pad-text" }, tr("playlist_empty")));
+      markTracks();
+    }).catch(fail);
+    return panel;
+  }
+
+  /* One track alone: it replaces whatever plays, and nothing follows it. */
+  async function playTrack(item) {
+    if (LocalPlayer.on) return playHere({ track_id: item.track_id });
+    return playOnDiscord({ track_id: item.track_id }, item.title);
+  }
+
+  function markTracks() {
+    const s = ps.st;
+    const now = s && s.state !== "idle" && s.now ? s.now.track_id : null;
+    for (const row of padsBox.querySelectorAll(".padtracks .qrow")) row.classList.toggle("current", row.dataset.track === now);
   }
 
   function applyState(st) {
@@ -765,6 +818,7 @@ async function viewPlayer(main) {
     shuffleB.classList.toggle("on", !!(s && s.shuffle));
     if (s && !dragging) { vol.value = Math.round(s.volume * 100); volUi.paint(); volLabel.textContent = vol.value + "%"; }
     paintQueue(s, playing);
+    markTracks();
     for (const pad of padsBox.querySelectorAll(".pad")) {
       pad.classList.toggle("active", !!(playing && s.playlist && String(s.playlist.id) === pad.dataset.id));
       pad.classList.toggle("armed", !!(armed && ps.armed.target.playlist_id !== undefined && String(ps.armed.target.playlist_id) === pad.dataset.id));
@@ -917,6 +971,9 @@ async function viewPlayer(main) {
       if (target.playlist_id !== undefined) {
         const detail = await api("GET", `/api/playlists/${target.playlist_id}`);
         armed.queue = detail.items.filter((i) => !i.deleted).map((i) => ({ track_id: i.track_id, title: i.title, duration: i.duration }));
+      } else if (target.track_id !== undefined) {
+        const known = state.tracks.find((t) => t.id === target.track_id);
+        armed.queue = [{ track_id: target.track_id, title: known ? known.title : name, duration: known ? known.duration : 0 }];
       } else {
         armed.queue = quickMatches().map((t) => ({ track_id: t.id, title: t.title, duration: t.duration }));
       }
