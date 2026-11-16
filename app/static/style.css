@@ -177,6 +177,7 @@ a.btn:hover { text-decoration: none; }
 .login { max-width: 380px; margin: 12vh auto 0; padding: 2rem; }
 .login h1 { text-align: center; color: var(--accent-text); margin-bottom: 1.2em; }
 .login form { display: flex; flex-direction: column; gap: .9rem; }
+.login > .row { margin-top: .9rem; }
 
 /* tables: grey head, hairlines, a hover row */
 table { width: 100%; border-collapse: collapse; }
@@ -309,6 +310,7 @@ input.seek::-moz-range-thumb { width: 10px; height: 10px; border-radius: 50%; ba
 .hdr-icon { padding: 0 .6rem; }
 .hdr-icon svg { display: block; }
 .hdr-user { color: var(--text); max-width: 14rem; }
+.hdr-user.on { border-color: var(--accent); }
 .hdr-user .name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .hdr-user::after { content: ""; flex: none; width: .4em; height: .4em; margin-top: -.2em; border-right: 1.5px solid currentColor; border-bottom: 1.5px solid currentColor; transform: rotate(45deg); }
 .lang { display: inline-flex; height: 32px; border: 1px solid var(--line); border-radius: var(--radius-control); overflow: hidden; }
@@ -319,6 +321,7 @@ input.seek::-moz-range-thumb { width: 10px; height: 10px; border-radius: 50%; ba
 .menu { position: absolute; right: 0; top: calc(100% + 6px); min-width: 11rem; display: flex; flex-direction: column; background: var(--panel); border-radius: var(--radius); padding: .3rem; box-shadow: var(--shadow); z-index: 10; }
 .menuitem { background: none; border: 0; color: var(--text); text-align: left; padding: .4rem .8rem; border-radius: 4px; cursor: pointer; font: inherit; white-space: nowrap; }
 .menuitem:hover { background: var(--hover); }
+.menusep { height: 1px; margin: .3rem .4rem; background: var(--line); }
 .menuitem.active { color: var(--accent-text); background: var(--accent-soft); font-weight: 600; }
 
 /* listening in the panel: the seek bar sits right under the row being played */

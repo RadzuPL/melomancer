@@ -440,9 +440,8 @@ function render() {
   if (Preview.track) Preview.stop();  // a new screen: whatever was being listened to ends
   root.replaceChildren();
   document.documentElement.lang = state.lang;
-  if (!state.user) { root.append(viewLogin()); return; }
+  if (!state.user) { root.append(viewLogin(), footer()); return; }
   const tabs = [["player", "tab.player"], ["library", "tab.library"], ["playlists", "tab.playlists"], ["sampler", "tab.sampler"], ["downloads", "tab.downloads"]];
-  if (state.user.role === "admin") tabs.push(["users", "tab.users"], ["settings", "tab.settings"]);
   const main = h("main", {});
   root.append(
     h("header", { class: "top" },
@@ -480,7 +479,7 @@ async function pollUpdate() {   // what the checker on the server knows; it look
 const REPO_URL = "https://github.com/RadzuPL/melomancer";
 function footer() {
   const link = (href, text) => h("a", { href, target: "_blank", rel: "noopener noreferrer" }, text);
-  const version = state.system ? state.system.version : "";
+  const version = state.system ? state.system.version : (state.publicVersion || "");
   return h("footer", { class: "foot" }, link(REPO_URL, "Melomancer"), " ",
     version ? link(REPO_URL + "/releases", version) : null, " · by ", link("https://radzu.net/", "Radzu"));
 }
@@ -501,7 +500,7 @@ function menu(trigger, items) {
   trigger.setAttribute("aria-expanded", "false");
   trigger.addEventListener("click", () => {
     if (!list.classList.contains("hidden")) { close(); return; }
-    list.replaceChildren(...items().map((it) => h("button", { class: "menuitem" + (it.active ? " active" : ""), role: "menuitem",
+    list.replaceChildren(...items().map((it) => it.separator ? h("div", { class: "menusep", role: "separator" }) : h("button", { class: "menuitem" + (it.active ? " active" : ""), role: "menuitem",
       onclick: () => { close(); it.onclick(); } }, it.label)));
     list.classList.remove("hidden");
     trigger.setAttribute("aria-expanded", "true");
@@ -557,10 +556,19 @@ function themeMenu() {
 }
 
 function userMenu() {
-  const trigger = h("button", { type: "button", class: "hdr-btn hdr-user" }, h("span", { class: "name" }, state.user.username));
+  const admin = state.user.role === "admin";
+  // Users and Settings are not for everyday use, so they live here and not in the top bar. The name is tinted while one of them is open.
+  const inMenu = admin && (state.tab === "users" || state.tab === "settings");
+  const trigger = h("button", { type: "button", class: "hdr-btn hdr-user" + (inMenu ? " on" : "") }, h("span", { class: "name" }, state.user.username));
   // Signed in automatically (a desktop run): signing out would only be undone by the next page load.
   const auto = !!(state.system && state.system.auto_login);
+  const open = (tab) => () => { state.tab = tab; stopPolling(); render(); };
   return menu(trigger, () => [
+    ...(admin ? [
+      { label: tr("tab.users"), active: state.tab === "users", onclick: open("users") },
+      { label: tr("tab.settings"), active: state.tab === "settings", onclick: open("settings") },
+      { separator: true },
+    ] : []),
     { label: tr("change_password"), onclick: accountDialog },
     ...(auto ? [] : [{ label: tr("logout"), onclick: logout }]),
   ]);
@@ -2105,6 +2113,9 @@ async function boot() {
     state.lang = state.user.lang || state.lang;
     state.system = await api("GET", "/api/system");
   } catch (_) { state.user = null; }
+  if (!state.user) {   // the login page has no session yet, the health check is the one thing that answers without one
+    try { state.publicVersion = (await api("GET", "/api/health")).version; } catch (_) { /* the footer just has no version */ }
+  }
   render();
   if (state.user && state.user.role === "admin") {
     pollUpdate();
