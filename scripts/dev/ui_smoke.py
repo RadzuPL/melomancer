@@ -92,6 +92,22 @@ LOCAL_QUEUE = {"playlist": {"id": 12, "name": "Walka", "set": "Zew Cthulhu: Drug
                "options": {"loop": True, "shuffle": False, "fade": 2.0, "volume": None}, "items": LOCAL_ITEMS}
 
 
+
+ADMIN_PAGES = ("Użytkownicy", "Ustawienia", "Users", "Settings")
+
+
+def go_menu(page, label):
+    """Users and Settings are in the menu under the user name, not among the tabs."""
+    page.click("header.top .hdr-user")
+    page.click(f"header.top .menu button:has-text('{label}')")
+
+
+def go_tab(page, label):
+    if label in ADMIN_PAGES:
+        go_menu(page, label)
+    else:
+        page.click(f"nav.tabs button:has-text('{label}')")
+
 def until(page, expr, seconds=8.0):
     """Wait for a JavaScript condition by asking again (wait_for_function evaluates a string, which the page's CSP forbids)."""
     import time
@@ -230,25 +246,27 @@ with sync_playwright() as p:
     page.screenshot(path=f"{shots}update-badge.png", clip={"x": 0, "y": 0, "width": 1280, "height": 70})
     page.click(".upd-pill")
     page.wait_for_selector(".botcard, .tiles")
-    assert page.locator("nav.tabs button.active").inner_text() == "Ustawienia", "the pill leads to Settings"
+    assert page.locator("header.top .hdr-user.on").count() == 1, "the pill leads to Settings, which lives under the user name"
     ROUTES["/api/system/update"]["available"] = False     # up to date: the pill goes away when Settings looks again
     page.click("nav.tabs button:has-text('Odtwarzacz')")
-    page.click("nav.tabs button:has-text('Ustawienia')")
+    go_menu(page, "Ustawienia")
     page.wait_for_selector(".tiles")
     assert page.locator(".upd-pill").count() == 0, "no newer version, no pill"
     ROUTES["/api/system/update"]["available"] = True
     page.click("nav.tabs button:has-text('Odtwarzacz')")
-    page.click("nav.tabs button:has-text('Ustawienia')")
+    go_menu(page, "Ustawienia")
     page.wait_for_selector(".upd-pill")
     for tab, label in [("player", "Odtwarzacz"), ("library", "Biblioteka"), ("playlists", "Playlisty"),
                        ("downloads", "Pobieranie"), ("users", "Użytkownicy"), ("settings", "Ustawienia")]:
-        page.click(f"nav.tabs button:has-text('{label}')")
+        go_tab(page, label)
         page.wait_for_timeout(500)
         page.screenshot(path=f"{shots}{tab}.png", full_page=True)
         if tab == "users":
             text = page.inner_text("main")
             assert "mg1" in text and "Nowy użytkownik" in text and "Wyrównywanie" not in text, text
-            assert page.locator("nav.tabs button").all_inner_texts()[-2:] == ["Użytkownicy", "Ustawienia"]
+            assert "Użytkownicy" not in page.locator("nav.tabs button").all_inner_texts(), "Users is in the user menu, not in the top bar"
+            assert "Ustawienia" not in page.locator("nav.tabs button").all_inner_texts()
+            assert page.locator("header.top .hdr-user.on").count() == 1, "the user name is tinted while Users is open"
         if tab == "settings":
             box = page.locator("label:has-text('Wyrównywanie głośności') input")
             assert box.is_checked(), "evening-out is on in the mock"
@@ -313,7 +331,7 @@ with sync_playwright() as p:
             ROUTES["/api/system/load"]["source"] = "process"
             ROUTES["/api/system/update"]["host"] = "desktop"
             page.click("nav.tabs button:has-text('Odtwarzacz')")
-            page.click("nav.tabs button:has-text('Ustawienia')")
+            go_menu(page, "Ustawienia")
             page.wait_for_timeout(500)
             text = page.inner_text("main")
             assert "Obciążenie procesu Melomancera" in text and "używana przez Melomancera" in text and "kontener" not in text, text
@@ -323,7 +341,7 @@ with sync_playwright() as p:
 
     # the bot is still logging in when the page opens: the notice goes away by itself, and the servers appear
     ROUTES["/api/system"]["bot_status"] = "starting"
-    page.click("nav.tabs button:has-text('Ustawienia')")
+    go_menu(page, "Ustawienia")
     page.click("nav.tabs button:has-text('Odtwarzacz')")
     page.wait_for_selector(".notice")
     assert "uruchamia" in page.inner_text(".notice"), page.inner_text("main")
@@ -559,7 +577,8 @@ with sync_playwright() as p:
     assert page.locator("header.top button:has-text('Wyloguj')").count() == 0, "logout hidden until the menu is open"
     page.click("header.top button.hdr-user")
 
-    assert page.locator(".menu:not(.hidden) .menuitem").all_inner_texts() == ["Zmień hasło", "Wyloguj"]
+    assert page.locator(".menu:not(.hidden) .menuitem").all_inner_texts() == ["Użytkownicy", "Ustawienia", "Zmień hasło", "Wyloguj"], "an administrator's menu"
+    assert page.locator(".menu:not(.hidden) .menusep").count() == 1, "a line between the pages and the account items"
     page.keyboard.press("Escape")
     assert page.locator(".menu:not(.hidden)").count() == 0, "Escape closes the menu"
     page.click("header.top button.hdr-user")
@@ -582,7 +601,7 @@ with sync_playwright() as p:
     assert bg != "rgb(255, 255, 255)", "light theme must not be pure white: " + bg
     page.screenshot(path=shots + "player_light.png", full_page=True)
     for tab, label in [("library", "Biblioteka"), ("playlists", "Playlisty"), ("downloads", "Pobieranie"), ("users", "Użytkownicy"), ("settings", "Ustawienia")]:
-        page.click(f"nav.tabs button:has-text('{label}')")
+        go_tab(page, label)
         page.wait_for_timeout(300)
         page.screenshot(path=shots + f"light_{tab}.png", full_page=True)
     page.click("nav.tabs button:has-text('Odtwarzacz')")
@@ -945,6 +964,28 @@ with sync_playwright() as p:
     assert "Pobieranie" in desk.inner_text("main"), desk.inner_text("main")
     ROUTES["/api/system"]["auto_login"] = False
 
+
+    # the login page has a footer too, with the version from the public health check
+    ROUTES["/api/health"] = {"status": "ok", "version": "1.2.3"}
+    anon = browser.new_page(viewport={"width": 1280, "height": 800})
+    anon.on("pageerror", lambda e: errors.append("pageerror: " + str(e)))
+
+    def handle_anon(route):
+        path = route.request.url.split("127.0.0.1:8099")[1].split("?")[0]
+        if path in ("/api/auth/me", "/api/auth/local"):
+            return route.fulfill(status=401, content_type="application/json", body='{"detail":"not_authenticated"}')
+        return handle(route)
+
+    anon.route("**/api/**", handle_anon)
+    anon.goto("http://127.0.0.1:8099/")
+    anon.wait_for_selector(".login")
+    foot = anon.locator("footer.foot")
+    assert foot.count() == 1, "the login page has a footer"
+    assert foot.inner_text() == "Melomancer 1.2.3 · by Radzu", foot.inner_text()
+    assert foot.locator("a[href='https://github.com/RadzuPL/melomancer']").count() == 1
+    anon.screenshot(path=shots + "login.png", full_page=True)
+    anon.close()
+
     # ---- a desktop run: the bot is set up from the panel, no file, no restart ----
     TOKEN = ".".join(["MTIzNDU2Nzg5MDEyMzQ1Njc4OQ", "GabcDE", "abcdefghijklmnopqrstuvwxyz0123456789"])   # in parts: not a real token
     saved_system = dict(ROUTES["/api/system"])
@@ -1005,7 +1046,7 @@ with sync_playwright() as p:
     saved_update = json.loads(json.dumps(ROUTES["/api/system/update"]))
     ROUTES["/api/system/update"].update(host="desktop", installable=True, install={"available": True, "state": "idle", "phase": None, "done": 0, "total": 0, "version": None, "error": None})
     desk.click("nav.tabs button:has-text('Odtwarzacz')")
-    desk.click("nav.tabs button:has-text('Ustawienia')")
+    go_menu(desk, "Ustawienia")
     desk.wait_for_selector("button:has-text('Pobierz i zainstaluj')")
     assert "Pobierz nowszą paczkę" not in desk.inner_text("main"), "the manual wording gives way to the button"
     desk.click("button:has-text('Pobierz i zainstaluj')")
@@ -1029,7 +1070,7 @@ with sync_playwright() as p:
     ROUTES["/api/system/update"].update(saved_update)
     ROUTES["/api/system/update"].update(host="desktop", installable=True, install={"available": True, "state": "failed", "phase": None, "done": 0, "total": 0, "version": None, "error": "package_not_ready"})
     desk.click("nav.tabs button:has-text('Odtwarzacz')")
-    desk.click("nav.tabs button:has-text('Ustawienia')")
+    go_menu(desk, "Ustawienia")
     desk.wait_for_selector("button:has-text('Spróbuj ponownie')")
     assert "jeszcze się buduje" in desk.inner_text("main")
     ROUTES["/api/system/update"].clear()
@@ -1038,7 +1079,7 @@ with sync_playwright() as p:
 
     # in a container the card does not exist and the old wording stays
     ROUTES["/api/system"].update(bot_status="disabled", bot_token_set=False)
-    desk.click("nav.tabs button:has-text('Ustawienia')")
+    go_menu(desk, "Ustawienia")
     desk.wait_for_selector(".tile")
     assert desk.locator(".botform").count() == 0 and "DISCORD_TOKEN" in desk.inner_text(".tile.bad"), desk.inner_text("main")
     ROUTES["/api/system"].update(saved_system)
