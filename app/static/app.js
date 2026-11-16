@@ -479,9 +479,10 @@ async function pollUpdate() {   // what the checker on the server knows; it look
 const REPO_URL = "https://github.com/RadzuPL/melomancer";
 function footer() {
   const link = (href, text) => h("a", { href, target: "_blank", rel: "noopener noreferrer" }, text);
-  const version = state.system ? state.system.version : (state.publicVersion || "");
-  return h("footer", { class: "foot" }, link(REPO_URL, "Melomancer"), " ",
-    version ? link(REPO_URL + "/releases", version) : null, " · by ", link("https://radzu.net/", "Radzu"));
+  // Signed in: the version the panel got with the session. On the login page there is no session, so the public health check's one.
+  const version = (state.user && state.system ? state.system.version : state.publicVersion) || "";
+  return h("footer", { class: "foot" }, link(REPO_URL, "Melomancer"),
+    version ? [" ", link(REPO_URL + "/releases", version)] : null, " · by ", link("https://radzu.net/", "Radzu"));
 }
 
 /* A button that opens a small list. `items` is a function so that the list is current each time it opens. */
@@ -583,6 +584,7 @@ async function setLang(lang) {
 
 async function logout() {
   LocalPlayer.disable();  // the sound belongs to the person who logged in
+  if (state.system) state.publicVersion = state.system.version;  // the login page footer keeps the version, the server is the same
   try { await api("POST", "/api/auth/logout"); } catch (_) { /* already gone */ }
   state.user = null;
   stopPolling();

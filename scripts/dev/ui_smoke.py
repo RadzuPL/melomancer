@@ -981,7 +981,7 @@ with sync_playwright() as p:
     anon.wait_for_selector(".login")
     foot = anon.locator("footer.foot")
     assert foot.count() == 1, "the login page has a footer"
-    assert "1.2.3" in foot.inner_text() and "Radzu" in foot.inner_text(), foot.inner_text()
+    assert foot.inner_text() == "Melomancer 1.2.3 · by Radzu", foot.inner_text()
     assert foot.locator("a[href='https://github.com/RadzuPL/melomancer']").count() == 1
     anon.screenshot(path=shots + "login.png", full_page=True)
     anon.close()
