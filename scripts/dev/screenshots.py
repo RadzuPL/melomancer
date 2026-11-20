@@ -46,13 +46,13 @@ MINE = {"t01": 0, "t08": 0, "t12": 0}  # personal tag "session 3" on these
 TEXT = {
     "en": {
         "set1": "Dark Coast", "set2": "Sunday Campaign", "combat": "Combat", "locations": "Locations", "scenes": "Scenes",
-        "harbour": "Harbour at night", "tavern": "Old tavern", "forest": "Forest road", "investigation": "Investigation",
+        "settings": "Settings", "harbour": "Harbour at night", "tavern": "Old tavern", "forest": "Forest road", "investigation": "Investigation",
         "dread": "Dread", "guild": "Friday Table", "channels": ["Table voice", "Backstage"], "mine": "session 3",
         "pads": ["Thunder", "Door slam", "Wolves", "Tavern brawl", "Rain", "Heartbeat", "Footsteps", "Church bells"],
     },
     "pl": {
         "set1": "Mroczne Wybrzeże", "set2": "Niedzielna kampania", "combat": "Walka", "locations": "Lokacje", "scenes": "Sceny",
-        "harbour": "Port nocą", "tavern": "Stara karczma", "forest": "Leśny trakt", "investigation": "Śledztwo",
+        "settings": "Ustawienia", "harbour": "Port nocą", "tavern": "Stara karczma", "forest": "Leśny trakt", "investigation": "Śledztwo",
         "dread": "Groza", "guild": "Piątkowy stół", "channels": ["Głosowy przy stole", "Zaplecze"], "mine": "sesja 3",
         "pads": ["Grzmot", "Trzaśnięcie drzwi", "Wilki", "Bójka w karczmie", "Deszcz", "Bicie serca", "Kroki", "Dzwony kościelne"],
     },
@@ -209,7 +209,8 @@ def main() -> int:
                     page.wait_for_selector(".fxpad")
                     page.wait_for_timeout(400)
                     shoot(page, "sampler", lang, dark)
-                    tabs.nth(6).click()
+                    page.click("header.top .hdr-user")   # Settings is in the menu under the user name
+                    page.locator(".menu .menuitem", has_text=TEXT[lang]["settings"]).click()
                     page.wait_for_selector(".tile .spark polyline")
                     page.wait_for_timeout(400)
                     shoot(page, "settings", lang, dark)
