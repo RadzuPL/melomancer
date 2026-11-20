@@ -25,7 +25,7 @@ One Python process, one container:
  files: /data/music/<track id>.<ext>
 ```
 
-The Discord client runs on the same asyncio loop as the web server. Database access is plain `sqlite3` with a short transaction per request. Playback decodes with `ffmpeg` and sends Opus to Discord through `discord.py` (with `davey` for the end-to-end encrypted voice protocol DAVE).
+The Discord client runs on the same asyncio loop as the web server. Database access is plain `sqlite3` with a short transaction per request. Playback decodes with `ffmpeg` and sends Opus to Discord through `discord.py` (with `davey` for the end-to-end encrypted voice protocol DAVE). The Opus encoder is told it carries music (`OPUS_MUSIC` in `app/player.py`: no in-band FEC, signal type music): with discord.py's defaults for speech (FEC on, 15 % expected loss) libopus codes everything below 8 kHz with its speech codec, which thins out bass and instruments.
 
 The browser side is a static page (`app/static`): plain JavaScript, no build step, Polish and English dictionaries in `i18n.js`.
 

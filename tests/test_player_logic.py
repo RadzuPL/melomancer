@@ -54,8 +54,9 @@ class FakeVoiceClient:
     def is_playing(self): return self._playing and not self._paused
     def is_paused(self): return self._paused
 
-    def play(self, source, after=None):
+    def play(self, source, after=None, **encoder):
         assert not self._playing, "Already playing audio."
+        self.encoder = encoder
         self.sources.append(source)
         self.afters.append(after)
         self.source, self._playing = source, True
@@ -122,6 +123,12 @@ def pull(rig):
             return array("h", frame)[0]
         time.sleep(0.001)
     raise AssertionError("no audio")
+
+
+def test_the_voice_encoder_is_set_up_for_music_not_for_speech(rig):
+    """discord.py's default (FEC on, 15 % expected loss) makes libopus code music with the speech codec."""
+    start(rig)
+    assert rig.vc.encoder == {"fec": False, "signal_type": "music"}
 
 
 def test_jump_switches_the_running_mix_to_the_chosen_track(rig):
