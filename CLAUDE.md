@@ -76,6 +76,10 @@ UI changes are checked: extend its mock data and assertions with every UI change
   revives it.
 - Settings that change what is heard apply at once, without a restart or a reconnect, and volume or gain changes
   glide instead of jumping.
+- The voice client's Opus encoder is set with `OPUS_MUSIC` (`fec=False`, `signal_type='music'`) in `app/player.py`. discord.py's
+  defaults (FEC on, 15 % expected loss) make libopus switch from its music codec to the speech codec (hybrid mode) for
+  everything below 8 kHz: measured with ffmpeg's libopus, 100 % of the packets turn hybrid at 8 % loss and above. Do not take
+  those defaults back, and give any other bot that plays music through discord.py the same two arguments.
 - Everything user-facing exists in Polish and English (panel and docs).
 - The look follows Ant Design (blue accent, grey layout with white containers, 32 px controls, underlined tabs), written as
   plain CSS in `app/static/style.css` with no library. New components use the existing variables, never a colour literal.

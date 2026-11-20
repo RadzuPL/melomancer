@@ -47,6 +47,13 @@ class QueueItem:
     trim_end: float | None = None    # where it ends, set by hand
 
 
+# How the voice client's Opus encoder is told to work. discord.py's defaults are made for speech: with in-band FEC on and
+# 15 % expected packet loss, libopus stops using its music codec (CELT) and codes everything below 8 kHz with the speech
+# codec (SILK, "hybrid" mode), also for music: bass and instruments get thin and smeared. Without FEC, and with the signal
+# declared as music, the whole band goes through CELT. The price is that a lost packet is concealed, not rebuilt.
+OPUS_MUSIC = {"fec": False, "signal_type": "music"}
+
+
 class MixerSource(discord.AudioSource):
     """What the voice client plays: it asks the mixer for the next 20 ms frame."""
 
@@ -276,7 +283,8 @@ class GuildPlayer:
             on_music_end=lambda _: loop.call_soon_threadsafe(self._on_music_end, mixer),
             fx_volume=self.fx_volume)
         self._mixer = mixer
-        vc.play(MixerSource(mixer), after=lambda err, m=mixer: loop.call_soon_threadsafe(self._on_mixer_end, m, err))
+        vc.play(MixerSource(mixer), after=lambda err, m=mixer: loop.call_soon_threadsafe(self._on_mixer_end, m, err),
+                **OPUS_MUSIC)
         return mixer
 
     def _start_current(self, offset: float = 0.0, *, fade: float | None = None, keep_paused: bool = False) -> None:

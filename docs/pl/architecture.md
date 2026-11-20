@@ -25,7 +25,7 @@ Jeden proces Pythona, jeden kontener:
  pliki: /data/music/<id utworu>.<rozszerzenie>
 ```
 
-Klient Discorda działa na tej samej pętli asyncio co serwer WWW. Dostęp do bazy to zwykły `sqlite3` z krótką transakcją na żądanie. Odtwarzanie dekoduje `ffmpeg` i wysyła Opus do Discorda przez `discord.py` (z `davey` dla szyfrowanego end-to-end protokołu głosu DAVE).
+Klient Discorda działa na tej samej pętli asyncio co serwer WWW. Dostęp do bazy to zwykły `sqlite3` z krótką transakcją na żądanie. Odtwarzanie dekoduje `ffmpeg` i wysyła Opus do Discorda przez `discord.py` (z `davey` dla szyfrowanego end-to-end protokołu głosu DAVE). Koder Opus dostaje informację, że niesie muzykę (`OPUS_MUSIC` w `app/player.py`: bez FEC, typ sygnału muzyka): przy domyślnych ustawieniach discord.py dla mowy (FEC włączone, 15% oczekiwanych strat) libopus koduje wszystko poniżej 8 kHz kodekiem mowy, co spłaszcza bas i instrumenty.
 
 Strona przeglądarkowa to statyczna strona (`app/static`): zwykły JavaScript, bez kroku budowania, słowniki polski i angielski w `i18n.js`.
 
