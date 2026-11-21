@@ -80,6 +80,9 @@ UI changes are checked: extend its mock data and assertions with every UI change
   defaults (FEC on, 15 % expected loss) make libopus switch from its music codec to the speech codec (hybrid mode) for
   everything below 8 kHz: measured with ffmpeg's libopus, 100 % of the packets turn hybrid at 8 % loss and above. Do not take
   those defaults back, and give any other bot that plays music through discord.py the same two arguments.
+- The volume sliders of the player and of a playlist are a curve (`volToGain` / `gainToVol` in `app/static/app.js`: the square of the position
+  below 100 %, straight up to gain 1.5 at 150 %). It lives only in the panel: the API, the database, `app/mixer.py`, `local.js` and the
+  `local_volume` preference all keep the gain, so old stored values sound as before. Do not put the curve into the server.
 - Everything user-facing exists in Polish and English (panel and docs).
 - The look follows Ant Design (blue accent, grey layout with white containers, 32 px controls, underlined tabs), written as
   plain CSS in `app/static/style.css` with no library. New components use the existing variables, never a colour literal.
