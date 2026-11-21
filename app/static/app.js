@@ -197,6 +197,20 @@ function previewSlot(box) {
   return place;
 }
 
+/* The volume sliders are not linear. The player works with a gain (0 to 1.5, 1 = the loudness the evening-out aims at), but
+   the ear hears roughly the square root of that, so a straight slider crams everything useful into its first few percent.
+   Below 100 % the slider position is the square root of the gain (50 % = gain 0.25, i.e. -12 dB, 25 % = -24 dB), above
+   it the gain grows in a straight line up to 1.5 at 150 %. The two meet at 100 % = gain 1. Only the sliders know about
+   it: the API, the database and the mixer keep the gain, so what was stored before sounds the same. */
+function volToGain(pos) {
+  const p = Math.max(0, Math.min(150, Number(pos)));
+  return p <= 100 ? (p / 100) ** 2 : 1 + (p - 100) / 100;
+}
+function gainToVol(gain) {
+  const g = Math.max(0, Math.min(1.5, Number(gain)));
+  return g <= 1 ? 100 * Math.sqrt(g) : 100 + (g - 1) * 100;
+}
+
 /* A volume slider (0 to 150 %) with ticks under it, so that it is clear where the volume is aimed: a long tick at 0,
    50, 100 and 150, a short one at 25, 75 and 125. The slider is drawn like the seek bars, so that the ticks line up with
    the middle of its handle in every browser. Returns {el, paint}; call paint() after setting the value from code. */
@@ -688,12 +702,12 @@ async function viewPlayer(main) {
   // Requests go out one after another, so that an older value can never arrive after a newer one.
   let volumeChain = Promise.resolve();
   const postVolume = (v) => {
-    if (LocalPlayer.on) { LocalPlayer.setVolume(v / 100); pref("local_volume", String(v)); return Promise.resolve(LocalPlayer.snapshot()); }
-    volumeChain = volumeChain.then(() => api("POST", `/api/player/${ps.guildId}/volume`, { volume: v / 100 }));
+    if (LocalPlayer.on) { const g = volToGain(v); LocalPlayer.setVolume(g); pref("local_volume", String(+(g * 100).toFixed(2))); return Promise.resolve(LocalPlayer.snapshot()); }
+    volumeChain = volumeChain.then(() => api("POST", `/api/player/${ps.guildId}/volume`, { volume: +volToGain(v).toFixed(4) }));
     return volumeChain;
   };
   const sendVolume = throttle((v) => { postVolume(v).catch(fail); }, 80);
-  const vol = h("input", { type: "range", min: 0, max: 150, step: 1, value: 40, "aria-label": tr("volume"),
+  const vol = h("input", { type: "range", min: 0, max: 150, step: 1, value: Math.round(gainToVol(0.4)), "aria-label": tr("volume"),
     onpointerdown: () => { dragging = true; }, onpointerup: () => { dragging = false; },
     onchange: async (e) => { dragging = false; try { applyState(await postVolume(Number(e.target.value))); } catch (err) { fail(err); } },
     oninput: (e) => { volLabel.textContent = e.target.value + "%"; sendVolume(Number(e.target.value)); } });
@@ -850,7 +864,7 @@ async function viewPlayer(main) {
     toggleB.textContent = (s && s.state === "paused") || (!playing && armed) ? "▶" : "⏸";
     loopB.classList.toggle("on", !!(s && s.loop));
     shuffleB.classList.toggle("on", !!(s && s.shuffle));
-    if (s && !dragging) { vol.value = Math.round(s.volume * 100); volUi.paint(); volLabel.textContent = vol.value + "%"; }
+    if (s && !dragging) { vol.value = Math.round(gainToVol(s.volume)); volUi.paint(); volLabel.textContent = vol.value + "%"; }
     paintQueue(s, playing);
     markTracks();
     for (const pad of padsBox.querySelectorAll(".pad")) {
@@ -1448,9 +1462,9 @@ async function viewPlaylists(main) {
     try { p = await api("GET", `/api/playlists/${id}`); } catch (err) { state.pl.selected = null; fill(detail, h("p", { class: "muted" }, tr("select_playlist"))); throw err; }
     state.pl.detail = p;
     const patch = async (body) => { try { await api("PATCH", `/api/playlists/${id}`, body); await loadSets(); paintTree(); } catch (err) { fail(err); } };
-    const volCheck = h("input", { type: "checkbox", checked: p.volume !== null, onchange: (e) => { volRange.disabled = !e.target.checked; patch({ volume: e.target.checked ? Number(volRange.value) / 100 : null }); } });
-    const volRange = h("input", { type: "range", min: 0, max: 150, value: Math.round((p.volume === null ? 0.4 : p.volume) * 100), disabled: p.volume === null,
-      onchange: (e) => patch({ volume: Number(e.target.value) / 100 }) });
+    const volCheck = h("input", { type: "checkbox", checked: p.volume !== null, onchange: (e) => { volRange.disabled = !e.target.checked; patch({ volume: e.target.checked ? +volToGain(volRange.value).toFixed(4) : null }); } });
+    const volRange = h("input", { type: "range", min: 0, max: 150, value: Math.round(gainToVol(p.volume === null ? 0.4 : p.volume)), disabled: p.volume === null,
+      onchange: (e) => patch({ volume: +volToGain(e.target.value).toFixed(4) }) });
     fill(detail, 
       h("div", { class: "row" }, h("h2", { class: "grow" }, p.name),
         h("button", { class: "btn small", onclick: () => movePlaylist(p) }, tr("move_playlist")),

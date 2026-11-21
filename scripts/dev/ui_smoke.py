@@ -552,7 +552,8 @@ with sync_playwright() as p:
     vol.evaluate("el => el.dispatchEvent(new Event('change', {bubbles: true}))")
     page.wait_for_timeout(300)
     assert calls.count("POST /api/player/111/volume") - before >= 3, "updates while dragging, not only at the end"
-    assert json.loads(bodies["/api/player/111/volume"]) == {"volume": 0.25}, bodies.get("/api/player/111/volume")
+    assert json.loads(bodies["/api/player/111/volume"]) == {"volume": 0.0625}, bodies.get("/api/player/111/volume")  # the slider is a curve: 25 % is gain 0.0625
+    assert page.evaluate("[volToGain(50), volToGain(100), volToGain(150), Math.round(gainToVol(0.4))]") == [0.25, 1, 1.5, 63]
     page.click(".qrow >> nth=1")
     page.wait_for_timeout(300)
     assert "POST /api/player/111/jump" in calls, "jump request"
